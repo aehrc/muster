@@ -21,6 +21,7 @@
     "lint": "eslint .",
     "lint:duplication": "bunx jscpd",
     "lint:fix": "eslint . --fix",
+    "migrate": "bun apps/server/src/index.ts migrate",
     "stack:down": "docker compose -f deploy/docker-compose.yml down",
     "stack:logs": "docker compose -f deploy/docker-compose.yml logs -f",
     "stack:up": "docker compose -f deploy/docker-compose.yml up -d --build --wait",

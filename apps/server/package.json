@@ -16,6 +16,10 @@
     "@muster/contracts": "workspace:*",
     "@muster/core": "workspace:*",
     "@muster/db": "workspace:*",
-    "hono": "^4.13.1"
+    "hono": "^4.13.1",
+    "nodemailer": "9.0.5"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "8.0.1"
   }
 }

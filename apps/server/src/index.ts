@@ -13,6 +13,28 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 
+import { ConfigError, resolveMigrationIdentities } from "./config.js";
+import { runMigrateCommand } from "./migrate.js";
+
+// The commands are dispatched before the server's configuration is resolved, because
+// each needs less than the server does: a migration uses a connection and nothing
+// else, and demanding a public URL and a master key to run one would be an operator
+// told off by name for omitting something the command never reads.
+if (process.argv[2] === "migrate") {
+  try {
+    const identities = resolveMigrationIdentities(process.env);
+    await runMigrateCommand(identities.ownerUrl, identities.servingRole);
+  } catch (error) {
+    console.error(
+      error instanceof ConfigError
+        ? `Muster configuration error: ${error.message}`
+        : `Muster migration failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
 const app = new Hono();
 
 // The only route the image's HEALTHCHECK and the compose stack's `--wait` need.
