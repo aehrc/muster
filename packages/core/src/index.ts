@@ -19,3 +19,4 @@ export * from "./pairing/registrationFields.js";
 export * from "./pairing/stateMachine.js";
 export * from "./personas/coverage.js";
 export * from "./statements/build.js";
+export * from "./tickets/build.js";

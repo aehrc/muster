@@ -585,6 +585,44 @@ export function unsupportedScopes(
   );
 }
 
+/**
+ * The permission ticket types a server's latest check found it advertising (FR-034).
+ *
+ * Null is an empty list rather than a refusal, because the two absences the playground has
+ * to render - a server nobody has checked, and one whose check found no such field - are
+ * both "nothing is known", and neither is a claim that the server refuses tickets.
+ *
+ * @param discovery - The smart-configuration highlights, or null when none was recorded.
+ * @returns The advertised types, as the server listed them.
+ * @example
+ * ```ts
+ * advertisedPermissionTicketTypes(status?.latest.discovery ?? null);
+ * ```
+ */
+export function advertisedPermissionTicketTypes(
+  discovery: DiscoveryHighlights | null,
+): readonly string[] {
+  return discovery?.permissionTicketTypesSupported ?? [];
+}
+
+/**
+ * Whether a server advertises a particular permission ticket type (FR-034, scenario 3).
+ *
+ * @param discovery - The smart-configuration highlights, or null when none was recorded.
+ * @param ticketType - The type a member wants to mint.
+ * @returns `true` when the server has said it accepts that type.
+ * @example
+ * ```ts
+ * supportsPermissionTicketType(system.check?.discovery ?? null, "patient-self-access");
+ * ```
+ */
+export function supportsPermissionTicketType(
+  discovery: DiscoveryHighlights | null,
+  ticketType: string,
+): boolean {
+  return advertisedPermissionTicketTypes(discovery).includes(ticketType);
+}
+
 /** What one document fetch amounted to. */
 interface DocumentOutcome<T> {
   readonly label: string;
