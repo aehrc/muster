@@ -37,6 +37,7 @@ import {
   registrationModeSchema,
   slugSchema,
 } from "./common.js";
+import { dcrVerifiedSchema } from "./harness.js";
 
 /**
  * An `https` URL a participant declares.
@@ -306,6 +307,15 @@ export const enrolledSystemSchema = z.object({
    * that is not also a server is never checked, so its entry carries null for good.
    */
   check: checkStatusSchema.nullable(),
+  /**
+   * The DCR-verified badge, or null when no passing run stands (FR-030).
+   *
+   * Driven by the latest conformance run and nothing else: a run that failed after one that
+   * passed removes the badge, so this is null whenever the newest run did not pass. A server
+   * whose registration mode is not trusted DCR never has one, because there is nothing to
+   * prove.
+   */
+  dcrVerified: dcrVerifiedSchema.nullable(),
 });
 
 /**

@@ -258,6 +258,42 @@ export function buildSoftwareStatementClaims(
 }
 
 /**
+ * Whether an entry declares an endpoint to present statements to.
+ *
+ * A blank string is not a declaration. Shared with the conformance harness, which refuses for
+ * the same reason: there is nowhere to present anything.
+ *
+ * @param registrationEndpoint - The declared endpoint, or null.
+ * @returns `true` when there is an address to present to.
+ */
+export function declaresRegistrationEndpoint(
+  registrationEndpoint: string | null,
+): boolean {
+  return (
+    registrationEndpoint !== null && registrationEndpoint.trim().length > 0
+  );
+}
+
+/**
+ * Whether the event's vouching window has already closed.
+ *
+ * Shared by everything that signs a statement, because a statement minted after this moment
+ * would be expired at the moment it was signed - which is not a thing to hand anybody.
+ *
+ * @param endsOn - The event's last day, as `YYYY-MM-DD`.
+ * @param graceDays - Whole days of grace past that day.
+ * @param now - The current time.
+ * @returns `true` when nothing may be vouched for any more.
+ */
+export function vouchingWindowClosed(
+  endsOn: string,
+  graceDays: number,
+  now: Date,
+): boolean {
+  return vouchingExpirySeconds(endsOn, graceDays) * 1000 <= now.getTime();
+}
+
+/**
  * Whether a trusted-DCR run may be attempted against a pairing in this state.
  *
  * Derived from the transition table rather than restated, so the states a run accepts
@@ -322,15 +358,11 @@ export function softwareStatementRefusal(
   if (request.serverRegistrationMode !== "trustedDcr") {
     return "not_trusted_dcr";
   }
-  if (
-    request.registrationEndpoint === null ||
-    request.registrationEndpoint.trim().length === 0
-  ) {
+  if (!declaresRegistrationEndpoint(request.registrationEndpoint)) {
     return "no_registration_endpoint";
   }
   if (
-    vouchingExpirySeconds(request.eventEndsOn, request.graceDays) * 1000 <=
-    request.now.getTime()
+    vouchingWindowClosed(request.eventEndsOn, request.graceDays, request.now)
   ) {
     // An event whose grace has run out can vouch for nothing: the statement would be
     // expired at the moment it was signed.
