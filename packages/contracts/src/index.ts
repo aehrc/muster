@@ -6,3 +6,4 @@
 
 export * from "./common.js";
 export * from "./directory.js";
+export * from "./pairings.js";

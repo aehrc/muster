@@ -11,3 +11,5 @@
 export * from "./accounts/rules.js";
 export * from "./events/rules.js";
 export * from "./limits/slidingWindow.js";
+export * from "./pairing/registrationFields.js";
+export * from "./pairing/stateMachine.js";
