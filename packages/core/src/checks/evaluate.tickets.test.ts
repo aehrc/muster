@@ -21,7 +21,6 @@ import {
   advertisedPermissionTicketTypes,
   evaluateCheck,
   extractDiscoveryHighlights,
-  supportsPermissionTicketType,
 } from "./evaluate.js";
 
 import type { CheckFetch, DeclaredServerDetails } from "./evaluate.js";
@@ -166,29 +165,17 @@ describe("surfacing support per server (scenario 3)", () => {
     expect(advertisedPermissionTicketTypes(null)).toEqual([]);
   });
 
-  it("says a server supports the type it advertised", () => {
-    expect(
-      supportsPermissionTicketType(holder ?? null, "patient-self-access"),
-    ).toBe(true);
+  // A server that served a discovery document without the field has advertised nothing,
+  // which the pages read as "no support detected" rather than as a refusal.
+  it("lists nothing for a server that served a document without the field", () => {
+    expect(advertisedPermissionTicketTypes(plain ?? null)).toEqual([]);
   });
 
-  it("says a server does not support a type it did not advertise", () => {
-    expect(
-      supportsPermissionTicketType(holder ?? null, "care-team-access"),
-    ).toBe(false);
-  });
-
-  it("says a server advertising nothing supports nothing", () => {
-    expect(
-      supportsPermissionTicketType(plain ?? null, "patient-self-access"),
-    ).toBe(false);
-  });
-
-  // Nothing has checked this server, so nothing is known. The pages say "not checked yet"
-  // rather than claiming an absence of support.
-  it("says an unchecked server supports nothing", () => {
-    expect(supportsPermissionTicketType(null, "patient-self-access")).toBe(
-      false,
+  // Which is the same list a server nobody has checked has, and the pages tell those two
+  // apart by whether there is a check at all rather than by this function.
+  it("lists the same nothing for a checked and an unchecked server", () => {
+    expect(advertisedPermissionTicketTypes(plain ?? null)).toEqual(
+      advertisedPermissionTicketTypes(null),
     );
   });
 });

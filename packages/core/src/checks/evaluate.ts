@@ -605,24 +605,6 @@ export function advertisedPermissionTicketTypes(
   return discovery?.permissionTicketTypesSupported ?? [];
 }
 
-/**
- * Whether a server advertises a particular permission ticket type (FR-034, scenario 3).
- *
- * @param discovery - The smart-configuration highlights, or null when none was recorded.
- * @param ticketType - The type a member wants to mint.
- * @returns `true` when the server has said it accepts that type.
- * @example
- * ```ts
- * supportsPermissionTicketType(system.check?.discovery ?? null, "patient-self-access");
- * ```
- */
-export function supportsPermissionTicketType(
-  discovery: DiscoveryHighlights | null,
-  ticketType: string,
-): boolean {
-  return advertisedPermissionTicketTypes(discovery).includes(ticketType);
-}
-
 /** What one document fetch amounted to. */
 interface DocumentOutcome<T> {
   readonly label: string;
