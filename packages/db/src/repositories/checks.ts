@@ -197,7 +197,8 @@ export async function findCheckStatus(
   db: Executor,
   enrolmentId: string,
 ): Promise<CheckStatusRow | undefined> {
-  return (await listCheckStatuses(db, [enrolmentId])).get(enrolmentId);
+  const statuses = await listCheckStatuses(db, [enrolmentId]);
+  return statuses.get(enrolmentId);
 }
 
 /**

@@ -21,6 +21,7 @@ import { get, patch, post, remove } from "./client.js";
 import type {
   AdminAccount,
   EnrolledSystem,
+  EnrolledSystemDetail,
   EventChange,
   EventDetail,
   EventSummary,
@@ -95,7 +96,7 @@ export function useEventSystem(slug: string, systemId: string) {
   return useQuery({
     queryKey: keys.eventSystem(slug, systemId),
     queryFn: async ({ signal }) =>
-      await get<{ event: EventDetail; system: EnrolledSystem }>(
+      await get<{ event: EventDetail; system: EnrolledSystemDetail }>(
         `/api/events/${encodeURIComponent(slug)}/systems/${encodeURIComponent(systemId)}`,
         signal,
       ),

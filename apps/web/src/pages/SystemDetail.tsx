@@ -6,6 +6,11 @@
  * approved one (FR-007, scenarios 5 and 6); the contacts are fetched separately and only when
  * there is a session, so an anonymous visitor's page makes no request that would be refused.
  *
+ * The verification panel is the other one: it reports what the server said when Muster last
+ * asked, including any drift between what its owner declared and what it advertises (FR-017,
+ * FR-018). It is shown only for systems that act as servers, because a client has no address to
+ * fetch.
+ *
  * The pairing panel is the entry point to User Story 2: this is where somebody browsing the
  * directory decides they want to register a client with this server. For a server whose
  * registration mode is `open` it says no pairing is needed and offers nothing (FR-016). It is
@@ -16,6 +21,7 @@
 
 import { Link } from "react-router";
 
+import { VerificationPanel } from "./checkPanels.js";
 import { describeRegistrationMode } from "./eventFilters.js";
 import { RequestPairing } from "./RequestPairing.js";
 import { describeError } from "../api/errors.js";
@@ -91,18 +97,23 @@ export function SystemDetail({
             <RequestPairing event={event} signedIn={signedIn} system={system} />
           )}
 
-          <Panel
-            title="Verification"
-            description="Muster fetches each enrolled server's SMART configuration on a schedule and reports what it finds."
-          >
-            <DetailRow label="Last check">
-              Not checked yet - scheduled verification arrives with the liveness
-              checks.
-            </DetailRow>
-            <DetailRow label="Details confirmed by its owner">
-              {system.confirmedAt}
-            </DetailRow>
-          </Panel>
+          {system.serverProfile === null ? (
+            <Panel title="Verification">
+              <EmptyState>
+                Nothing to verify: this entry is a client, and a client has no
+                address for Muster to fetch.
+              </EmptyState>
+              <DetailRow label="Details confirmed by its owner">
+                {system.confirmedAt}
+              </DetailRow>
+            </Panel>
+          ) : (
+            <VerificationPanel
+              check={system.check}
+              history={system.checkHistory}
+              confirmedAt={system.confirmedAt}
+            />
+          )}
 
           <Panel title="Contacts">
             {signedIn ? (

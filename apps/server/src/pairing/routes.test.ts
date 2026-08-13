@@ -956,11 +956,7 @@ describe.skipIf(!hasTestDatabase())("the pairing routes", () => {
       // the warning carries the check's own time.
       const stage = await scene();
       const created = await request(stage);
-      await advertise(
-        stage,
-        ["launch"],
-        new Date("2026-09-15T09:31:00.000Z"),
-      );
+      await advertise(stage, ["launch"], new Date("2026-09-15T09:31:00.000Z"));
       await advertise(
         stage,
         ["launch", "openid", "fhirUser", "patient/Patient.rs"],

@@ -29,7 +29,15 @@
  */
 
 import { sql } from "drizzle-orm";
-import { boolean, check, index, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { createdAt, instant, primaryId } from "./columns.js";
 import { enrolment } from "./directory.js";

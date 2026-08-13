@@ -259,6 +259,21 @@ button.tag {
   border-style: dashed;
 }
 
+/* The verification status of one entry. Weight rather than colour carries the difference,
+   because the console is grayscale by design and colour alone is not an accessible signal. */
+.check-ok {
+  color: var(--ink);
+}
+
+.check-bad {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.check-unknown {
+  color: var(--ink-quiet);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

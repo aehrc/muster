@@ -18,6 +18,17 @@ import { lines, words } from "./textLists.js";
 
 import type { OrganisationSystem, SystemInput } from "@muster/contracts";
 
+/**
+ * An optional URL field, as the API takes it.
+ *
+ * Blank is null rather than an empty string: a declared endpoint the owner left blank is one
+ * they have not declared, and a check has nothing to disagree with.
+ */
+function orNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
 /** The system form's fields, all as text. */
 export interface SystemForm {
   readonly name: string;
@@ -27,6 +38,9 @@ export interface SystemForm {
   readonly authorizationMode: string;
   readonly registrationMode: string;
   readonly registrationEndpoint: string;
+  /** Declared so that a check can flag drift against what the server advertises (FR-018). */
+  readonly authorizationEndpoint: string;
+  readonly tokenEndpoint: string;
   readonly notes: string;
   readonly isClient: boolean;
   readonly launchUrl: string;
@@ -48,6 +62,8 @@ export const EMPTY_SYSTEM_FORM: SystemForm = {
   authorizationMode: "smart",
   registrationMode: "manual",
   registrationEndpoint: "",
+  authorizationEndpoint: "",
+  tokenEndpoint: "",
   notes: "",
   isClient: false,
   launchUrl: "",
@@ -80,6 +96,8 @@ export function systemForm(system: OrganisationSystem): SystemForm {
     authorizationMode: server?.authorizationMode ?? "smart",
     registrationMode: server?.registrationMode ?? "manual",
     registrationEndpoint: server?.registrationEndpoint ?? "",
+    authorizationEndpoint: server?.authorizationEndpoint ?? "",
+    tokenEndpoint: server?.tokenEndpoint ?? "",
     notes: server?.notes ?? "",
     isClient: client !== null,
     launchUrl: client?.launchUrl ?? "",
@@ -118,10 +136,9 @@ export function systemRequest(form: SystemForm): SystemInput {
           authorizationMode: form.authorizationMode as "open" | "smart",
           registrationMode: form.registrationMode as
             "open" | "manual" | "trustedDcr",
-          registrationEndpoint:
-            form.registrationEndpoint.trim().length === 0
-              ? null
-              : form.registrationEndpoint.trim(),
+          registrationEndpoint: orNull(form.registrationEndpoint),
+          authorizationEndpoint: orNull(form.authorizationEndpoint),
+          tokenEndpoint: orNull(form.tokenEndpoint),
           notes: form.notes,
         }
       : null,

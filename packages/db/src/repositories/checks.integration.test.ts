@@ -378,9 +378,9 @@ describe.skipIf(!hasTestDatabase())("the check repository", () => {
 
       const targets = await listServerCheckTargets(db);
 
-      expect(
-        targets.some((row) => row.enrolmentId === enrolment.id),
-      ).toBe(false);
+      expect(targets.some((row) => row.enrolmentId === enrolment.id)).toBe(
+        false,
+      );
     });
 
     it("names a system that is both a server and a client", async () => {
@@ -399,7 +399,9 @@ describe.skipIf(!hasTestDatabase())("the check repository", () => {
 
       const targets = await listServerCheckTargets(db);
 
-      expect(targets.some((row) => row.enrolmentId === enrolment.id)).toBe(true);
+      expect(targets.some((row) => row.enrolmentId === enrolment.id)).toBe(
+        true,
+      );
     });
   });
 });

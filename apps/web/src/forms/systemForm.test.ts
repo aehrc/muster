@@ -30,6 +30,8 @@ const BOTH: OrganisationSystem = {
     authorizationMode: "smart",
     registrationMode: "trustedDcr",
     registrationEndpoint: "https://emr.example/register",
+    authorizationEndpoint: "https://emr.example/auth/authorize",
+    tokenEndpoint: "https://emr.example/auth/token",
     notes: "Ask in the channel",
   },
   clientProfile: {

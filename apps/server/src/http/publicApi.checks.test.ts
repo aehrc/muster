@@ -276,9 +276,9 @@ describe.skipIf(!hasTestDatabase())("check status on the public API", () => {
       "patient/*.rs",
     ]);
     expect(one.system.check?.capability?.softwareName).toBe("Fixture FHIR");
-    expect(one.system.check?.discovery?.permissionTicketTypesSupported).toEqual([
-      "patient-self-access",
-    ]);
+    expect(one.system.check?.discovery?.permissionTicketTypesSupported).toEqual(
+      ["patient-self-access"],
+    );
   });
 
   it("carries the check history on the system page", async () => {

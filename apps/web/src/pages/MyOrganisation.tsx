@@ -520,6 +520,20 @@ function SystemFormPanel({
                 required
               />
             ) : null}
+            <TextField
+              label="Authorization endpoint"
+              type="url"
+              value={form.authorizationEndpoint}
+              onChange={set("authorizationEndpoint")}
+              hint="Optional. Declare it and Muster will flag any disagreement with what your smart-configuration advertises."
+            />
+            <TextField
+              label="Token endpoint"
+              type="url"
+              value={form.tokenEndpoint}
+              onChange={set("tokenEndpoint")}
+              hint="Optional, and checked the same way."
+            />
             <TextAreaField
               label="Notes"
               value={form.notes}

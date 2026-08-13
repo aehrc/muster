@@ -11,6 +11,8 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  describeCheckStatus,
+  describeDriftField,
   describeRegistrationMode,
   filterSystems,
   NO_FILTER,
@@ -19,7 +21,7 @@ import {
   toggleTag,
 } from "./eventFilters.js";
 
-import type { EnrolledSystem } from "@muster/contracts";
+import type { CheckStatus, EnrolledSystem } from "@muster/contracts";
 
 /** An enrolled system, with only the fields the filters read given meaningful values. */
 function system(overrides: Partial<EnrolledSystem>): EnrolledSystem {
@@ -34,6 +36,7 @@ function system(overrides: Partial<EnrolledSystem>): EnrolledSystem {
     clientProfile: null,
     tags: [],
     confirmedAt: "2026-09-01T10:00:00.000Z",
+    check: null,
     ...overrides,
   };
 }
@@ -203,5 +206,131 @@ describe("describeRegistrationMode", () => {
   it("names the other two modes", () => {
     expect(describeRegistrationMode("manual")).toBe("Manual request");
     expect(describeRegistrationMode("trustedDcr")).toBe("Trusted DCR");
+  });
+});
+
+describe("describeCheckStatus", () => {
+  /** Times are shown as the browser's own; the tests substitute a fixed formatter. */
+  const at = (iso: string) => iso.slice(11, 16);
+
+  /** A check as the API reports one. */
+  function check(overrides: Partial<CheckStatus> = {}): CheckStatus {
+    return {
+      checkedAt: "2026-09-15T12:04:00.000Z",
+      reachable: true,
+      failureMode: null,
+      detail: null,
+      driftFlags: [],
+      lastSuccessAt: "2026-09-15T12:04:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("says a server has not been checked rather than claiming it failed", () => {
+    // A server nobody has looked at has not been found unreachable, and the entry says so.
+    expect(describeCheckStatus(null, at)).toEqual({
+      tone: "unknown",
+      text: "Not checked yet",
+    });
+  });
+
+  it("reads as the wireframe's own status for a reachable server", () => {
+    expect(describeCheckStatus(check(), at)).toEqual({
+      tone: "ok",
+      text: "Reachable, checked 12:04",
+    });
+  });
+
+  it("shows the last successful check beside an unreachable server (scenario 2)", () => {
+    // The wireframe's "Unreachable since 09:31": the time is the last success, which is
+    // what separates a server that has been down ten minutes from one that never worked.
+    expect(
+      describeCheckStatus(
+        check({
+          reachable: false,
+          failureMode: "refused",
+          lastSuccessAt: "2026-09-15T09:31:00.000Z",
+        }),
+        at,
+      ),
+    ).toEqual({ tone: "bad", text: "Unreachable since 09:31" });
+  });
+
+  it("distinguishes a slow server from a dead one", () => {
+    // The spec's own edge case, on the page rather than only in the database.
+    expect(
+      describeCheckStatus(
+        check({
+          reachable: false,
+          failureMode: "timeout",
+          lastSuccessAt: "2026-09-15T09:31:00.000Z",
+        }),
+        at,
+      ).text,
+    ).toBe("Unreachable (timed out) since 09:31");
+  });
+
+  it("says the address was refused rather than blaming the server (scenario 5)", () => {
+    expect(
+      describeCheckStatus(
+        check({
+          reachable: false,
+          failureMode: "guarded",
+          lastSuccessAt: null,
+        }),
+        at,
+      ),
+    ).toEqual({
+      tone: "bad",
+      text: "Address refused, never reachable, checked 12:04",
+    });
+  });
+
+  it("says a server has never answered when it never has", () => {
+    expect(
+      describeCheckStatus(
+        check({
+          reachable: false,
+          failureMode: "refused",
+          lastSuccessAt: null,
+        }),
+        at,
+      ).text,
+    ).toBe("Unreachable, never reachable, checked 12:04");
+  });
+
+  it("names an unusable answer as its own kind of failure", () => {
+    expect(
+      describeCheckStatus(
+        check({
+          reachable: false,
+          failureMode: "invalid",
+          lastSuccessAt: "2026-09-15T09:31:00.000Z",
+        }),
+        at,
+      ).text,
+    ).toBe("Unreachable (unusable answer) since 09:31");
+  });
+});
+
+describe("describeDriftField", () => {
+  it("names each declared field as a reader would say it", () => {
+    // The drift box reads "declared token endpoint differs from advertised", so the field
+    // has to be a phrase rather than an identifier.
+    expect(describeDriftField("tokenEndpoint")).toBe("token endpoint");
+    expect(describeDriftField("authorizationEndpoint")).toBe(
+      "authorization endpoint",
+    );
+    expect(describeDriftField("registrationEndpoint")).toBe(
+      "registration endpoint",
+    );
+    expect(describeDriftField("fhirBaseUrl")).toBe("FHIR base URL");
+    expect(describeDriftField("authorizationMode")).toBe("authorization mode");
+  });
+
+  it("falls back to spacing out a field it does not know", () => {
+    // A drift flag from a comparison added later still reads as English rather than as a
+    // property name.
+    expect(describeDriftField("jwksUri")).toBe("jwks uri");
   });
 });

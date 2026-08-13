@@ -9,8 +9,11 @@
  * A system that is both a server and a client appears in both tables, because it is both. The
  * filtering itself is `./eventFilters.js`, which is where its tests are.
  *
- * Verification status is shown as "not checked yet", which is what is true: no check has run until
- * User Story 3 lands the scheduler. Showing "unreachable" would be a claim rather than an absence.
+ * The status column is fed by the scheduled checks (FR-017): reachable with the time it was
+ * checked, or unreachable with the time it last worked (scenario 2), or "not checked yet" for an
+ * entry nothing has looked at - which is an absence rather than a claim. A drift flag count sits
+ * beside it, and the flags themselves are on the system page where there is room to name both
+ * values.
  *
  * Author: John Grimes
  */
@@ -18,6 +21,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { CheckStatusCell } from "./checkPanels.js";
 import {
   describeRegistrationMode,
   filterSystems,
@@ -152,7 +156,9 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
                 system.serverProfile?.registrationMode ?? "manual",
               )}
             </td>
-            <td>Not checked yet</td>
+            <td>
+              <CheckStatusCell check={system.check} />
+            </td>
             <td>
               <TagList tags={system.tags} />
             </td>

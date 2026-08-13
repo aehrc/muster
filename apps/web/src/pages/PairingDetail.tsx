@@ -12,7 +12,10 @@
  * A member of both organisations sees both sides and both actions, and the timeline says which
  * organisation each action was taken for (spec edge case).
  *
- * Scope warnings are absent: they need a check to have run against the server (User Story 3).
+ * The scope warning sits with the registration details because that is what it is about: a scope
+ * the server does not advertise is a field the app owner has to change or the server owner has to
+ * explain. Both parties see the identical warning (FR-019), and it names the scopes rather than
+ * counting them, because a count is not something either of them can act on.
  *
  * Author: John Grimes
  */
@@ -33,9 +36,10 @@ import {
   PageHeader,
   Panel,
 } from "../components/layout.js";
+import { fullTime } from "../formatting/times.js";
 import { ROUTES } from "../routes.js";
 
-import type { PairingDetail as Pairing } from "@muster/contracts";
+import type { PairingDetail as Pairing, ScopeWarning } from "@muster/contracts";
 
 /** A pairing's registration snapshot, its timeline and the actions the caller may take. */
 export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
@@ -121,6 +125,9 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
                 ? "Required"
                 : "Not required"}
             </DetailRow>
+            {pairing.scopeWarning === null ? null : (
+              <ScopeWarningNotice warning={pairing.scopeWarning} />
+            )}
           </Panel>
         </div>
 
@@ -152,6 +159,32 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
         <RespondPanel id={id} pairing={pairing} />
       )}
     </article>
+  );
+}
+
+/**
+ * The scopes the server does not advertise (FR-019, scenario 4).
+ *
+ * Named rather than counted, and dated: the warning is only as current as the check behind it, so
+ * a server that has since added the scope is not argued with silently.
+ */
+function ScopeWarningNotice({
+  warning,
+}: Readonly<{ readonly warning: ScopeWarning }>) {
+  return (
+    <div className="state state-error">
+      <strong>
+        Scope warning:{" "}
+        {warning.unsupportedScopes.length === 1
+          ? `${warning.unsupportedScopes[0] ?? ""} is not among`
+          : `${warning.unsupportedScopes.join(", ")} are not among`}{" "}
+        the server&apos;s advertised scopes.
+      </strong>
+      <div className="quiet">
+        Observed when the server was last checked, {fullTime(warning.checkedAt)}
+        .
+      </div>
+    </div>
   );
 }
 

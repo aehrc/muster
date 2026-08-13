@@ -503,12 +503,7 @@ describe("unsupportedScopes", () => {
     // The wireframe's own example: one scope out of six, named.
     expect(
       unsupportedScopes(
-        [
-          "launch",
-          "openid",
-          "fhirUser",
-          "patient/QuestionnaireResponse.crus",
-        ],
+        ["launch", "openid", "fhirUser", "patient/QuestionnaireResponse.crus"],
         ["launch", "openid", "fhirUser", "patient/Patient.rs"],
       ),
     ).toEqual(["patient/QuestionnaireResponse.crus"]);
@@ -554,18 +549,18 @@ describe("unsupportedScopes", () => {
   it("reads the version 1 permission spellings as their version 2 equivalents", () => {
     // SMART 2.0's own mapping: `.read` is `.rs`, `.write` is `.cud`, `.*` is `.cruds`.
     // A server still advertising v1 scopes supports the v2 spelling of the same thing.
-    expect(unsupportedScopes(["patient/Patient.rs"], ["patient/*.read"])).toEqual(
-      [],
-    );
-    expect(unsupportedScopes(["patient/Patient.cud"], ["patient/*.write"])).toEqual(
-      [],
-    );
+    expect(
+      unsupportedScopes(["patient/Patient.rs"], ["patient/*.read"]),
+    ).toEqual([]);
+    expect(
+      unsupportedScopes(["patient/Patient.cud"], ["patient/*.write"]),
+    ).toEqual([]);
     expect(
       unsupportedScopes(["patient/Patient.cruds"], ["patient/*.*"]),
     ).toEqual([]);
-    expect(unsupportedScopes(["patient/Patient.c"], ["patient/*.read"])).toEqual([
-      "patient/Patient.c",
-    ]);
+    expect(
+      unsupportedScopes(["patient/Patient.c"], ["patient/*.read"]),
+    ).toEqual(["patient/Patient.c"]);
   });
 
   it("names a scope once however many times it was asked for", () => {

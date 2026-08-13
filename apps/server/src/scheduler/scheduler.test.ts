@@ -371,12 +371,12 @@ describe.skipIf(!hasTestDatabase())("a check pass", () => {
     const dead = await enrolServer();
     await runnerFor(failing("refused"), [dead.enrolment.id]).runPass();
 
-    expect((await findCheckStatus(db, slow.enrolment.id))?.latest.failureMode).toBe(
-      "timeout",
-    );
-    expect((await findCheckStatus(db, dead.enrolment.id))?.latest.failureMode).toBe(
-      "refused",
-    );
+    expect(
+      (await findCheckStatus(db, slow.enrolment.id))?.latest.failureMode,
+    ).toBe("timeout");
+    expect(
+      (await findCheckStatus(db, dead.enrolment.id))?.latest.failureMode,
+    ).toBe("refused");
   });
 
   it("adds a row rather than replacing the last one", async () => {

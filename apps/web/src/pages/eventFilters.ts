@@ -10,6 +10,11 @@
  * organisations may hold systems with the same name, so "which of these is MediRecords'?" is a
  * question the search has to be able to answer.
  *
+ * The wording of the event view's other derived cells lives here too, for the same reason: what
+ * a status cell or a drift notice says is a claim about somebody else's server, and a claim is
+ * worth a test. Only the wording - the times are formatted by the caller, so they stay in the
+ * reader's own zone while the sentences stay testable.
+ *
  * Author: John Grimes
  */
 
@@ -141,6 +146,106 @@ export function summariseScopes(scopes: readonly string[], limit = 5): string {
   }
   const remaining = scopes.length - limit;
   return `${scopes.slice(0, limit).join(", ")} and ${String(remaining)} more`;
+}
+
+/** How confident the entry's status is, for the class name the cell carries. */
+export type CheckTone = "unknown" | "ok" | "bad";
+
+/** A status as a table cell shows it. */
+export interface CheckDescription {
+  readonly tone: CheckTone;
+  readonly text: string;
+}
+
+/**
+ * How each failure mode reads.
+ *
+ * `timeout` and `refused` are deliberately different sentences: the spec's own edge case is
+ * that a slow server and a dead one are distinct, and collapsing them on the page would undo
+ * the distinction the check took care to record. `guarded` does not say "unreachable" at all,
+ * because Muster never asked - the address was refused, and the entry is what needs fixing.
+ */
+const FAILURE_LABELS: Readonly<Record<string, string>> = {
+  timeout: "Unreachable (timed out)",
+  refused: "Unreachable",
+  guarded: "Address refused",
+  invalid: "Unreachable (unusable answer)",
+};
+
+/**
+ * The status sentence for one enrolled server (FR-017, scenario 2).
+ *
+ * The time formatter is passed in rather than called here, so the wording is a pure function
+ * with tests while the times stay in the reader's own zone - which is what the wireframe's
+ * annotation asks for.
+ *
+ * @param check - The latest check, or null when none has run.
+ * @param formatTime - Renders an ISO timestamp as a reader sees it.
+ * @returns The tone and the sentence.
+ * @example
+ * ```ts
+ * const status = describeCheckStatus(system.check, (iso) =>
+ *   new Date(iso).toLocaleTimeString(),
+ * );
+ * ```
+ */
+export function describeCheckStatus(
+  check: {
+    readonly checkedAt: string;
+    readonly reachable: boolean;
+    readonly failureMode: string | null;
+    readonly lastSuccessAt: string | null;
+  } | null,
+  formatTime: (iso: string) => string,
+): CheckDescription {
+  if (check === null) {
+    // Not a failure. A server nobody has looked at has not been found unreachable.
+    return { tone: "unknown", text: "Not checked yet" };
+  }
+  if (check.reachable) {
+    return {
+      tone: "ok",
+      text: `Reachable, checked ${formatTime(check.checkedAt)}`,
+    };
+  }
+  const label = FAILURE_LABELS[check.failureMode ?? ""] ?? "Unreachable";
+  return {
+    tone: "bad",
+    text:
+      check.lastSuccessAt === null
+        ? `${label}, never reachable, checked ${formatTime(check.checkedAt)}`
+        : `${label} since ${formatTime(check.lastSuccessAt)}`,
+  };
+}
+
+/** How each declared field reads in a drift notice. */
+const DRIFT_FIELD_LABELS: Readonly<Record<string, string>> = {
+  fhirBaseUrl: "FHIR base URL",
+  authorizationMode: "authorization mode",
+  authorizationEndpoint: "authorization endpoint",
+  tokenEndpoint: "token endpoint",
+  registrationEndpoint: "registration endpoint",
+};
+
+/**
+ * How a drift flag's field reads (FR-018).
+ *
+ * The wireframe's notice says "declared token endpoint differs from advertised", so the field
+ * has to be a phrase. A field this table does not know is spaced out rather than shown as an
+ * identifier, so a comparison added later still reads as English.
+ *
+ * @param field - The field the flag names.
+ * @returns The phrase to put in the notice.
+ * @example
+ * ```ts
+ * `Declared ${describeDriftField(flag.field)} differs from advertised`;
+ * ```
+ */
+export function describeDriftField(field: string): string {
+  return (
+    DRIFT_FIELD_LABELS[field] ??
+    field.replaceAll(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()
+  );
 }
 
 /** How a registration mode reads in a table. */

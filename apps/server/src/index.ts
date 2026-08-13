@@ -102,8 +102,7 @@ console.log(`Muster mail transport: ${describeMailTransport(config.smtpUrl)}`);
 
 // The liveness checks, on an in-process interval in this one instance - which is why the
 // Helm chart pins `replicas: 1`. The first pass runs immediately, so a restart mid-event
-// does not leave every entry stale for a whole interval, and what it did is logged rather
-// than left to be inferred (FR-037).
+// does not leave every entry stale for a whole interval.
 const checks = startCheckScheduler({
   db,
   clock: () => new Date(),
@@ -112,9 +111,6 @@ const checks = startCheckScheduler({
   log: (message) => {
     console.warn(message);
   },
-});
-void checks.firstPass.then((summary) => {
-  console.log(`Muster check pass: ${JSON.stringify(summary)}`);
 });
 
 const server = serve({ fetch: app.fetch, port: config.port }, (address) => {
@@ -147,3 +143,9 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
     void shutdown(signal);
   });
 }
+
+// Awaited after the socket is open and the signals are handled, so a slow pass cannot delay
+// readiness or leave a `SIGTERM` unhandled. Reported rather than left to be inferred
+// (FR-037): an operator has to be able to see that the checks are running and what they
+// found.
+console.log(`Muster check pass: ${JSON.stringify(await checks.firstPass)}`);

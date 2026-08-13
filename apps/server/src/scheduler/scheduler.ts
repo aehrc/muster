@@ -121,6 +121,16 @@ export interface CheckScheduler extends CheckRunner {
   readonly stop: () => void;
 }
 
+/**
+ * Where a message goes when the caller supplied nowhere.
+ *
+ * A pass that cannot record one target logs and carries on; a suite that does not care about
+ * the message passes nothing and gets silence rather than noise in its output.
+ */
+function discardLog(message: string): void {
+  void message;
+}
+
 /** Fifteen minutes: the ceiling SC-004 puts on an open event's check interval. */
 export const DEFAULT_OPEN_CHECK_INTERVAL_MS = 900_000;
 
@@ -240,7 +250,7 @@ export function createCheckRunner(options: CheckRunnerOptions): CheckRunner {
     options.cadence ?? checkCadence(DEFAULT_OPEN_CHECK_INTERVAL_MS);
   const random = options.random ?? Math.random;
   const listTargets = options.listTargets ?? listServerCheckTargets;
-  const log = options.log ?? (() => undefined);
+  const log = options.log ?? discardLog;
   /** The enrolments a pass is currently checking. */
   const inFlight = new Set<string>();
 
@@ -348,7 +358,7 @@ export function startCheckScheduler(
   options: CheckRunnerOptions & { readonly passIntervalMs?: number },
 ): CheckScheduler {
   const runner = createCheckRunner(options);
-  const log = options.log ?? (() => undefined);
+  const log = options.log ?? discardLog;
 
   /** Runs a pass, reporting rather than throwing: an interval callback cannot be awaited. */
   const pass = async (): Promise<CheckPassSummary> => {
@@ -369,12 +379,9 @@ export function startCheckScheduler(
     }
   };
 
-  const timer = setInterval(
-    () => {
-      void pass();
-    },
-    options.passIntervalMs ?? 60_000,
-  );
+  const timer = setInterval(() => {
+    void pass();
+  }, options.passIntervalMs ?? 60_000);
   // So that a pass in flight cannot hold the process open past a shutdown. Guarded because
   // the method is Node's and not part of the DOM timer type.
   timer.unref?.();

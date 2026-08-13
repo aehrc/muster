@@ -24,8 +24,8 @@
  *
  * ## Drift is a comparison of two stated things
  *
- * A flag is raised only where the owner declared a value *and* the server advertised one
- * *and* they differ. Absence is not disagreement: a server that serves no discovery
+ * A flag is raised only where the owner declared a value, the server advertised one, and the
+ * two differ. Absence is not disagreement: a server that serves no discovery
  * document has said nothing about its token endpoint, and flagging that would put a drift
  * badge on every open FHIR endpoint in the directory. Two spellings of one URL are
  * agreement, because a flag whose two values look identical to a reader teaches them to
@@ -352,7 +352,10 @@ export function extractCapabilityHighlights(
   body: string,
 ): CapabilityHighlights | undefined {
   const document = parseObject(body);
-  if (document === undefined || document["resourceType"] !== "CapabilityStatement") {
+  if (
+    document === undefined ||
+    document["resourceType"] !== "CapabilityStatement"
+  ) {
     return undefined;
   }
   const statement = document as unknown as CapabilityStatement;
@@ -362,7 +365,7 @@ export function extractCapabilityHighlights(
         (rest.resource ?? []).map((resource) => resource.type),
       ),
     ),
-  ].sort();
+  ].toSorted();
 
   return {
     fhirVersion: statement.fhirVersion ?? null,
@@ -432,7 +435,8 @@ export function detectDrift(
       field: "authorizationMode",
       declared: declared.authorizationMode,
       advertised:
-        discovery?.tokenEndpoint === null || discovery?.tokenEndpoint === undefined
+        discovery?.tokenEndpoint === null ||
+        discovery?.tokenEndpoint === undefined
           ? null
           : "smart",
       asUrl: false,
@@ -586,7 +590,8 @@ interface DocumentOutcome<T> {
   readonly label: string;
   readonly highlights: T | undefined;
   /** Why the document is unusable, or `undefined` when it is usable. */
-  readonly problem: { readonly mode: CheckFailureMode; readonly text: string } | undefined;
+  readonly problem:
+    { readonly mode: CheckFailureMode; readonly text: string } | undefined;
 }
 
 /**
@@ -626,7 +631,10 @@ function judge<T>(
     highlights,
     problem:
       highlights === undefined
-        ? { mode: "invalid", text: "answered with something that is not a usable document" }
+        ? {
+            mode: "invalid",
+            text: "answered with something that is not a usable document",
+          }
         : undefined,
   };
 }
