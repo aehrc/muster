@@ -1,8 +1,8 @@
 # The local stack: Muster, its database, the migration between them, and the stub registration
 # server that quickstart scenario 3 and the conformance harness run against.
 #
-# The stub data holder joins it with the user story that needs it, and the end-to-end suite runs
-# against whatever this file brings up.
+# The stub data holder joined it with User Story 8, and the end-to-end suite runs against
+# whatever this file brings up.
 #
 # Ports are read from the environment rather than fixed, so that a developer whose 3000 or 5432 is
 # taken can move the stack without editing this file - and so that CI can prove every URL in the
@@ -78,7 +78,7 @@ services:
       # The stub sits on a private compose address, which the outbound guard refuses by
       # default. Naming it here is the exemption, and the port is part of the match: exempting
       # the stub does not exempt anything else on the network. Never set in production.
-      MUSTER_OUTBOUND_ALLOWED_HOSTS: stub-server:8443
+      MUSTER_OUTBOUND_ALLOWED_HOSTS: stub-server:8443,stub-data-holder:8444
       # The stub serves TLS with the throwaway certificate in `stubs/tls`, because a server
       # entry's registration endpoint and FHIR base URL must be https - see that directory's
       # README. This is what makes Muster trust it, and nothing else.
@@ -119,6 +119,52 @@ services:
       - ./stubs:/stubs:ro
     ports:
       - "${STUB_SERVER_PORT:-8443}:8443"
+
+  # A reference implementation of `contracts/ticket-profile.md`'s data holder side: it advertises
+  # `smart_permission_ticket_types_supported`, verifies a presented ticket against Muster's
+  # published keys, resolves the subject's IHI to the one patient it has loaded, and grants the
+  # intersection of what was asked for, what the ticket permits and its own policy.
+  #
+  # Run from the mounted source by the Bun image for the same two reasons the registration stub
+  # is: nothing to install, and a counterparty that shared a JOSE implementation with Muster would
+  # agree with it about any shared bug.
+  stub-data-holder:
+    image: oven/bun:1-debian
+    command: ["bun", "run", "/stubs/dataHolder.ts"]
+    depends_on:
+      muster:
+        condition: service_started
+    environment:
+      STUB_PORT: 8444
+      # The issuer a ticket must carry: the address a browser outside the stack uses, which is
+      # what Muster puts in `iss`.
+      STUB_ISSUER: http://localhost:${MUSTER_PORT:-3000}
+      # Where the keys are fetched from, which is inside the network. Split horizon, exactly as a
+      # real deployment behind a load balancer would have.
+      STUB_JWKS_URL: http://muster:3000/.well-known/jwks.json
+      # Advertised and enforced from one value, so what the event view reports about this server
+      # cannot drift from what it will actually accept.
+      STUB_TICKET_TYPES: patient-self-access
+      # The patient it has loaded: quickstart scenario 7's persona. The exchange resolves the
+      # ticket's subject identifier to this and to nothing else.
+      STUB_PATIENT_ID: charlotte-morris
+      STUB_PATIENT_NAME: Charlotte Morris
+      STUB_PATIENT_IHI_SYSTEM: http://ns.electronichealth.net.au/id/hi/ihi/1.0
+      STUB_PATIENT_IHI: "8003608500314687"
+      # Everything this holder will ever release, whatever a ticket permits. Narrower than the
+      # ticket on purpose: the granted scopes are an intersection of three sets, and a policy that
+      # permitted everything would make the third one invisible.
+      STUB_POLICY_SCOPES: patient/Patient.rs patient/Observation.rs patient/Condition.rs
+      # The presenting client. A permission ticket releases a patient's record, so the profile
+      # refuses public presenters and this is what a presenter authenticates with.
+      STUB_CLIENT_ID: muster-playground
+      STUB_CLIENT_SECRET: playground-secret
+      STUB_TLS_CERT: /stubs/tls/stub.crt
+      STUB_TLS_KEY: /stubs/tls/stub.key
+    volumes:
+      - ./stubs:/stubs:ro
+    ports:
+      - "${STUB_DATA_HOLDER_PORT:-8444}:8444"
 
 volumes:
   postgres:
