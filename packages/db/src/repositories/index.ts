@@ -12,6 +12,7 @@
 export * from "./checks.js";
 export * from "./directory.js";
 export * from "./errors.js";
+export * from "./harness.js";
 export * from "./keys.js";
 export * from "./pairings.js";
 export * from "./rows.js";

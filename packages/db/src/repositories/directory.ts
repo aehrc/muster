@@ -112,6 +112,11 @@ export interface EnrolledSystemRow {
   readonly organisation: OrganisationRow;
 }
 
+/** An enrolment joined to its system, its owner and its event. */
+export interface EnrolledSystemInEventRow extends EnrolledSystemRow {
+  readonly event: EventRow;
+}
+
 /** An enrolment joined to the event it is in. */
 export interface SystemEnrolmentRow {
   readonly enrolment: EnrolmentRow;
@@ -932,6 +937,39 @@ export async function findEventEnrolment(
           eq(enrolment.systemId, input.systemId),
         ),
       )
+      .limit(1),
+  );
+}
+
+/**
+ * One enrolment by its own identifier, with everything that decides what may be done to it.
+ *
+ * The event comes with it, unlike {@link findEventEnrolment}, because the callers that name
+ * an enrolment directly - the conformance harness - need the event's status and its grace
+ * period to decide whether they may act at all, and a second query for the event would be a
+ * second chance to read a different one.
+ *
+ * @param db - The executor.
+ * @param enrolmentId - The enrolment.
+ * @returns The enrolment with its system, its owning organisation and its event, or
+ *   `undefined` when nothing has that identifier.
+ * @example
+ * ```ts
+ * const target = await findEnrolmentById(db, c.req.param("id"));
+ * ```
+ */
+export async function findEnrolmentById(
+  db: Executor,
+  enrolmentId: string,
+): Promise<EnrolledSystemInEventRow | undefined> {
+  return firstRow(
+    await db
+      .select({ ...ENROLLED_SYSTEM_COLUMNS, event })
+      .from(enrolment)
+      .innerJoin(system, eq(system.id, enrolment.systemId))
+      .innerJoin(organisation, eq(organisation.id, system.organisationId))
+      .innerJoin(event, eq(event.id, enrolment.eventId))
+      .where(eq(enrolment.id, enrolmentId))
       .limit(1),
   );
 }

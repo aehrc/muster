@@ -29,6 +29,13 @@
       "when": 1786645520194,
       "tag": "0003_keys_and_statements",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786652073663,
+      "tag": "0004_harness_runs",
+      "breakpoints": true
     }
   ]
 }

@@ -57,6 +57,18 @@ export const checkFailureModeEnum = pgEnum("check_failure_mode", [
 ]);
 
 /**
+ * How a conformance run ended (FR-030).
+ *
+ * Two values, because the badge is a yes or a no: only a fully passing run earns one, and
+ * anything else - a refused check, an endpoint that never answered - is `failed`. What went
+ * wrong is in the run's per-check evidence rather than in a third enum value.
+ */
+export const harnessVerdictEnum = pgEnum("harness_verdict", [
+  "passed",
+  "failed",
+]);
+
+/**
  * What a signing key signs.
  *
  * Two purposes, sharing the machinery and nothing else: an authorization server told to
