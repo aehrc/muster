@@ -30,6 +30,7 @@ import { DcrRun } from "./pages/DcrRun.js";
 import { Docs } from "./pages/Docs.js";
 import { Events } from "./pages/Events.js";
 import { EventView } from "./pages/EventView.js";
+import { Harness } from "./pages/Harness.js";
 import { Home } from "./pages/Home.js";
 import { MyOrganisation } from "./pages/MyOrganisation.js";
 import { NotFound } from "./pages/NotFound.js";
@@ -64,6 +65,7 @@ export function App() {
             <Route path="pairings/:id" element={<PairingRoute />} />
             <Route path="pairings/:id/register" element={<DcrRunRoute />} />
             <Route path="docs" element={<Docs />} />
+            <Route path="harness/:enrolmentId" element={<HarnessRoute />} />
             <Route path="my-organisation" element={<MyOrganisation />} />
             <Route path="sign-in" element={<SignIn />} />
             <Route path="verify" element={<Verify />} />
@@ -100,6 +102,16 @@ function PairingRoute() {
 function DcrRunRoute() {
   const { id } = useParams();
   return id === undefined ? <NotFound /> : <DcrRun id={id} />;
+}
+
+/** Reads the enrolment's identifier for the conformance harness screen. */
+function HarnessRoute() {
+  const { enrolmentId } = useParams();
+  return enrolmentId === undefined ? (
+    <NotFound />
+  ) : (
+    <Harness enrolmentId={enrolmentId} />
+  );
 }
 
 /** Reads the event's slug and the system's identifier from the URL. */

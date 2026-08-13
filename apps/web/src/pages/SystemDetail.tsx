@@ -23,6 +23,7 @@ import { Link } from "react-router";
 
 import { VerificationPanel } from "./checkPanels.js";
 import { describeRegistrationMode } from "./eventFilters.js";
+import { describeBadge } from "./harnessReport.js";
 import { RequestPairing } from "./RequestPairing.js";
 import { describeError } from "../api/errors.js";
 import { useContacts, useEventSystem, useMe } from "../api/queries.js";
@@ -35,9 +36,13 @@ import {
   Panel,
   Tag,
 } from "../components/layout.js";
-import { eventPath, ROUTES } from "../routes.js";
+import { eventPath, harnessPath, ROUTES } from "../routes.js";
 
-import type { ClientProfile, ServerProfile } from "@muster/contracts";
+import type {
+  ClientProfile,
+  EnrolledSystemDetail,
+  ServerProfile,
+} from "@muster/contracts";
 
 /** The system's structured details, its verification status and its contacts. */
 export function SystemDetail({
@@ -97,6 +102,10 @@ export function SystemDetail({
             <RequestPairing event={event} signedIn={signedIn} system={system} />
           )}
 
+          {system.serverProfile === null ? null : (
+            <ConformancePanel system={system} />
+          )}
+
           {system.serverProfile === null ? (
             <Panel title="Verification">
               <EmptyState>
@@ -132,6 +141,54 @@ export function SystemDetail({
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * What the conformance harness has proved about this entry (FR-030).
+ *
+ * Public, like the badge it explains: a vendor's evidence is theirs to share (SC-005). The link
+ * is offered whatever the outcome, because "not verified" is a thing a reader needs to be able
+ * to look into - and because it is where the entry's owner starts a run.
+ */
+function ConformancePanel({
+  system,
+}: Readonly<{ readonly system: EnrolledSystemDetail }>) {
+  const badge = describeBadge(system.dcrVerified);
+  const trusted = system.serverProfile?.registrationMode === "trustedDcr";
+
+  return (
+    <Panel
+      title="Trusted DCR conformance"
+      description="What this server did when Muster last presented the registration profile's cases to it."
+    >
+      {trusted ? (
+        <>
+          <DetailRow label="Badge">
+            {badge === null ? (
+              <span className="quiet">
+                Not verified: no fully passing run stands.
+              </span>
+            ) : (
+              <Tag>&#10003; {badge}</Tag>
+            )}
+          </DetailRow>
+          <p>
+            <Link to={harnessPath(system.enrolmentId)}>
+              Conformance harness and its evidence
+            </Link>
+          </p>
+        </>
+      ) : (
+        <EmptyState>
+          Nothing to prove: this entry&apos;s registration mode is{" "}
+          {describeRegistrationMode(
+            system.serverProfile?.registrationMode ?? "manual",
+          ).toLowerCase()}
+          , so there is no registration profile for it to conform to.
+        </EmptyState>
+      )}
+    </Panel>
   );
 }
 

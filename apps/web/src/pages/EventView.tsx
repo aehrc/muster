@@ -15,6 +15,11 @@
  * beside it, and the flags themselves are on the system page where there is room to name both
  * values.
  *
+ * The registration column carries the DCR-verified badge (FR-030), which is a different kind of
+ * claim from the status beside it: the checks say what a server advertises now, and the badge
+ * says what it did when the conformance harness last presented the profile's cases to it. It
+ * links to that run, because a badge whose evidence cannot be read is an assertion.
+ *
  * Author: John Grimes
  */
 
@@ -30,6 +35,7 @@ import {
   systemsOfKind,
   toggleTag,
 } from "./eventFilters.js";
+import { describeBadge } from "./harnessReport.js";
 import { describeError } from "../api/errors.js";
 import { useEventSystems, useMe } from "../api/queries.js";
 import { SelectField, TextField } from "../components/fields.js";
@@ -43,7 +49,7 @@ import {
   Tag,
   TagToggle,
 } from "../components/layout.js";
-import { ROUTES, systemPath } from "../routes.js";
+import { harnessPath, ROUTES, systemPath } from "../routes.js";
 
 import type { EventFilter } from "./eventFilters.js";
 import type { EnrolledSystem } from "@muster/contracts";
@@ -155,6 +161,7 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
               {describeRegistrationMode(
                 system.serverProfile?.registrationMode ?? "manual",
               )}
+              <VerifiedBadge system={system} />
             </td>
             <td>
               <CheckStatusCell check={system.check} />
@@ -267,6 +274,26 @@ function SystemCells({
       </td>
       <td>{system.organisation.name}</td>
     </>
+  );
+}
+
+/**
+ * The DCR-verified badge, with the date of the run that earned it (FR-030, scenario 2).
+ *
+ * A link to the run rather than a bare label: the claim is only as good as the evidence
+ * behind it, and the evidence is public (SC-005). Absent for an entry whose latest run
+ * failed and for one nothing has run against - which is an absence rather than a claim.
+ */
+function VerifiedBadge({
+  system,
+}: Readonly<{ readonly system: EnrolledSystem }>): ReactNode {
+  const badge = describeBadge(system.dcrVerified);
+  return badge === null ? null : (
+    <div>
+      <Link to={harnessPath(system.enrolmentId)}>
+        <Tag>&#10003; {badge}</Tag>
+      </Link>
+    </div>
   );
 }
 

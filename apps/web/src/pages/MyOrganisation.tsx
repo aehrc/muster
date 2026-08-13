@@ -47,7 +47,7 @@ import {
   systemFormProblem,
   systemRequest,
 } from "../forms/systemForm.js";
-import { ROUTES } from "../routes.js";
+import { harnessPath, ROUTES } from "../routes.js";
 
 import type { SystemForm } from "../forms/systemForm.js";
 import type {
@@ -363,6 +363,14 @@ function Enrolment({
               {enrolment.tags.length === 0
                 ? null
                 : ` - ${enrolment.tags.join(", ")}`}
+              {system.serverProfile?.registrationMode === "trustedDcr" ? (
+                <>
+                  {" - "}
+                  <Link to={harnessPath(enrolment.id)}>
+                    conformance harness
+                  </Link>
+                </>
+              ) : null}
             </li>
           ))}
         </ul>

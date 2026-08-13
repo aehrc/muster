@@ -26,6 +26,8 @@ import type {
   EventChange,
   EventDetail,
   EventSummary,
+  HarnessRunResult,
+  HarnessRuns,
   Me,
   MyOrganisation,
   OrganisationContacts,
@@ -60,6 +62,11 @@ export const keys = {
     eventSlug ?? "every-event",
   ],
   pairing: (id: string): QueryKey => ["pairing", id],
+  harnessRuns: (enrolmentId: string): QueryKey => [
+    "enrolment",
+    enrolmentId,
+    "harness-runs",
+  ],
   jwks: (): QueryKey => ["jwks"],
   accounts: (status: string): QueryKey => ["admin", "accounts", status],
 } as const;
@@ -410,6 +417,46 @@ export function useDcrRun(pairingId: string) {
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: keys.pairing(pairingId) });
       await client.invalidateQueries({ queryKey: ["pairings"] });
+    },
+  });
+}
+
+/**
+ * One enrolled entry's conformance runs, and whether the caller may add one.
+ *
+ * Public, like the report it feeds: the badge on the event view is a claim about these runs.
+ */
+export function useHarnessRuns(enrolmentId: string) {
+  return useQuery({
+    queryKey: keys.harnessRuns(enrolmentId),
+    queryFn: async ({ signal }) =>
+      await get<HarnessRuns>(
+        `/api/enrolments/${encodeURIComponent(enrolmentId)}/harness-runs`,
+        signal,
+      ),
+  });
+}
+
+/**
+ * Runs the conformance harness against one enrolled entry (FR-029).
+ *
+ * A mutation rather than a query, and for a stronger reason than the DCR run: this one
+ * registers throwaway clients on somebody else's server, so it happens when a person asks and
+ * never because a page was opened or a cache went stale. The event listing is invalidated
+ * afterwards, because the run may have changed the badge (FR-030).
+ */
+export function useHarnessRun(enrolmentId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      await post<HarnessRunResult>(
+        `/api/enrolments/${encodeURIComponent(enrolmentId)}/harness-runs`,
+      ),
+    onSuccess: async () => {
+      await client.invalidateQueries({
+        queryKey: keys.harnessRuns(enrolmentId),
+      });
+      await client.invalidateQueries({ queryKey: ["event"] });
     },
   });
 }

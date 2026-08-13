@@ -24,6 +24,8 @@ export const ROUTES = {
   adminMembers: "/admin/members",
   adminEvents: "/admin/events",
   signIn: "/sign-in",
+  /** The conformance harness, per enrolled entry. Public to read, owner-only to run. */
+  harness: "/harness",
   /** Where a verification link lands. The token arrives as a query parameter. */
   verify: "/verify",
 } as const;
@@ -73,6 +75,20 @@ export function pairingPath(pairingId: string): string {
  */
 export function dcrRunPath(pairingId: string): string {
   return `${pairingPath(pairingId)}/register`;
+}
+
+/**
+ * The address of one enrolled entry's conformance harness page.
+ *
+ * A page of its own rather than a panel on the system page, and a public one: a vendor's run
+ * is evidence they share (SC-005), so the address has to be something they can paste into a
+ * message. Only the button on it belongs to the entry's owner.
+ *
+ * @param enrolmentId - The enrolment the runs are against.
+ * @returns The path.
+ */
+export function harnessPath(enrolmentId: string): string {
+  return `${ROUTES.harness}/${enrolmentId}`;
 }
 
 /** One destination in the header. */
