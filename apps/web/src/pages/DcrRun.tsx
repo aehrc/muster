@@ -94,6 +94,23 @@ function runButtonLabel(pending: boolean, hasRun: boolean): string {
   return hasRun ? "Run again" : "Mint and present the statement";
 }
 
+/**
+ * Why the run is not on offer.
+ *
+ * Said rather than left as a missing button (FR-037). The server decides whether the action is
+ * available; this only puts the likely reason into words, and the two cases differ in what the
+ * reader should do about it.
+ */
+function unavailableReason(pairing: PairingDetail): string {
+  if (pairing.sides.includes("server") && !pairing.sides.includes("client")) {
+    return "The run is the app owner's to start: Muster vouches for the client on behalf of the organisation that owns it.";
+  }
+  if (pairing.state !== "requested" && pairing.state !== "failed") {
+    return `This pairing is ${pairing.state}, so there is nothing to register. A fulfilled, declined or lapsed pairing keeps its record and takes no further action.`;
+  }
+  return "This pairing cannot be registered automatically now - the event may have closed, or the server's registration mode may not be trusted DCR.";
+}
+
 /** How one step reads: before the run, during it, and after it. */
 function stepState(step: DcrRunStep | undefined, pending: boolean): string {
   if (step === undefined) {
@@ -167,12 +184,11 @@ export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
           : {})}
       >
         <StepList run={run.data?.run} pending={run.isPending} />
-        {canRun ? null : (
-          <p className="note">
-            {pairing.actions.length === 0 && pairing.sides.includes("server")
-              ? "The run is the app owner's to start: Muster vouches for the client on behalf of the organisation that owns it."
-              : "This pairing cannot be registered automatically now - the event may be closed, the pairing already answered, or the server's registration mode may not be trusted DCR."}
-          </p>
+        {canRun || run.data !== undefined ? null : (
+          // Only when there is nothing else to explain the absence of the button. After a run
+          // the steps above say what happened, and repeating "this cannot be registered" beside
+          // a successful one would read as a contradiction.
+          <p className="note">{unavailableReason(pairing)}</p>
         )}
       </Panel>
 
