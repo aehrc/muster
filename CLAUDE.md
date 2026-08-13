@@ -65,6 +65,20 @@ tickets: every signed artefact carries a key identifier, and superseded
 public keys remain published until everything signed with them has
 expired.
 
+#### VII. Vouching is deny by default
+
+A Muster signature is an assertion that a participant is who they say they
+are, so every action that produces one - minting a software statement,
+running a directory-initiated registration, minting a permission ticket -
+MUST be refused unless each of its preconditions is affirmatively
+established: a signed-in member whose account is approved and not revoked,
+acting for the organisation that owns the system, against an open event in
+which the target is enrolled. An absent, ambiguous or unevaluable
+precondition is a refusal, never a permission, and the refusal MUST name
+which precondition failed. A new vouching action inherits the refusal and
+MUST state its own checks explicitly rather than relying on a caller
+having made them.
+
 ### Additional constraints
 
 - One deployment, one admin group. No multi-tenancy machinery (tenant
