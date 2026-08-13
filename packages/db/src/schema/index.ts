@@ -14,4 +14,5 @@ export * from "./enums.js";
 export * from "./harness.js";
 export * from "./keys.js";
 export * from "./pairings.js";
+export * from "./personas.js";
 export * from "./statements.js";

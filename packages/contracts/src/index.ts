@@ -9,4 +9,5 @@ export * from "./common.js";
 export * from "./directory.js";
 export * from "./harness.js";
 export * from "./pairings.js";
+export * from "./personas.js";
 export * from "./statements.js";

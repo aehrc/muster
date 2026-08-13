@@ -53,6 +53,7 @@ import { insertCheckResult, listServerCheckTargets } from "@muster/db";
 
 import { outboundFetch } from "../outbound/outboundFetch.js";
 
+import type { CoverageRunner } from "./coverage.js";
 import type {
   AddressResolver,
   OutboundFetchImpl,
@@ -126,8 +127,10 @@ export interface CheckScheduler extends CheckRunner {
  *
  * A pass that cannot record one target logs and carries on; a suite that does not care about
  * the message passes nothing and gets silence rather than noise in its output.
+ *
+ * @param message - The line that would have been logged.
  */
-function discardLog(message: string): void {
+export function discardLog(message: string): void {
   void message;
 }
 
@@ -217,13 +220,17 @@ export function isCheckDue(
 }
 
 /**
- * Reshapes a guarded fetch's outcome into what the pure evaluation reads.
+ * Reshapes a guarded fetch's outcome into what the pure evaluations read.
  *
  * The mapping is the whole of the seam between the guard and the domain: the guard's
  * refusal vocabulary becomes the check's failure modes, and an HTTP status is data rather
- * than a failure.
+ * than a failure. Shared with the coverage pass, which asks a different question of the same
+ * transport and needs the same seam.
+ *
+ * @param result - What the guard produced.
+ * @returns The fetch as `@muster/core` reads it.
  */
-function toCheckFetch(result: OutboundResult): CheckFetch {
+export function toCheckFetch(result: OutboundResult): CheckFetch {
   return result.ok
     ? {
         ok: true,
@@ -355,19 +362,57 @@ export function createCheckRunner(options: CheckRunnerOptions): CheckRunner {
  * ```
  */
 export function startCheckScheduler(
-  options: CheckRunnerOptions & { readonly passIntervalMs?: number },
+  options: CheckRunnerOptions & {
+    readonly passIntervalMs?: number;
+    /**
+     * The persona coverage pass, when there is one to run (FR-032).
+     *
+     * A second pass of this scheduler rather than a scheduler of its own: the constitution
+     * forbids queues, workers and background services, so everything scheduled runs on the
+     * one interval inside the one server instance. It is optional because the runner needs
+     * configuration the check pass does not - the IHI system - and a suite whose subject is
+     * the checks should not have to supply it.
+     */
+    readonly coverage?: CoverageRunner;
+  },
 ): CheckScheduler {
   const runner = createCheckRunner(options);
   const log = options.log ?? discardLog;
 
-  /** Runs a pass, reporting rather than throwing: an interval callback cannot be awaited. */
+  /** Runs the coverage pass, if one was supplied, and swallows nothing silently. */
+  const runCoveragePass = async (): Promise<void> => {
+    if (options.coverage === undefined) {
+      return;
+    }
+    try {
+      const summary = await options.coverage.runPass();
+      log(`muster.coverage.pass ${JSON.stringify(summary)}`);
+    } catch (error) {
+      log(
+        `muster.coverage.pass-failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+
+  /**
+   * Runs a pass, reporting rather than throwing: an interval callback cannot be awaited.
+   *
+   * The coverage pass runs after the checks and its own failure is reported separately, so
+   * that a source server nobody can reach does not stop the liveness checks - and so that
+   * awaiting `firstPass` is a guarantee that both have happened.
+   */
   const pass = async (): Promise<CheckPassSummary> => {
     try {
-      return await runner.runPass();
+      const summary = await runner.runPass();
+      await runCoveragePass();
+      return summary;
     } catch (error) {
       log(
         `muster.check.pass-failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+      // Attempted anyway: the two passes ask different servers different questions, and a
+      // check pass that failed is no reason for the coverage grid to go stale as well.
+      await runCoveragePass();
       return {
         targets: 0,
         checked: 0,

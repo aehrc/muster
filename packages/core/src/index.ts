@@ -17,4 +17,5 @@ export * from "./keys/purposes.js";
 export * from "./limits/slidingWindow.js";
 export * from "./pairing/registrationFields.js";
 export * from "./pairing/stateMachine.js";
+export * from "./personas/coverage.js";
 export * from "./statements/build.js";

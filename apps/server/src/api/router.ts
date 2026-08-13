@@ -21,6 +21,7 @@ import { Hono } from "hono";
 
 import { registerDirectoryRoutes } from "../admin/directory.routes.js";
 import { registerMemberRoutes } from "../admin/members.routes.js";
+import { registerPersonaRoutes } from "../admin/personas.routes.js";
 import { resolveSession } from "../auth/middleware.js";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBrandsRoutes } from "../http/brands.js";
@@ -61,6 +62,8 @@ export const PUBLIC_REQUESTS: Readonly<Record<string, string>> = {
   "GET /api/events/:slug/systems":
     "FR-010 and FR-021: the participant table's replacement, contacts excluded",
   "GET /api/events/:slug/systems/:systemId": "FR-010, contacts excluded",
+  "GET /api/events/:slug/personas":
+    "FR-032 and scenario 5: the persona cards and the coverage grid are test data by design, and a cross-server coverage claim behind a sign-in is not one anybody can act on",
   "GET /api/events/:slug/brands.json":
     "FR-022 and SC-006: the brands bundle is what an app reads before it has anything else",
   "GET /.well-known/jwks.json":
@@ -100,6 +103,7 @@ export function createApiRouter(
   registerBrandsRoutes(router, context);
   registerDirectoryRoutes(router, context);
   registerMemberRoutes(router, context);
+  registerPersonaRoutes(router, context);
   registerPairingRoutes(router, context);
   registerDcrRoutes(router, context);
   registerHarnessRoutes(router, context);

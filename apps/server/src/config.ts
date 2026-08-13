@@ -62,6 +62,18 @@ export interface MusterConfig {
    * cadence is a multiple of this one, declared in the scheduler.
    */
   readonly checkIntervalMs: number;
+  /**
+   * The identifier system a persona's IHI belongs to.
+   *
+   * Required, and not defaulted, although there is only one right answer for Australian
+   * deployments - `http://ns.electronichealth.net.au/id/hi/ihi/1.0`, fixed by AU Base's
+   * `au-ihi` profile. A wrong value here is the kind of mistake this module refuses rather
+   * than guesses at: every persona search would find nothing eligible and every coverage
+   * check would report `missing` against servers that hold the patient, with no error
+   * anywhere to say why. A deployment in another jurisdiction has a different answer, which
+   * is the other reason it is configuration rather than a constant (`research.md`).
+   */
+  readonly ihiSystem: string;
 }
 
 /** The two identities the `migrate` command needs. */
@@ -194,6 +206,29 @@ function readHostList(env: Environment, name: string): readonly string[] {
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
+}
+
+/**
+ * Reads the identifier system a persona's IHI belongs to.
+ *
+ * An absolute URI, because that is what a FHIR `Identifier.system` is and because the value
+ * is put on the left of a `system|value` token search - so something that is not one would
+ * produce a search no server can answer.
+ *
+ * @throws {ConfigError} When it is absent or is not an absolute URI.
+ */
+function readIhiSystem(env: Environment): string {
+  const raw = requireValue(
+    env,
+    "MUSTER_IHI_SYSTEM",
+    "it is the identifier system a persona's IHI is searched by; for Australia that is http://ns.electronichealth.net.au/id/hi/ihi/1.0",
+  ).trim();
+  if (!URL.canParse(raw)) {
+    throw new ConfigError(
+      `MUSTER_IHI_SYSTEM must be an absolute URI, got "${raw}"`,
+    );
+  }
+  return raw;
 }
 
 /**
@@ -355,5 +390,6 @@ export function loadConfig(env: Environment): MusterConfig {
       read(env, "MUSTER_MAIL_FROM") ?? `muster@${new URL(publicUrl).hostname}`,
     outboundAllowedHosts: readHostList(env, "MUSTER_OUTBOUND_ALLOWED_HOSTS"),
     checkIntervalMs: readCheckIntervalMs(env),
+    ihiSystem: readIhiSystem(env),
   };
 }

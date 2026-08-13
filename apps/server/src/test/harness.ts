@@ -53,6 +53,16 @@ export const TEST_PUBLIC_URL = "https://muster.test";
 /** The password every fixture account signs in with. It names a throwaway row. */
 export const TEST_PASSWORD = "correct horse battery staple";
 
+/**
+ * The IHI namespace every suite runs against.
+ *
+ * The real one, fixed by AU Base's `au-ihi` profile, rather than an invented URI: the
+ * personas and coverage the suites assert on are the ones a connectathon would curate, and a
+ * fixture system would let a mistake about the real one pass unnoticed.
+ */
+export const TEST_IHI_SYSTEM =
+  "http://ns.electronichealth.net.au/id/hi/ihi/1.0";
+
 /** How the stack should behave where a suite has a choice. */
 export interface TestStackOptions {
   /**
@@ -103,6 +113,13 @@ export interface TestStack {
   }) => Promise<AccountRow>;
   /** Pins the clock every rule and every route reads. */
   readonly setNow: (at: Date) => void;
+  /**
+   * What that clock currently says.
+   *
+   * Read by a suite that has to hand the same time to something outside the application -
+   * the coverage runner, say - so that the two cannot disagree about when a pass happened.
+   */
+  readonly now: () => Date;
   readonly close: () => Promise<void>;
 }
 
@@ -122,6 +139,7 @@ function testConfig(
     mailFrom: "no-reply@muster.test",
     outboundAllowedHosts: allowedHosts,
     checkIntervalMs: 900_000,
+    ihiSystem: TEST_IHI_SYSTEM,
   };
 }
 
@@ -237,6 +255,7 @@ export async function createTestStack(
     setNow: (at) => {
       now = at;
     },
+    now: () => now,
     close: async () => {
       await handle.close();
     },

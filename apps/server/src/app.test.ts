@@ -17,6 +17,7 @@ import nodePath from "node:path";
 
 import { createApp } from "./app.js";
 import { createUnlimitedStore } from "./http/rateLimit.js";
+import { TEST_IHI_SYSTEM } from "./test/harness.js";
 
 import type { ServerContext } from "./context.js";
 
@@ -42,6 +43,7 @@ function contextWith(
       mailFrom: "no-reply@muster.example",
       outboundAllowedHosts: [],
       checkIntervalMs: 900_000,
+      ihiSystem: TEST_IHI_SYSTEM,
     },
     db: { execute } as unknown as ServerContext["db"],
     mail: { send: async () => await Promise.resolve() },

@@ -29,6 +29,7 @@ import {
   describeMailTransport,
 } from "./mail/transport.js";
 import { runMigrateCommand } from "./migrate.js";
+import { createCoverageRunner } from "./scheduler/coverage.js";
 import { checkCadence, startCheckScheduler } from "./scheduler/scheduler.js";
 import { runSeedCommand, seedOptionsFrom } from "./seed.js";
 
@@ -158,14 +159,27 @@ console.log(`Muster mail transport: ${describeMailTransport(config.smtpUrl)}`);
 // The liveness checks, on an in-process interval in this one instance - which is why the
 // Helm chart pins `replicas: 1`. The first pass runs immediately, so a restart mid-event
 // does not leave every entry stale for a whole interval.
+const cadence = checkCadence(config.checkIntervalMs);
+const log = (message: string): void => {
+  console.warn(message);
+};
+
 const checks = startCheckScheduler({
   db,
   clock: () => new Date(),
   allowedHosts: config.outboundAllowedHosts,
-  cadence: checkCadence(config.checkIntervalMs),
-  log: (message) => {
-    console.warn(message);
-  },
+  cadence,
+  log,
+  // Persona coverage is a second pass of this same scheduler rather than a service of its
+  // own, because the constitution forbids queues, workers and background services (FR-032).
+  coverage: createCoverageRunner({
+    db,
+    clock: () => new Date(),
+    ihiSystem: config.ihiSystem,
+    allowedHosts: config.outboundAllowedHosts,
+    cadence,
+    log,
+  }),
 });
 
 const server = serve({ fetch: app.fetch, port: config.port }, (address) => {

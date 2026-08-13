@@ -69,6 +69,32 @@ export const harnessVerdictEnum = pgEnum("harness_verdict", [
 ]);
 
 /**
+ * Whether a server holds a persona (FR-032).
+ *
+ * `unverifiable` rather than a guess for a server that will not answer an unauthenticated
+ * search. It is a third value rather than the absence of a row because the absence already
+ * means something else - nothing has checked this pair yet - and a grid cannot tell a reader
+ * "we asked and could not tell" without a value for it.
+ */
+export const personaCoverageOutcomeEnum = pgEnum("persona_coverage_outcome", [
+  "found",
+  "missing",
+  "unverifiable",
+]);
+
+/**
+ * Whether a curated persona is still present on the source server.
+ *
+ * The spec's own edge case: the source deletes or changes a curated patient, and admins see
+ * it flagged. There is no `unknown` third value, because a source server that could not be
+ * read has said nothing - so the status stays as it was and only its check time moves.
+ */
+export const personaSourceStatusEnum = pgEnum("persona_source_status", [
+  "present",
+  "missing",
+]);
+
+/**
  * What a signing key signs.
  *
  * Two purposes, sharing the machinery and nothing else: an authorization server told to

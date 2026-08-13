@@ -20,6 +20,7 @@
 
 import {
   pairingTransition,
+  patientResourceUrl,
   REQUEST_NOTIFIES,
   softwareStatementRefusal,
   transitionRefusal,
@@ -51,6 +52,10 @@ import type {
   PairingSideView,
   PairingSummary,
   PairingTimelineEntry,
+  PersonaCoverageCell,
+  PersonaCoverageServer,
+  PersonaRefusal,
+  PersonaView,
   ScopeWarning,
   SessionAccount,
   SoftwareStatementView,
@@ -60,6 +65,7 @@ import type {
   AccountStanding,
   HarnessRunRefusal,
   PairingState,
+  PersonaAssessment,
 } from "@muster/core";
 import type {
   AccountRow,
@@ -76,6 +82,8 @@ import type {
   PairingSideRow,
   PairingTimelineRow,
   PairingWithSides,
+  PersonaCoverageRow,
+  PersonaRow,
   SoftwareStatementRow,
   SystemEnrolmentRow,
   SystemRow,
@@ -642,6 +650,104 @@ export function pairingDetailView(
     statement:
       statement === undefined ? null : softwareStatementView(statement),
     scopeWarning,
+  };
+}
+
+/**
+ * One curated persona, as the public page and the admin table both read it (FR-031).
+ *
+ * The canonical link is derived from the event's configured source rather than stored, so an
+ * admin who corrects the source address does not leave a page full of links to the old one -
+ * and so a persona whose event has since had its source removed shows no link at all rather
+ * than a broken one.
+ *
+ * The IHI's system rides along because a sixteen-digit string is not an identifier; the pair
+ * is, and a reader copying a persona into their own server needs both.
+ *
+ * @param row - The persona.
+ * @param event - Its event, for the configured source.
+ * @param ihiSystem - The deployment's configured IHI namespace.
+ * @returns The persona, as it appears on the wire.
+ */
+export function personaView(
+  row: PersonaRow,
+  event: EventRow,
+  ihiSystem: string,
+): PersonaView {
+  return {
+    id: row.id,
+    display: row.display,
+    ihi: row.ihi,
+    ihiSystem,
+    patientId: row.patientId,
+    canonicalUrl:
+      event.personaSourceUrl === null
+        ? null
+        : patientResourceUrl(event.personaSourceUrl, row.patientId),
+    sourceStatus: row.sourceStatus,
+    sourceCheckedAt: row.sourceCheckedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * One column of the coverage grid.
+ *
+ * A deliberately smaller projection than {@link enrolledSystemView}: the grid needs a
+ * heading and a way to link to the entry, and sending each server's whole profile with it
+ * would multiply the page by the number of servers for something it does not show.
+ *
+ * @param row - The enrolment, its system and its owner.
+ * @returns The column.
+ */
+export function personaCoverageServerView(
+  row: EnrolledSystemRow,
+): PersonaCoverageServer {
+  return {
+    enrolmentId: row.enrolment.id,
+    systemId: row.system.id,
+    systemName: row.system.name,
+    organisation: organisationRefView(row.organisation),
+  };
+}
+
+/**
+ * One cell of the coverage grid (FR-032).
+ *
+ * @param row - The latest coverage row for one (persona, enrolment) pair.
+ * @returns The cell, with the time the claim was made at - because a coverage claim with no
+ *   time on it is a claim a reader cannot judge.
+ */
+export function personaCoverageCellView(
+  row: PersonaCoverageRow,
+): PersonaCoverageCell {
+  return {
+    personaId: row.personaId,
+    enrolmentId: row.enrolmentId,
+    outcome: row.outcome,
+    detail: row.detail,
+    checkedAt: row.checkedAt.toISOString(),
+  };
+}
+
+/**
+ * A search result an admin may not curate, and why (FR-031, scenario 2).
+ *
+ * @param assessment - The refused assessment.
+ * @returns The refusal, as it appears on the wire.
+ * @throws {Error} When handed an eligible assessment, which is a caller error rather than a
+ *   state: an eligible patient belongs in the candidates.
+ */
+export function personaRefusalView(
+  assessment: PersonaAssessment,
+): PersonaRefusal {
+  if (assessment.eligible) {
+    throw new Error("An eligible candidate is not a refusal");
+  }
+  return {
+    patientId: assessment.patientId,
+    display: assessment.display,
+    reason: assessment.reason,
+    detail: assessment.detail,
   };
 }
 

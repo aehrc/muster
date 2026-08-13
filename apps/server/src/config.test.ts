@@ -26,6 +26,7 @@ const MINIMAL: Environment = {
   MUSTER_PUBLIC_URL: "https://muster.example",
   MUSTER_DATABASE_URL: "postgres://muster_app:pw@db:5432/muster",
   MUSTER_MASTER_KEY: "0123456789abcdef0123456789abcdef",
+  MUSTER_IHI_SYSTEM: "http://ns.electronichealth.net.au/id/hi/ihi/1.0",
 };
 
 /** The minimal environment with one variable added or replaced. */
@@ -171,6 +172,37 @@ describe("loadConfig outbound allowlist", () => {
         }),
       ).outboundAllowedHosts,
     ).toEqual(["stub-server:8080", "localhost"]);
+  });
+});
+
+describe("loadConfig IHI system", () => {
+  it("takes the identifier system a persona's IHI belongs to", () => {
+    expect(loadConfig(MINIMAL).ihiSystem).toBe(
+      "http://ns.electronichealth.net.au/id/hi/ihi/1.0",
+    );
+  });
+
+  it("refuses to start without one", () => {
+    // Not defaulted, although Australia has one right answer. A wrong or absent value makes
+    // every persona search find nothing and every coverage check report `missing` against
+    // servers that hold the patient, with nothing anywhere to say why.
+    expect(() =>
+      loadConfig({ ...MINIMAL, MUSTER_IHI_SYSTEM: undefined }),
+    ).toThrow(/MUSTER_IHI_SYSTEM/);
+  });
+
+  it("names the Australian system in the refusal, so an operator can act on it", () => {
+    expect(() =>
+      loadConfig({ ...MINIMAL, MUSTER_IHI_SYSTEM: undefined }),
+    ).toThrow(/ns\.electronichealth\.net\.au/);
+  });
+
+  it("refuses something that is not an absolute URI", () => {
+    // The value goes on the left of a `system|value` token search, so a bare word would
+    // produce a search no server can answer.
+    expect(() => loadConfig(withEnv({ MUSTER_IHI_SYSTEM: "ihi" }))).toThrow(
+      /MUSTER_IHI_SYSTEM/,
+    );
   });
 });
 

@@ -68,6 +68,9 @@ services:
       # A throwaway key: this stack holds nothing worth protecting, and a real
       # deployment reads its own from a secret.
       MUSTER_MASTER_KEY: 0123456789abcdef0123456789abcdef
+      # The identifier system a persona's IHI is searched by, fixed by AU Base's `au-ihi`
+      # profile. Required rather than defaulted: see `apps/server/src/config.ts`.
+      MUSTER_IHI_SYSTEM: http://ns.electronichealth.net.au/id/hi/ihi/1.0
       # No SMTP relay, which selects the console transport: every message Muster sends is printed
       # to this service's log. That is how the quickstart reads a verification link, and it is why
       # `MUSTER_SMTP_URL` must be set in anything that is not a development stack.

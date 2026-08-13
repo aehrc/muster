@@ -36,6 +36,8 @@ import {
   listEventEnrolments,
   listEvents,
   listLatestHarnessRuns,
+  listLatestPersonaCoverage,
+  listPersonas,
 } from "@muster/db";
 
 import { jsonError } from "./errors.js";
@@ -45,6 +47,9 @@ import {
   enrolledSystemView,
   eventDetailView,
   eventSummaryView,
+  personaCoverageCellView,
+  personaCoverageServerView,
+  personaView,
 } from "./views.js";
 import { namedEvent } from "../admin/access.js";
 
@@ -169,6 +174,46 @@ export function registerPublicRoutes(
           read.harnessRuns.get(row.enrolment.id),
         ),
       ),
+    });
+  });
+
+  /**
+   * One event's personas and its coverage grid (FR-032, scenario 5).
+   *
+   * Public, and deliberately so: the personas are fabricated test patients every
+   * participating server is asked to load, and a cross-server coverage claim that needed an
+   * account would not be one anybody could act on. Nothing here passes through a projection
+   * that carries an email address - see `./views.ts`.
+   *
+   * The columns are the event's enrolled *servers*. A client holds no patients, so a column
+   * for one would be a row of permanent blanks against an entry that is correct.
+   *
+   * It is also what the admin console's persona table reads, rather than an admin-only
+   * variant: the constitution forbids a view-only data path, and the flag an admin needs to
+   * see - a persona missing at its source - is on the persona itself.
+   */
+  router.get("/events/:slug/personas", async (c) => {
+    const event = await namedEvent(context, c, c.req.param("slug"));
+    if (event instanceof Response) {
+      return event;
+    }
+    const [personas, enrolments] = await Promise.all([
+      listPersonas(context.db, event.id),
+      listEventEnrolments(context.db, event.id),
+    ]);
+    const coverage = await listLatestPersonaCoverage(
+      context.db,
+      personas.map((row) => row.id),
+    );
+    return c.json({
+      event: eventDetailView(event),
+      personas: personas.map((row) =>
+        personaView(row, event, context.config.ihiSystem),
+      ),
+      servers: enrolments
+        .filter((row) => row.system.serverProfile !== null)
+        .map(personaCoverageServerView),
+      coverage: coverage.map(personaCoverageCellView),
     });
   });
 
