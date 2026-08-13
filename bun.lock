@@ -33,6 +33,7 @@
         "@muster/db": "workspace:*",
         "hono": "^4.13.1",
         "nodemailer": "9.0.5",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@types/nodemailer": "8.0.1",
@@ -79,6 +80,7 @@
       "name": "@muster/db",
       "version": "0.1.0",
       "dependencies": {
+        "@muster/contracts": "workspace:*",
         "@muster/core": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "postgres": "^3.4.9",

@@ -17,7 +17,8 @@
     "@muster/core": "workspace:*",
     "@muster/db": "workspace:*",
     "hono": "^4.13.1",
-    "nodemailer": "9.0.5"
+    "nodemailer": "9.0.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/nodemailer": "8.0.1"
