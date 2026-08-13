@@ -1,13 +1,11 @@
-# The local stack: Muster and its database.
+# The local stack: Muster, its database, and the migration that comes between them.
 #
-# A skeleton. The stub registration server and the stub data holder join it with the
-# user stories that need them, and the end-to-end suite runs against whatever this
-# file brings up.
+# The stub registration server and the stub data holder join it with the user stories that need
+# them, and the end-to-end suite runs against whatever this file brings up.
 #
-# Ports are read from the environment rather than fixed, so that a developer whose
-# 3000 or 5432 is taken can move the stack without editing this file - and so that
-# CI can prove every URL in the stack is derived rather than hard-coded by running
-# it on non-default ports.
+# Ports are read from the environment rather than fixed, so that a developer whose 3000 or 5432 is
+# taken can move the stack without editing this file - and so that CI can prove every URL in the
+# stack is derived rather than hard-coded by running it on non-default ports.
 
 name: muster
 
@@ -27,34 +25,52 @@ services:
       # `pg_upgrade --link` does not cross a mount boundary. Mounting `data`
       # directly makes the image refuse to initialise.
       - postgres:/var/lib/postgresql
+      # Creates the non-owning serving role, once, when the cluster is initialised. The migration
+      # grants that role its access but cannot create it. See the script's own header.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U muster -d muster"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Applies the migrations and grants the serving role, then exits. A separate service rather than
+  # a step inside the server, because migrations are DDL and a server that could issue DDL is a
+  # server that can half-migrate a database. `muster` waits for this to succeed.
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["bun", "dist/index.js", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MUSTER_DATABASE_OWNER_URL: postgresql://muster:muster@postgres:5432/muster
+      MUSTER_DATABASE_URL: postgresql://muster_app:muster_app@postgres:5432/muster
+    restart: "no"
+
   muster:
     build:
       context: ..
       dockerfile: Dockerfile
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       PORT: 3000
       # Every public URL Muster emits derives from this one, so it must be the
       # address a browser outside the stack uses rather than the service name.
       MUSTER_PUBLIC_URL: http://localhost:${MUSTER_PORT:-3000}
-      # The two identities a deployment runs as: the first migrates, the second
-      # serves. `node dist/index.js migrate` grants the serving role its access but
-      # does not create it - it holds no authority to create a role and no password
-      # to give one - so a service that creates the role and runs the migration
-      # joins this file with the end-to-end suite that needs the stack to come up.
-      MUSTER_DATABASE_OWNER_URL: postgresql://muster:muster@postgres:5432/muster
+      # The serving identity: it can read and write every table and cannot issue DDL.
       MUSTER_DATABASE_URL: postgresql://muster_app:muster_app@postgres:5432/muster
       # A throwaway key: this stack holds nothing worth protecting, and a real
       # deployment reads its own from a secret.
       MUSTER_MASTER_KEY: 0123456789abcdef0123456789abcdef
+      # No SMTP relay, which selects the console transport: every message Muster sends is printed
+      # to this service's log. That is how the quickstart reads a verification link, and it is why
+      # `MUSTER_SMTP_URL` must be set in anything that is not a development stack.
+      MUSTER_LOG_LEVEL: debug
     ports:
       - "${MUSTER_PORT:-3000}:3000"
 

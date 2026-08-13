@@ -28,6 +28,9 @@
     "noEmit": true
   },
   "include": [
+    // The seed entry point. Not a test, but the same situation: a Bun script outside every
+    // package's project, which nothing consumes and which still has to be typechecked.
+    "scripts/*.ts",
     "packages/*/src/**/*.test.ts",
     "packages/*/src/**/*.test.tsx",
     "apps/*/src/**/*.test.ts",

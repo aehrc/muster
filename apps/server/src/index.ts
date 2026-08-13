@@ -17,13 +17,16 @@ import { createApp } from "./app.js";
 import {
   ConfigError,
   loadConfig,
+  resolveDatabaseUrl,
   resolveMigrationIdentities,
 } from "./config.js";
+import { createRateLimitStore } from "./http/rateLimit.js";
 import {
   createMailTransport,
   describeMailTransport,
 } from "./mail/transport.js";
 import { runMigrateCommand } from "./migrate.js";
+import { runSeedCommand, seedOptionsFrom } from "./seed.js";
 
 /** Reports a problem the way an operator can act on, and stops. */
 function fail(prefix: string, error: unknown): never {
@@ -42,6 +45,29 @@ if (process.argv[2] === "migrate") {
   } catch (error) {
     fail("Muster migration failed", error);
   }
+  process.exit(0);
+}
+
+// The first admin and the first event. Dispatched here, and reachable over no route, because
+// every route that could create an admin requires already being one. See `./seed.ts`.
+if (process.argv[2] === "seed") {
+  const handle = (() => {
+    try {
+      return createDatabase({
+        url: resolveDatabaseUrl(process.env),
+        applicationName: "muster-seed",
+      });
+    } catch (error) {
+      return fail("Muster could not seed", error);
+    }
+  })();
+  try {
+    await runSeedCommand(handle.db, seedOptionsFrom(process.env), new Date());
+  } catch (error) {
+    await handle.close();
+    fail("Muster seeding failed", error);
+  }
+  await handle.close();
   process.exit(0);
 }
 
@@ -64,6 +90,7 @@ const app = createApp({
     smtpUrl: config.smtpUrl,
     from: config.mailFrom,
   }),
+  rateLimits: createRateLimitStore(),
   clock: () => new Date(),
 });
 

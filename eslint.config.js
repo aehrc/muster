@@ -183,7 +183,7 @@ export default tseslint.config(
   // have no program to work from and `console`/`process` are the intended
   // interface.
   {
-    files: ["scripts/**/*.mjs", "scripts/**/*.js"],
+    files: ["scripts/**/*.mjs", "scripts/**/*.js", "scripts/**/*.ts"],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: { console: "readonly", process: "readonly" },

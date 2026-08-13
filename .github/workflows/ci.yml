@@ -162,11 +162,20 @@ jobs:
       - name: Bring up the stack
         run: bun run stack:up
 
-      # Stands in for the Playwright suite, which lands with the polish phase. It is
-      # not a placeholder that passes for nothing: it proves the image the stack
-      # built serves on the port the environment moved it to.
+      # Seeds the stack the way the quickstart does, then proves the seeded event is served on
+      # the port the environment moved it to. Stands in for the Playwright suite, which lands
+      # with the polish phase; it is not a placeholder that passes for nothing.
+      - name: Seed the stack
+        run: bun run stack:seed
+
       - name: Smoke test the stack
-        run: curl -fsS "http://localhost:${MUSTER_PORT}/healthz"
+        run: |
+          curl -fsS "http://localhost:${MUSTER_PORT}/healthz"
+          curl -fsS "http://localhost:${MUSTER_PORT}/api/events/sparked-2026-09" \
+            | grep -q '"status":"open"'
+          # The public listing must carry no contact detail, with or without an account.
+          ! curl -fsS "http://localhost:${MUSTER_PORT}/api/events/sparked-2026-09/systems" \
+            | grep -q "@"
 
       - name: Collect the stack's logs
         if: failure()
