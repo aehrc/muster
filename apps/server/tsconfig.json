@@ -2,6 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "./src",
+    // Node only, even though the runtime image runs this bundle under Bun. Adding
+    // `bun` here replaces the standard web globals with Bun's wider versions, and the
+    // one Bun API the server uses - argon2id password hashing - is declared as the
+    // narrow shape it is used through in `src/auth/passwords.ts` instead.
     "types": ["node"],
     // The server is bundled by `bun build`, not emitted by tsc. Nothing references
     // it as a project, so it need not be composite; tsc's only job here is
