@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // Unlike `@muster/core`, this package is server-only - it opens Postgres
+    // connections and handles secrets - so it may depend on the Node type surface
+    // for `Buffer`, `crypto` and `node:crypto`.
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  "references": [{ "path": "../core" }]
+}
