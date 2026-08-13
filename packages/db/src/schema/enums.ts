@@ -27,6 +27,20 @@ export const eventStatusEnum = pgEnum("event_status", [
 ]);
 
 /**
+ * Where a pairing has got to (FR-013).
+ *
+ * Exactly the five states `data-model.md` names, in its order. A sixth would be an `ALTER TYPE`
+ * on a table the server is reading, which is the visibility a real enum buys.
+ */
+export const pairingStateEnum = pgEnum("pairing_state", [
+  "requested",
+  "fulfilled",
+  "declined",
+  "failed",
+  "lapsed",
+]);
+
+/**
  * What a one-shot account token is for.
  *
  * `password_reset` is declared and unused. `data-model.md` names both purposes, and

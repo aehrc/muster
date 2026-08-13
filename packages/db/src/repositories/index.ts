@@ -11,4 +11,5 @@
 
 export * from "./directory.js";
 export * from "./errors.js";
+export * from "./pairings.js";
 export * from "./rows.js";

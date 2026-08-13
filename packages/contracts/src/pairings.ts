@@ -156,6 +156,19 @@ export const pairingTimelineEntrySchema = z.object({
   notifies: z.array(pairingSideNameSchema),
 });
 
+/**
+ * What one recorded transition changed.
+ *
+ * Stored beside the transition rather than only on the pairing, because the pairing carries
+ * only its latest answer: a decline followed by nothing keeps its reason, but a timeline that
+ * read the reason off the pairing would attribute whatever is there now to whichever row the
+ * reader was looking at.
+ */
+export const pairingEventDetailSchema = z.object({
+  clientId: z.string().optional(),
+  reason: z.string().optional(),
+});
+
 /** A pairing in full: its registration snapshot and its whole history. */
 export const pairingDetailSchema = pairingSummarySchema.extend({
   registrationFields: registrationFieldsSchema,
@@ -206,6 +219,8 @@ export type PairingAction = z.infer<typeof pairingActionSchema>;
 export type PairingSummary = z.infer<typeof pairingSummarySchema>;
 /** One recorded transition. */
 export type PairingTimelineEntry = z.infer<typeof pairingTimelineEntrySchema>;
+/** What one recorded transition changed. */
+export type PairingEventDetail = z.infer<typeof pairingEventDetailSchema>;
 /** A pairing in full. */
 export type PairingDetail = z.infer<typeof pairingDetailSchema>;
 /** What a pairing mutation answers with. */

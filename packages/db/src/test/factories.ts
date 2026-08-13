@@ -23,12 +23,15 @@ import {
   insertOrganisationWithFirstMember,
   insertSystem,
   setAccountStatus,
+  updateEvent,
+  upsertEnrolment,
 } from "../repositories/directory.js";
 import { account } from "../schema/directory.js";
 
 import type { Executor } from "../executor.js";
 import type {
   AccountRow,
+  EnrolmentRow,
   EventRow,
   OrganisationRow,
   SystemRow,
@@ -38,7 +41,7 @@ import type {
   EventInput,
   ServerProfile,
 } from "@muster/contracts";
-import type { AccountStatus } from "@muster/core";
+import type { AccountStatus, EventStatus } from "@muster/core";
 
 /** How many fixtures this process has made. */
 let sequence = 0;
@@ -199,9 +202,9 @@ export async function makeSystem(
 /** Creates an event. Defaults to a draft, so a suite says when it is open. */
 export async function makeEvent(
   db: Executor,
-  overrides: Partial<EventInput> = {},
+  overrides: Partial<EventInput> & { readonly status?: EventStatus } = {},
 ): Promise<EventRow> {
-  return await insertEvent(db, {
+  const created = await insertEvent(db, {
     slug: overrides.slug ?? `event-${uniqueSuffix()}`,
     name: overrides.name ?? "Fixture Connectathon",
     startsOn: overrides.startsOn ?? "2026-09-15",
@@ -210,6 +213,59 @@ export async function makeEvent(
     personaSourceUrl: overrides.personaSourceUrl ?? null,
     graceDays: overrides.graceDays ?? 7,
   });
+  if (overrides.status === undefined || overrides.status === "draft") {
+    return created;
+  }
+  // Written through the repository rather than by hand, so a suite that arranges a closed
+  // event gets the same row an admin's PATCH would leave behind.
+  const moved = await updateEvent(db, {
+    slug: created.slug,
+    patch: { status: overrides.status },
+    now: new Date(),
+  });
+  if (moved === undefined) {
+    throw new Error("fixture event disappeared between statements");
+  }
+  return moved;
+}
+
+/** What a fixture enrolment records. */
+export interface EnrolmentFixture {
+  /** The event, which must be open. */
+  readonly event: EventRow;
+  readonly systemId: string;
+  /** Who is confirming the details are current. */
+  readonly accountId: string;
+  readonly tags?: readonly string[];
+  readonly now?: Date;
+}
+
+/**
+ * Enrols a system in an event.
+ *
+ * The event must be open, because `upsertEnrolment` refuses anything else (FR-011) - which is
+ * exactly the rule a fixture must not be able to sidestep.
+ *
+ * @param db - The executor.
+ * @param input - The open event, the system, who is confirming and any tags.
+ * @returns The enrolment.
+ * @throws {Error} When the enrolment was refused, naming the reason.
+ */
+export async function makeEnrolment(
+  db: Executor,
+  input: EnrolmentFixture,
+): Promise<EnrolmentRow> {
+  const written = await upsertEnrolment(db, {
+    event: input.event,
+    systemId: input.systemId,
+    tags: input.tags ?? [],
+    confirmedBy: input.accountId,
+    confirmedAt: input.now ?? new Date(),
+  });
+  if (!written.ok) {
+    throw new Error(`fixture enrolment was refused: ${written.reason}`);
+  }
+  return written.enrolment;
 }
 
 /** Approves an account, as an admin would. */
