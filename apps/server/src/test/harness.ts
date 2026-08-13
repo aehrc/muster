@@ -44,6 +44,7 @@ import type {
   ServerContext,
 } from "../context.js";
 import type { MailMessage } from "../mail/transport.js";
+import type { AccountStatus } from "@muster/core";
 import type { AccountRow, Database } from "@muster/db";
 import type { Hono } from "hono";
 
@@ -106,10 +107,16 @@ export interface TestStack {
    * built on it exercises the real sign-in path.
    */
   readonly signIn: (email: string, password?: string) => Promise<string>;
-  /** Creates a verified, approved member who can sign in. */
+  /**
+   * Creates a verified, approved member who can sign in.
+   *
+   * `status` is there for the suites whose subject is a refusal: an account awaiting
+   * approval still signs in, and what it may then do is the thing being asserted.
+   */
   readonly makeMember: (overrides?: {
     readonly displayName?: string;
     readonly isAdmin?: boolean;
+    readonly status?: AccountStatus;
   }) => Promise<AccountRow>;
   /** Pins the clock every rule and every route reads. */
   readonly setNow: (at: Date) => void;
@@ -232,12 +239,14 @@ export async function createTestStack(
     overrides: {
       readonly displayName?: string;
       readonly isAdmin?: boolean;
+      readonly status?: AccountStatus;
     } = {},
   ): Promise<AccountRow> =>
     await makeAccount(handle.db, {
       email: `member-${uniqueSuffix()}@muster.test`,
       displayName: overrides.displayName ?? "Fixture Member",
       isAdmin: overrides.isAdmin ?? false,
+      status: overrides.status ?? "approved",
       passwordHash,
       now,
     });

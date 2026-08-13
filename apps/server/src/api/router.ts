@@ -30,6 +30,7 @@ import { registerPublicRoutes } from "../http/publicApi.js";
 import { registerDcrRoutes } from "../pairing/dcr.routes.js";
 import { registerHarnessRoutes } from "../pairing/harness.routes.js";
 import { registerPairingRoutes } from "../pairing/routes.js";
+import { registerTicketRoutes } from "../pairing/tickets.routes.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
 
@@ -107,6 +108,7 @@ export function createApiRouter(
   registerPairingRoutes(router, context);
   registerDcrRoutes(router, context);
   registerHarnessRoutes(router, context);
+  registerTicketRoutes(router, context);
 
   // Registered last, so it answers only what nothing above matched. A `notFound` handler
   // would not do: this router is mounted into the application, and the application's own

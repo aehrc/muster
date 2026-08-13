@@ -152,7 +152,82 @@ describe.skipIf(!hasTestDatabase())("check status on the public API", () => {
       detail: null,
       driftFlags: [],
       lastSuccessAt: "2026-09-15T12:04:00.000Z",
+      permissionTicketTypesSupported: ["patient-self-access"],
     });
+  });
+
+  // FR-034 and scenario 3: which enrolled servers accept a permission ticket is surfaced on
+  // the event view and on the system page, fed by the check rather than by asking the server
+  // again. Both surfaces, because a member reads the first to choose and the second to
+  // confirm - and both are public.
+  it("surfaces advertised permission ticket support on the event view (FR-034)", async () => {
+    const { event, system, enrolment } = await scene();
+    await insertCheckResult(stack.db, {
+      enrolmentId: enrolment.id,
+      checkedAt: new Date("2026-09-15T12:04:00.000Z"),
+      reachable: true,
+      failureMode: null,
+      detail: null,
+      discovery: DISCOVERY,
+      capability: CAPABILITY,
+      driftFlags: [],
+    });
+
+    const { systems } = await listing(event.slug);
+    const entry = systems.find((row) => row.systemId === system.id);
+    expect(entry?.check?.permissionTicketTypesSupported).toEqual([
+      "patient-self-access",
+    ]);
+
+    const page = await detail(event.slug, system.id);
+    expect(page.system.check?.permissionTicketTypesSupported).toEqual([
+      "patient-self-access",
+    ]);
+    // The whole advertised field is on the detail too, which is what the panel renders.
+    expect(
+      page.system.check?.discovery?.permissionTicketTypesSupported,
+    ).toEqual(["patient-self-access"]);
+  });
+
+  it("surfaces no ticket support for a server that advertises none (FR-034)", async () => {
+    const { event, system, enrolment } = await scene();
+    await insertCheckResult(stack.db, {
+      enrolmentId: enrolment.id,
+      checkedAt: new Date("2026-09-15T12:04:00.000Z"),
+      reachable: true,
+      failureMode: null,
+      detail: null,
+      discovery: { ...DISCOVERY, permissionTicketTypesSupported: [] },
+      capability: CAPABILITY,
+      driftFlags: [],
+    });
+
+    const { systems } = await listing(event.slug);
+    expect(
+      systems.find((row) => row.systemId === system.id)?.check
+        ?.permissionTicketTypesSupported,
+    ).toEqual([]);
+  });
+
+  // A server nobody could reach has said nothing, which is not the same claim as "no".
+  it("surfaces no ticket support for an unreachable server (FR-034)", async () => {
+    const { event, system, enrolment } = await scene();
+    await insertCheckResult(stack.db, {
+      enrolmentId: enrolment.id,
+      checkedAt: new Date("2026-09-15T12:04:00.000Z"),
+      reachable: false,
+      failureMode: "timeout",
+      detail: "timed out",
+      discovery: null,
+      capability: null,
+      driftFlags: [],
+    });
+
+    const { systems } = await listing(event.slug);
+    expect(
+      systems.find((row) => row.systemId === system.id)?.check
+        ?.permissionTicketTypesSupported,
+    ).toEqual([]);
   });
 
   it("reports the drift flags with both values (FR-018)", async () => {

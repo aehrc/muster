@@ -19,6 +19,7 @@
  */
 
 import {
+  advertisedPermissionTicketTypes,
   pairingTransition,
   patientResourceUrl,
   REQUEST_NOTIFIES,
@@ -156,6 +157,12 @@ export function checkStatusView(status: CheckStatusRow): CheckStatus {
   return {
     ...checkSummaryView(status.latest),
     lastSuccessAt: status.lastSuccessAt?.toISOString() ?? null,
+    // FR-034: the event view says which enrolled servers accept a permission ticket, and it
+    // says it from the recorded check rather than by re-fetching every server when somebody
+    // opens the playground.
+    permissionTicketTypesSupported: [
+      ...advertisedPermissionTicketTypes(status.latest.discovery),
+    ],
   };
 }
 
