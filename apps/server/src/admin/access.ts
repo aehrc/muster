@@ -65,6 +65,22 @@ export function callerId(c: Context<MusterEnvironment>): string {
 }
 
 /**
+ * The organisation an identifier names, or `undefined`.
+ *
+ * `undefined` for a malformed identifier as well as for one that names nothing, because both
+ * end in the same 404: something that is not a UUID cannot name a row, and handing it to a
+ * uuid comparison produces a driver error rather than an answer.
+ */
+async function organisationById(
+  context: ServerContext,
+  organisationId: string,
+): Promise<OrganisationRow | undefined> {
+  return isIdentifier(organisationId)
+    ? await findOrganisationById(context.db, organisationId)
+    : undefined;
+}
+
+/**
  * The organisation named in the path, if the caller belongs to it.
  *
  * @returns The organisation, or the refusal to return from the handler.
@@ -74,9 +90,7 @@ export async function callerOrganisation(
   c: Context<MusterEnvironment>,
   organisationId: string,
 ): Promise<OrganisationRow | Response> {
-  const organisation = isIdentifier(organisationId)
-    ? await findOrganisationById(context.db, organisationId)
-    : undefined;
+  const organisation = await organisationById(context, organisationId);
   if (
     organisation === undefined ||
     !(await isOrganisationMember(context.db, {
@@ -133,9 +147,7 @@ export async function namedOrganisation(
   c: Context<MusterEnvironment>,
   organisationId: string,
 ): Promise<OrganisationRow | Response> {
-  const organisation = isIdentifier(organisationId)
-    ? await findOrganisationById(context.db, organisationId)
-    : undefined;
+  const organisation = await organisationById(context, organisationId);
   if (organisation === undefined) {
     return jsonError(c, 404, "not_found", "No organisation has that id");
   }
