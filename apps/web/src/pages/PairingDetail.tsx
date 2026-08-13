@@ -23,16 +23,16 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { usePairingEntry } from "./pairingEntry.js";
 import { describePairingState } from "./pairingFilters.js";
 import { describeError } from "../api/errors.js";
-import { usePairing, usePairingAnswer } from "../api/queries.js";
+import { usePairingAnswer } from "../api/queries.js";
 import { SubmitButton, TextField } from "../components/fields.js";
 import {
   DetailRow,
   EmptyState,
   ErrorAlert,
   InfoAlert,
-  Loading,
   PageHeader,
   Panel,
 } from "../components/layout.js";
@@ -43,16 +43,12 @@ import type { PairingDetail as Pairing, ScopeWarning } from "@muster/contracts";
 
 /** A pairing's registration snapshot, its timeline and the actions the caller may take. */
 export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
-  const entry = usePairing(id);
+  const entry = usePairingEntry(id);
 
-  if (entry.isPending) {
-    return <Loading label="Loading the pairing" />;
+  if (entry.pairing === undefined) {
+    return entry.fallback;
   }
-  if (entry.error !== null) {
-    return <ErrorAlert message={describeError(entry.error)} />;
-  }
-
-  const { pairing } = entry.data;
+  const { pairing } = entry;
 
   return (
     <article className="page-wide">

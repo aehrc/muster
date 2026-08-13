@@ -28,17 +28,13 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { usePairingEntry } from "./pairingEntry.js";
 import { describeError } from "../api/errors.js";
-import {
-  statementDownloadPath,
-  useDcrRun,
-  usePairing,
-} from "../api/queries.js";
+import { statementDownloadPath, useDcrRun } from "../api/queries.js";
 import {
   DetailRow,
   ErrorAlert,
   InfoAlert,
-  Loading,
   PageHeader,
   Panel,
 } from "../components/layout.js";
@@ -108,20 +104,16 @@ function stepState(step: DcrRunStep | undefined, pending: boolean): string {
 
 /** Mints a statement, presents it and shows what came back. */
 export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
-  const entry = usePairing(id);
+  const entry = usePairingEntry(id);
   const run = useDcrRun(id);
   // The secret lives here and nowhere else. Held separately from `run.data` so that a later
   // refetch of the pairing cannot displace it while the reader is still copying it.
   const [secret, setSecret] = useState<string | null>(null);
 
-  if (entry.isPending) {
-    return <Loading label="Loading the pairing" />;
+  if (entry.pairing === undefined) {
+    return entry.fallback;
   }
-  if (entry.error !== null) {
-    return <ErrorAlert message={describeError(entry.error)} />;
-  }
-
-  const { pairing } = entry.data;
+  const { pairing } = entry;
   const canRun = pairing.actions.includes("register");
 
   function handleRun() {
