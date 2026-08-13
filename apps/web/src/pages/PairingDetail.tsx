@@ -37,7 +37,7 @@ import {
   Panel,
 } from "../components/layout.js";
 import { fullTime } from "../formatting/times.js";
-import { ROUTES } from "../routes.js";
+import { dcrRunPath, ROUTES } from "../routes.js";
 
 import type { PairingDetail as Pairing, ScopeWarning } from "@muster/contracts";
 
@@ -74,6 +74,14 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
       )}
       {pairing.declineReason === null ? null : (
         <ErrorAlert message={`Declined: ${pairing.declineReason}`} />
+      )}
+      {pairing.statement === null ? null : (
+        <p className="note">
+          A software statement was minted for this pairing on{" "}
+          {fullTime(pairing.statement.mintedAt)}, signed with{" "}
+          <code>{pairing.statement.keyId}</code>, and vouches until{" "}
+          {fullTime(pairing.statement.expiresAt)}.
+        </p>
       )}
       {pairing.state === "lapsed" ? (
         <p className="note">
@@ -155,9 +163,14 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
         </div>
       </div>
 
-      {pairing.actions.length === 0 ? null : (
+      {pairing.actions.includes("register") ? (
+        <RegisterPanel id={id} pairing={pairing} />
+      ) : null}
+
+      {pairing.actions.includes("fulfil") ||
+      pairing.actions.includes("decline") ? (
         <RespondPanel id={id} pairing={pairing} />
-      )}
+      ) : null}
     </article>
   );
 }
@@ -226,6 +239,37 @@ function Timeline({ pairing }: Readonly<{ readonly pairing: Pairing }>) {
         </li>
       ) : null}
     </ul>
+  );
+}
+
+/**
+ * The trusted-DCR run, offered to the app owner (FR-026).
+ *
+ * A link rather than a button, because the run has a screen of its own: it reports three steps,
+ * and it may hand back a secret that is shown once and must not be lost to a navigation the
+ * reader did not choose.
+ */
+function RegisterPanel({
+  id,
+  pairing,
+}: Readonly<{ readonly id: string; readonly pairing: Pairing }>) {
+  return (
+    <Panel
+      title="Register automatically"
+      description={`${pairing.server.name} accepts Muster-vouched registration, so no human on the server side is needed.`}
+    >
+      <p>
+        Muster signs the registration details above into a software statement,
+        presents it to the server, and records the client identifier it issues.
+        The statement expires no later than the end of {pairing.event.name} plus
+        its grace period.
+      </p>
+      <p>
+        <Link className="button button-primary" to={dcrRunPath(id)}>
+          Open the registration run
+        </Link>
+      </p>
+    </Panel>
   );
 }
 

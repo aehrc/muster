@@ -26,6 +26,8 @@ import { AppLayout } from "./components/AppLayout.js";
 import { AdminLayout } from "./pages/admin/AdminLayout.js";
 import { AdminEvents } from "./pages/admin/Events.js";
 import { AdminMembers } from "./pages/admin/Members.js";
+import { DcrRun } from "./pages/DcrRun.js";
+import { Docs } from "./pages/Docs.js";
 import { Events } from "./pages/Events.js";
 import { EventView } from "./pages/EventView.js";
 import { Home } from "./pages/Home.js";
@@ -60,6 +62,8 @@ export function App() {
             />
             <Route path="pairings" element={<Pairings />} />
             <Route path="pairings/:id" element={<PairingRoute />} />
+            <Route path="pairings/:id/register" element={<DcrRunRoute />} />
+            <Route path="docs" element={<Docs />} />
             <Route path="my-organisation" element={<MyOrganisation />} />
             <Route path="sign-in" element={<SignIn />} />
             <Route path="verify" element={<Verify />} />
@@ -71,8 +75,7 @@ export function App() {
               <Route path="members" element={<AdminMembers />} />
               <Route path="events" element={<AdminEvents />} />
             </Route>
-            {/* The persona and docs pages are mounted here by the user stories
-                that build them. */}
+            {/* The persona page is mounted here by the user story that builds it. */}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
@@ -91,6 +94,12 @@ function EventRoute() {
 function PairingRoute() {
   const { id } = useParams();
   return id === undefined ? <NotFound /> : <PairingDetail id={id} />;
+}
+
+/** Reads the pairing's identifier for the trusted-DCR run screen. */
+function DcrRunRoute() {
+  const { id } = useParams();
+  return id === undefined ? <NotFound /> : <DcrRun id={id} />;
 }
 
 /** Reads the event's slug and the system's identifier from the URL. */

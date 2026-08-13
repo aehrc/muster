@@ -62,6 +62,19 @@ export function pairingPath(pairingId: string): string {
   return `${ROUTES.pairings}/${pairingId}`;
 }
 
+/**
+ * The address of one pairing's trusted-DCR run screen.
+ *
+ * Nested under the pairing rather than a page of its own, because a run only exists in the
+ * context of one - and because the back link has somewhere obvious to go.
+ *
+ * @param pairingId - The pairing's identifier.
+ * @returns The path.
+ */
+export function dcrRunPath(pairingId: string): string {
+  return `${pairingPath(pairingId)}/register`;
+}
+
 /** One destination in the header. */
 export interface NavigationItem {
   readonly path: string;

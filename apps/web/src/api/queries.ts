@@ -20,6 +20,7 @@ import { get, patch, post, remove } from "./client.js";
 
 import type {
   AdminAccount,
+  DcrRunResult,
   EnrolledSystem,
   EnrolledSystemDetail,
   EventChange,
@@ -59,6 +60,7 @@ export const keys = {
     eventSlug ?? "every-event",
   ],
   pairing: (id: string): QueryKey => ["pairing", id],
+  jwks: (): QueryKey => ["jwks"],
   accounts: (status: string): QueryKey => ["admin", "accounts", status],
 } as const;
 
@@ -374,6 +376,58 @@ export function usePairingAnswer(pairingId: string) {
       await client.invalidateQueries({ queryKey: keys.pairing(pairingId) });
       await client.invalidateQueries({ queryKey: ["pairings"] });
     },
+  });
+}
+
+/**
+ * The address the software statement downloads from.
+ *
+ * A path rather than a fetch, because the statement is an artefact a browser saves: the anchor
+ * follows it and the browser writes the file, so nothing has to carry a signed token through
+ * JavaScript (FR-027).
+ *
+ * @param pairingId - The pairing's identifier.
+ * @returns The download path.
+ */
+export function statementDownloadPath(pairingId: string): string {
+  return `/api/pairings/${encodeURIComponent(pairingId)}/statement`;
+}
+
+/**
+ * Runs the trusted-DCR registration for a pairing (FR-026).
+ *
+ * Deliberately a mutation rather than a query: it mints a signed artefact and presents it to
+ * somebody else's server, so it happens when a person asks for it and never because a page
+ * was opened or a cache went stale.
+ */
+export function useDcrRun(pairingId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      await post<DcrRunResult>(
+        `/api/pairings/${encodeURIComponent(pairingId)}/register`,
+      ),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: keys.pairing(pairingId) });
+      await client.invalidateQueries({ queryKey: ["pairings"] });
+    },
+  });
+}
+
+/**
+ * The anchor's published signing keys.
+ *
+ * Read from the public JWKS rather than from a console-only route, so the documentation page
+ * shows the reader exactly the document a vendor's verifier fetches (FR-024).
+ */
+export function useJwks() {
+  return useQuery({
+    queryKey: keys.jwks(),
+    queryFn: async ({ signal }) =>
+      await get<{ keys: { kid?: string; alg?: string }[] }>(
+        "/.well-known/jwks.json",
+        signal,
+      ),
   });
 }
 

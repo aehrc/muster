@@ -521,3 +521,71 @@ button.tag {
 .back {
   font-size: 0.9rem;
 }
+
+/* The trusted-DCR run screen: stepwise progress, and the one-time secret. */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.step {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+}
+
+.step-failed {
+  border-color: #a33;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.25rem;
+}
+
+.step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  font-size: 0.8rem;
+  flex: 0 0 auto;
+}
+
+.secret-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.secret-value {
+  flex: 1 1 18rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface);
+  color: inherit;
+}
+
+.code-block {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.75rem;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
