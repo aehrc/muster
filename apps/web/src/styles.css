@@ -298,6 +298,18 @@ button.tag {
   overflow-wrap: anywhere;
 }
 
+/*
+ * A code block that wraps rather than scrolling.
+ *
+ * The conformance harness's evidence is a server's response body, which arrives as one long
+ * line - and a block that scrolled would widen the table it sits in until the page did too.
+ */
+.code-wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

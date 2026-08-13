@@ -31,6 +31,7 @@ import {
   describeBadge,
   describeHarnessRefusal,
   describeVerdict,
+  formatEvidenceBody,
   summariseEvidence,
   HARNESS_CHECK_LABELS,
 } from "./harnessReport.js";
@@ -219,15 +220,15 @@ function CheckEvidence({
       ))}
       <details>
         <summary>view request/response</summary>
-        <pre className="code-block">
+        <pre className="code-block code-wrap">
           {check.request.method} {check.request.url}
           {"\n"}
-          {check.request.body}
+          {formatEvidenceBody(check.request.body)}
         </pre>
-        <pre className="code-block">
+        <pre className="code-block code-wrap">
           {check.response === null
             ? (check.failure ?? "No response.")
-            : `HTTP ${String(check.response.status)}\n${check.response.body}`}
+            : `HTTP ${String(check.response.status)}\n${formatEvidenceBody(check.response.body)}`}
         </pre>
       </details>
     </>

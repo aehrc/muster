@@ -127,6 +127,29 @@ export function summariseEvidence(check: HarnessCheckView): string {
 }
 
 /**
+ * A body as a reader should see it.
+ *
+ * Indented when it is JSON, which is what RFC 7591 requires a registration endpoint to answer
+ * with: the stored evidence is one long line, and one long line in a table cell is a page that
+ * scrolls sideways rather than a body somebody can read. Anything that is not JSON is shown
+ * exactly as it arrived, because that is the evidence.
+ *
+ * @param body - The recorded body.
+ * @returns The body, indented when it parses as JSON.
+ * @example
+ * ```ts
+ * formatEvidenceBody('{"error":"invalid_request"}'); // '{\n  "error": "invalid_request"\n}'
+ * ```
+ */
+export function formatEvidenceBody(body: string): string {
+  try {
+    return JSON.stringify(JSON.parse(body) as unknown, null, 2);
+  } catch {
+    return body;
+  }
+}
+
+/**
  * Why the run is not on offer, said rather than left as a missing button (FR-037).
  *
  * @param refusal - The refusal the server computed, or null when there is none.

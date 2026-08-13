@@ -15,6 +15,7 @@ import {
   describeCheckName,
   describeHarnessRefusal,
   describeVerdict,
+  formatEvidenceBody,
   summariseEvidence,
   HARNESS_CHECK_LABELS,
 } from "./harnessReport.js";
@@ -133,6 +134,20 @@ describe("summariseEvidence", () => {
         }),
       ),
     ).toBe("the endpoint did not answer in time");
+  });
+});
+
+describe("formatEvidenceBody", () => {
+  it("indents a JSON body so it reads and wraps", () => {
+    expect(formatEvidenceBody('{"error":"invalid_request"}')).toBe(
+      '{\n  "error": "invalid_request"\n}',
+    );
+  });
+
+  it("shows a body that is not JSON exactly as it arrived", () => {
+    // A server answering something else has failed the profile, and its answer is the
+    // evidence: reformatting it would be editing the evidence.
+    expect(formatEvidenceBody("not json at all")).toBe("not json at all");
   });
 });
 
