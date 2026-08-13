@@ -24,6 +24,13 @@
  * already seen is refused whether or not the first one succeeded, because the identifier is
  * what the anchor promises is unique per registration.
  *
+ * **It tells the harness where the client it made can be deleted.** The registration response
+ * carries RFC 7592's `registration_client_uri` and `registration_access_token`, which is how the
+ * conformance harness cleans up the throwaway clients it registers (quickstart scenario 4) - and
+ * how it knows to report a client as left behind when a server supplies neither. The delete
+ * itself does not require the token; a stub that stored one would be implementing RFC 7592's
+ * authorization rather than the registration profile.
+ *
  * **The broken modes are deliberate and named.** `STUB_BROKEN_MODE` turns individual rules
  * off, so the harness can be shown to fail when the far end is wrong rather than only to pass
  * when it is right - a check that has never gone red is not evidence. They are opt-in, one per
@@ -372,11 +379,15 @@ function metadataRefusal(claims: Record<string, unknown>): string | undefined {
 function registrationResponse(
   client: StubClient,
   secret: string | undefined,
+  origin: string,
 ): Response {
   return Response.json(
     {
       client_id: client.clientId,
       client_id_issued_at: Math.floor(Date.now() / 1000),
+      // RFC 7592: where this client can be read and deleted. The harness uses it to clean up.
+      registration_client_uri: `${origin}/clients/${client.clientId}`,
+      registration_access_token: `stub-rat-${client.clientId}`,
       ...(secret === undefined
         ? {}
         : // Zero means "does not expire" per §3.2.1. The *vouching* expires instead, and this
@@ -400,7 +411,10 @@ function registrationResponse(
 }
 
 /** Handles `POST /register`, in the order the profile lists its rules. */
-async function handleRegister(request: Request): Promise<Response> {
+async function handleRegister(
+  request: Request,
+  origin: string,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await request.json();
@@ -509,7 +523,7 @@ async function handleRegister(request: Request): Promise<Response> {
     }),
   );
 
-  return registrationResponse(client, secret);
+  return registrationResponse(client, secret, origin);
 }
 
 /** The client a harness registered, so it can check the metadata was kept faithfully. */
@@ -590,7 +604,7 @@ async function handle(request: Request): Promise<Response> {
     });
   }
   if (request.method === "POST" && url.pathname === "/register") {
-    return await handleRegister(request);
+    return await handleRegister(request, origin);
   }
   const client = /^\/clients\/([^/]+)$/.exec(url.pathname);
   if (client !== null) {

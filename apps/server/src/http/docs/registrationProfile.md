@@ -64,6 +64,16 @@ Per RFC 7591: `201` with `client_id` and, for confidential clients,
 `client_secret` (returned once). Muster relays the secret to the initiating
 member exactly once and never stores it.
 
+Per RFC 7591 §3.2.1 the response MUST also return the registered client
+metadata. That is what makes the harness's fidelity check possible: a
+response carrying only an identifier leaves no way to show that the client
+created is the client vouched for.
+
+A server MAY additionally return RFC 7592's `registration_client_uri` and
+`registration_access_token`. The harness uses them to delete the throwaway
+client it registers; a server that returns neither has the client reported
+as left behind, which is a note in the report rather than a failure.
+
 ## Errors
 
 RFC 7591 error responses with `error` values:
@@ -81,6 +91,11 @@ checks that they do.
 | Expired statement         | refused, `invalid_software_statement`           |
 | Replayed `jti`            | refused on second use                           |
 | Metadata fidelity         | registered client equals statement metadata     |
+| Statement only            | metadata asserted outside the statement is refused or ignored |
+
+Where the profile says SHOULD rather than MUST - the error vocabulary above -
+the harness reports the discrepancy as an advisory and the run still passes.
+Only a MUST failing removes the verified badge.
 
 Event scoping is the anchor's job: Muster never mints for an unknown or
 closed event, so servers need no view of the event calendar. A server MAY
