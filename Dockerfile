@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1.7
+
+# ---------------------------------------------------------------------------
+# Build stage: install the whole workspace and produce both bundles.
+# ---------------------------------------------------------------------------
+FROM oven/bun:1-debian AS build
+WORKDIR /app
+
+# Manifests first, so a source-only change does not invalidate the install layer.
+COPY package.json bun.lock ./
+COPY apps/server/package.json ./apps/server/
+COPY apps/web/package.json ./apps/web/
+COPY packages/core/package.json ./packages/core/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/db/package.json ./packages/db/
+COPY e2e/package.json ./e2e/
+RUN bun install --frozen-lockfile
+
+COPY tsconfig.base.json tsconfig.json ./
+COPY scripts ./scripts
+COPY packages ./packages
+COPY apps ./apps
+
+RUN bun run --filter @muster/web build \
+    && bun run --filter @muster/server build
+
+# ---------------------------------------------------------------------------
+# Runtime stage.
+# ---------------------------------------------------------------------------
+FROM node:24-bookworm-slim AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    MUSTER_WEB_ROOT=/app/web
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/apps/server/dist ./dist
+COPY --from=build /app/apps/web/dist ./web
+# The generated migrations, which the server's migrate command applies as the
+# identity that owns the schema. See `packages/db/src/migrations.ts` for why one
+# level up from the bundle is where it looks.
+COPY --from=build /app/packages/db/drizzle ./drizzle
+
+# This image ships no node_modules, so anything left external in the bundle would
+# resolve to nothing at startup. Checked here rather than in the build stage so that
+# `builtinModules` comes from the exact Node that will run the server - Bun's `node`
+# shim reports its own, slightly different, list.
+COPY --from=build /app/scripts/checkBundle.mjs /tmp/checkBundle.mjs
+RUN node /tmp/checkBundle.mjs dist/index.js && rm /tmp/checkBundle.mjs
+
+# Run unprivileged. The node image ships a `node` user at uid 1000.
+USER node
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${PORT}/healthz" || exit 1
+
+CMD ["node", "dist/index.js"]

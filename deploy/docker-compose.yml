@@ -1,0 +1,60 @@
+# The local stack: Muster and its database.
+#
+# A skeleton. The stub registration server and the stub data holder join it with the
+# user stories that need them, and the end-to-end suite runs against whatever this
+# file brings up.
+#
+# Ports are read from the environment rather than fixed, so that a developer whose
+# 3000 or 5432 is taken can move the stack without editing this file - and so that
+# CI can prove every URL in the stack is derived rather than hard-coded by running
+# it on non-default ports.
+
+name: muster
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      # The identity that owns the schema, and therefore the one that migrates.
+      POSTGRES_USER: muster
+      POSTGRES_PASSWORD: muster
+      POSTGRES_DB: muster
+    ports:
+      - "${POSTGRES_PORT:-55434}:5432"
+    volumes:
+      # Mounted at the parent rather than at `data`, which is what the Postgres 18
+      # image asks for: it places the cluster in a subdirectory so that a later
+      # `pg_upgrade --link` does not cross a mount boundary. Mounting `data`
+      # directly makes the image refuse to initialise.
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U muster -d muster"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  muster:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      # Every public URL Muster emits derives from this one, so it must be the
+      # address a browser outside the stack uses rather than the service name.
+      MUSTER_PUBLIC_URL: http://localhost:${MUSTER_PORT:-3000}
+      # The two identities a deployment runs as: the first migrates, the second
+      # serves. The serving role is created and granted by the migrate command, so a
+      # bootstrap service joins this file when that command lands.
+      MUSTER_DATABASE_OWNER_URL: postgresql://muster:muster@postgres:5432/muster
+      MUSTER_DATABASE_URL: postgresql://muster_app:muster_app@postgres:5432/muster
+      # A throwaway key: this stack holds nothing worth protecting, and a real
+      # deployment reads its own from a secret.
+      MUSTER_MASTER_KEY: 0123456789abcdef0123456789abcdef
+    ports:
+      - "${MUSTER_PORT:-3000}:3000"
+
+volumes:
+  postgres:
