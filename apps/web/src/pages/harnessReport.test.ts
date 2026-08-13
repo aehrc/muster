@@ -12,7 +12,6 @@ import { describe, expect, it } from "bun:test";
 
 import {
   describeBadge,
-  describeCheckName,
   describeHarnessRefusal,
   describeVerdict,
   formatEvidenceBody,
@@ -69,19 +68,6 @@ describe("HARNESS_CHECK_LABELS", () => {
     expect(
       HARNESS_CHECK_LABELS.every((label) => label.expectation.length > 0),
     ).toBe(true);
-  });
-});
-
-describe("describeCheckName", () => {
-  it("uses the label for a check it knows", () => {
-    expect(describeCheckName("tampered-signature")).toBe(
-      "Tampered signature rejected",
-    );
-  });
-
-  it("falls back to the name for one it does not", () => {
-    // A run recorded by a later version is still readable rather than blank.
-    expect(describeCheckName("something-newer")).toBe("something-newer");
   });
 });
 

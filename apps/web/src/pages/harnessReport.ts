@@ -70,13 +70,6 @@ export const HARNESS_CHECK_LABELS: readonly HarnessCheckLabel[] = [
   },
 ];
 
-/** What one check is called, falling back to its own name. */
-export function describeCheckName(name: string): string {
-  return (
-    HARNESS_CHECK_LABELS.find((check) => check.name === name)?.label ?? name
-  );
-}
-
 /**
  * The banner at the top of a finished run (FR-030).
  *
