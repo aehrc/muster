@@ -100,7 +100,16 @@ export type PairingWrite =
 export type PairingChange =
   | { readonly to: "fulfilled"; readonly clientId: string }
   | { readonly to: "declined"; readonly reason: string }
-  | { readonly to: "failed" | "requested" | "lapsed" };
+  /**
+   * A trusted-DCR attempt the server rejected.
+   *
+   * The reason is required and is the server's own words, because FR-026 makes the failure
+   * visible to the app owner and "it failed" is not something they can act on. It is
+   * recorded on the timeline entry rather than on the pairing: `decline_reason` belongs to a
+   * decline, and a retry that succeeded would leave a stale explanation behind on the row.
+   */
+  | { readonly to: "failed"; readonly reason: string }
+  | { readonly to: "requested" | "lapsed" };
 
 /** What a transition records. */
 export interface PairingTransitionInput {
@@ -248,7 +257,7 @@ function changeDetail(change: PairingChange) {
   if (change.to === "fulfilled") {
     return { clientId: change.clientId };
   }
-  if (change.to === "declined") {
+  if (change.to === "declined" || change.to === "failed") {
     return { reason: change.reason };
   }
   return {};

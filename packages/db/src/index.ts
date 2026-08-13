@@ -8,6 +8,7 @@ export {
   type DatabaseHandle,
   type DatabaseOptions,
 } from "./client.js";
+export * from "./crypto/index.js";
 export type { Executor } from "./executor.js";
 export { pingDatabase } from "./health.js";
 export * from "./migrations.js";
@@ -31,6 +32,7 @@ export {
   type AccountFixture,
   type EnrolmentFixture,
 } from "./test/factories.js";
+export { findStoredValue, type SecretOccurrence } from "./test/secrets.js";
 export {
   databaseUrlWith,
   hasTestDatabase,

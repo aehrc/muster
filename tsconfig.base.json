@@ -6,6 +6,10 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // The vendor-facing contracts are `.md` files imported as text (see
+    // `apps/server/src/http/docs.ts`). This is what lets TypeScript resolve them, through the
+    // `<name>.d.md.ts` declaration beside each one.
+    "allowArbitraryExtensions": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "esModuleInterop": true,

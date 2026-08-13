@@ -35,9 +35,14 @@ import {
   createRateLimitStore,
   createUnlimitedStore,
 } from "../http/rateLimit.js";
+import { ensureSigningKeys } from "../keys/keys.js";
 
 import type { MusterConfig } from "../config.js";
-import type { MusterEnvironment, ServerContext } from "../context.js";
+import type {
+  MusterEnvironment,
+  OutboundInjection,
+  ServerContext,
+} from "../context.js";
 import type { MailMessage } from "../mail/transport.js";
 import type { AccountRow, Database } from "@muster/db";
 import type { Hono } from "hono";
@@ -59,6 +64,19 @@ export interface TestStackOptions {
   readonly rateLimits?: "enforced" | "unlimited";
   /** Whether the mail transport refuses everything, for the notification-failure cases. */
   readonly mail?: "recording" | "failing";
+  /**
+   * The transport and resolver the outbound guard uses.
+   *
+   * A suite whose subject is what a route does with a participant server's answer supplies
+   * one, so the route is exercised without a network and without a second path to one.
+   */
+  readonly outbound?: OutboundInjection;
+  /**
+   * Hosts the guard may reach on a private address or over plain HTTP.
+   *
+   * Empty by default, as a deployment's is: a suite that needs an exemption asks for it.
+   */
+  readonly outboundAllowedHosts?: readonly string[];
 }
 
 /** Everything a suite drives. */
@@ -89,7 +107,10 @@ export interface TestStack {
 }
 
 /** The configuration every suite runs against. */
-function testConfig(databaseUrl: string): MusterConfig {
+function testConfig(
+  databaseUrl: string,
+  allowedHosts: readonly string[],
+): MusterConfig {
   return {
     port: 3000,
     publicUrl: TEST_PUBLIC_URL,
@@ -99,7 +120,7 @@ function testConfig(databaseUrl: string): MusterConfig {
     webRoot: undefined,
     smtpUrl: undefined,
     mailFrom: "no-reply@muster.test",
-    outboundAllowedHosts: [],
+    outboundAllowedHosts: allowedHosts,
     checkIntervalMs: 900_000,
   };
 }
@@ -140,7 +161,10 @@ export async function createTestStack(
   let now = new Date("2026-09-01T10:00:00.000Z");
 
   const context: ServerContext = {
-    config: testConfig(servingRoleUrl(ownerUrl)),
+    config: testConfig(
+      servingRoleUrl(ownerUrl),
+      options.outboundAllowedHosts ?? [],
+    ),
     db: handle.db,
     mail: {
       send: async (message) => {
@@ -156,7 +180,12 @@ export async function createTestStack(
         ? createRateLimitStore()
         : createUnlimitedStore(),
     clock: () => now,
+    ...(options.outbound === undefined ? {} : { outbound: options.outbound }),
   };
+
+  // The same thing the process entry point does before it serves: the anchor's keys are its
+  // identity, and a JWKS that answered with nothing would be a public surface that lies.
+  await ensureSigningKeys(handle.db, context.config.masterKey, now);
 
   const app = createApp(context);
   const passwordHash = await hashPassword(TEST_PASSWORD);

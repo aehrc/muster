@@ -11,4 +11,6 @@ export * from "./checks.js";
 export * from "./columns.js";
 export * from "./directory.js";
 export * from "./enums.js";
+export * from "./keys.js";
 export * from "./pairings.js";
+export * from "./statements.js";

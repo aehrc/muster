@@ -21,6 +21,7 @@
 import {
   pairingTransition,
   REQUEST_NOTIFIES,
+  softwareStatementRefusal,
   transitionRefusal,
   unsupportedScopes,
   writeRefusal,
@@ -49,9 +50,10 @@ import type {
   PairingTimelineEntry,
   ScopeWarning,
   SessionAccount,
+  SoftwareStatementView,
   SystemKind,
 } from "@muster/contracts";
-import type { PairingState } from "@muster/core";
+import type { AccountStanding, PairingState } from "@muster/core";
 import type {
   AccountRow,
   CheckResultRow,
@@ -65,6 +67,7 @@ import type {
   PairingSideRow,
   PairingTimelineRow,
   PairingWithSides,
+  SoftwareStatementRow,
   SystemEnrolmentRow,
   SystemRow,
 } from "@muster/db";
@@ -353,33 +356,77 @@ export function pairingSides(
   ];
 }
 
-/** The state each offered action asks for. */
+/**
+ * Who is looking at a pairing, and when.
+ *
+ * The three things every pairing projection needs beyond the row itself. `standing` and `now`
+ * are here because one of the offered actions - the trusted-DCR run - is refused for a revoked
+ * member and for an event whose grace has run out, and the console must not offer a button the
+ * server would refuse.
+ */
+export interface PairingViewer {
+  /** The sides the caller's organisations hold. Both, for a member of both. */
+  readonly sides: readonly PairingSideName[];
+  readonly standing: AccountStanding;
+  readonly now: Date;
+}
+
+/** The state each offered transition asks for. */
 const ACTION_TARGETS = {
   fulfil: "fulfilled",
   decline: "declined",
-} as const satisfies Readonly<Record<PairingAction, PairingState>>;
+} as const satisfies Readonly<Partial<Record<PairingAction, PairingState>>>;
 
-/**
- * What the caller may do to a pairing now.
- *
- * Computed from the same rule that would refuse the request, so the action the console offers and
- * the transition the server admits cannot disagree - and so the console holds no copy of who may
- * answer a pairing.
- */
-function pairingActions(
+/** The transitions this caller may ask for. */
+function transitionActions(
   state: PairingState,
   sides: readonly PairingSideName[],
 ): readonly PairingAction[] {
-  return (Object.keys(ACTION_TARGETS) as readonly PairingAction[]).filter(
+  return (
+    Object.keys(ACTION_TARGETS) as readonly ("fulfil" | "decline")[]
+  ).filter(
     (action) =>
       transitionRefusal(state, ACTION_TARGETS[action], sides) === undefined,
   );
 }
 
+/**
+ * What the caller may do to a pairing now.
+ *
+ * Computed from the same rules that would refuse the request, so the action the console offers
+ * and the thing the server admits cannot disagree - and so the console holds no copy of who may
+ * answer a pairing, and none of when Muster will vouch for one.
+ */
+function pairingActions(
+  row: PairingWithSides,
+  viewer: PairingViewer,
+): readonly PairingAction[] {
+  const profile = row.server.system.serverProfile;
+  const canRegister =
+    profile !== null &&
+    softwareStatementRefusal({
+      standing: viewer.standing,
+      ownsClientSide: viewer.sides.includes("client"),
+      eventStatus: row.event.status,
+      eventEndsOn: row.event.endsOn,
+      graceDays: row.event.graceDays,
+      pairingState: row.pairing.state,
+      serverRegistrationMode: profile.registrationMode,
+      registrationEndpoint: profile.registrationEndpoint,
+      fields: row.pairing.registrationFields,
+      now: viewer.now,
+    }) === undefined;
+
+  return [
+    ...transitionActions(row.pairing.state, viewer.sides),
+    ...(canRegister ? (["register"] as const) : []),
+  ];
+}
+
 /** A pairing as the list shows it. */
 export function pairingSummaryView(
   row: PairingWithSides,
-  sides: readonly PairingSideName[],
+  viewer: PairingViewer,
 ): PairingSummary {
   return {
     id: row.pairing.id,
@@ -389,10 +436,35 @@ export function pairingSummaryView(
     server: pairingSideView(row.server),
     clientId: row.pairing.clientId,
     declineReason: row.pairing.declineReason,
-    sides: [...sides],
-    actions: [...pairingActions(row.pairing.state, sides)],
+    sides: [...viewer.sides],
+    actions: [...pairingActions(row, viewer)],
     requestedAt: row.pairing.createdAt.toISOString(),
     updatedAt: row.pairing.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * A minted software statement, as the console shows it (FR-023).
+ *
+ * The compact JWS is deliberately absent. It is served by its own route as a download
+ * (FR-027), so a page that only displays the claims does not carry the signed artefact
+ * through the browser.
+ */
+export function softwareStatementView(
+  row: SoftwareStatementRow,
+): SoftwareStatementView {
+  return {
+    jti: row.jti,
+    keyId: row.keyId,
+    // Copied rather than passed through: the domain's claim set carries readonly arrays and
+    // the wire shape does not, and a cast would hide that they are the same fields.
+    claims: {
+      ...row.claims,
+      redirect_uris: [...row.claims.redirect_uris],
+      grant_types: [...row.claims.grant_types],
+    },
+    expiresAt: row.expiresAt.toISOString(),
+    mintedAt: row.createdAt.toISOString(),
   };
 }
 
@@ -467,14 +539,17 @@ export function pairingScopeWarning(
  */
 export function pairingDetailView(
   row: PairingWithSides,
-  sides: readonly PairingSideName[],
+  viewer: PairingViewer,
   timeline: readonly PairingTimelineRow[],
   scopeWarning: ScopeWarning | null,
+  statement: SoftwareStatementRow | undefined,
 ): PairingDetail {
   return {
-    ...pairingSummaryView(row, sides),
+    ...pairingSummaryView(row, viewer),
     registrationFields: row.pairing.registrationFields,
     timeline: timeline.map(pairingTimelineEntryView),
+    statement:
+      statement === undefined ? null : softwareStatementView(statement),
     scopeWarning,
   };
 }

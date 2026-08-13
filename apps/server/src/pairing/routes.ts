@@ -22,8 +22,10 @@
  * (FR-037). The transition stands either way: it is recorded, and re-sending an email is not
  * something the actor could do from here.
  *
- * What is deliberately absent: the trusted-DCR run with its `failed → requested` retry (User
- * Story 5), which extends this module rather than replacing it.
+ * The trusted-DCR run and its `failed → requested` retry live beside this in `dcr.routes.ts`,
+ * on the same rows and through the same state machine. What they share - resolving the pairing a
+ * caller may act on, and describing it back - is in `pairingAccess.ts`, so the two route modules
+ * cannot answer a stranger differently or disagree about what a pairing looks like.
  *
  * Author: John Grimes
  */
@@ -41,31 +43,24 @@ import {
   transitionRefusal,
 } from "@muster/core";
 import {
-  findCheckStatus,
-  findPairing,
   findPairingSide,
   insertPairing,
   isOrganisationMember,
   listOrganisationsForAccount,
   listPairingsForOrganisations,
-  listPairingTimeline,
   transitionPairing,
 } from "@muster/db";
 
 import { notifyPairing } from "./notifications.js";
-import { callerId, namedEvent } from "../admin/access.js";
+import { callerPairing, pairingResponse } from "./pairingAccess.js";
+import { callerAccount, callerId, namedEvent } from "../admin/access.js";
 import { requireApproved } from "../auth/middleware.js";
 import { jsonError } from "../http/errors.js";
 import { parseBody } from "../http/requestBody.js";
-import {
-  pairingDetailView,
-  pairingScopeWarning,
-  pairingSides,
-  pairingSummaryView,
-} from "../http/views.js";
+import { pairingSides, pairingSummaryView } from "../http/views.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
-import type { PairingSideName } from "@muster/contracts";
+import type { PairingViewer } from "../http/views.js";
 import type {
   PairingChange,
   PairingSideRow,
@@ -99,37 +94,6 @@ const REQUEST_REFUSAL_DETAIL: Readonly<Record<string, string>> = {
   no_scopes: "The registration details need at least one scope",
 };
 
-/** The pairing named in the path, and the sides the caller holds, or the refusal. */
-async function callerPairing(
-  context: ServerContext,
-  c: Context<MusterEnvironment>,
-  pairingId: string,
-): Promise<
-  | {
-      readonly row: PairingWithSides;
-      readonly sides: readonly PairingSideName[];
-    }
-  | Response
-> {
-  const row = await findPairing(context.db, pairingId);
-  const mine =
-    row === undefined
-      ? []
-      : await listOrganisationsForAccount(context.db, callerId(c));
-  const sides =
-    row === undefined
-      ? []
-      : pairingSides(
-          row,
-          mine.map((organisation) => organisation.id),
-        );
-  if (row === undefined || sides.length === 0) {
-    // One answer for both cases. See the module header.
-    return jsonError(c, 404, "not_found", "No pairing of yours has that id");
-  }
-  return { row, sides };
-}
-
 /** Whether a system acts as a client, and whether it acts as a server. */
 function sideKinds(side: PairingSideRow) {
   return {
@@ -157,16 +121,22 @@ export function registerPairingRoutes(
 ): void {
   /** Everything the caller's organisations are party to, newest activity first. */
   router.get("/pairings", requireApproved(), async (c) => {
-    const mine = await listOrganisationsForAccount(context.db, callerId(c));
+    const account = callerAccount(c);
+    const mine = await listOrganisationsForAccount(context.db, account.id);
     const organisationIds = mine.map((organisation) => organisation.id);
     const eventSlug = c.req.query("event");
     const rows = await listPairingsForOrganisations(context.db, {
       organisationIds,
       ...(eventSlug === undefined ? {} : { eventSlug }),
     });
+    const now = context.clock();
     return c.json({
       pairings: rows.map((row) =>
-        pairingSummaryView(row, pairingSides(row, organisationIds)),
+        pairingSummaryView(row, {
+          sides: pairingSides(row, organisationIds),
+          standing: account,
+          now,
+        }),
       ),
     });
   });
@@ -264,8 +234,13 @@ export function registerPairingRoutes(
       "requested",
       REQUEST_NOTIFIES,
     );
+    const viewer: PairingViewer = {
+      sides: ["client"],
+      standing: callerAccount(c),
+      now: context.clock(),
+    };
     return c.json(
-      { pairing: await detail(context, row, ["client"]), notified },
+      { pairing: await pairingResponse(context, row, viewer), notified },
       201,
     );
   });
@@ -277,7 +252,7 @@ export function registerPairingRoutes(
       return found;
     }
     return c.json({
-      pairing: await detail(context, found.row, found.sides),
+      pairing: await pairingResponse(context, found.row, found.viewer),
     });
   });
 
@@ -307,31 +282,6 @@ export function registerPairingRoutes(
 }
 
 /**
- * A pairing in full, with its history and its scope warning.
- *
- * The warning comes from the latest check on the *server* side's enrolment (FR-019), and it
- * is the same value whichever side asked: both parties are warned, because an app owner who
- * cannot see it goes on believing the pairing will work and a server owner who cannot see it
- * is asked to register something their own server will refuse.
- */
-async function detail(
-  context: ServerContext,
-  row: PairingWithSides,
-  sides: readonly PairingSideName[],
-) {
-  const [timeline, status] = await Promise.all([
-    listPairingTimeline(context.db, row.pairing.id),
-    findCheckStatus(context.db, row.server.enrolment.id),
-  ]);
-  return pairingDetailView(
-    row,
-    sides,
-    timeline,
-    pairingScopeWarning(row, status),
-  );
-}
-
-/**
  * Answers a request: the shared half of fulfilling and declining.
  *
  * Written once because the two differ in the state they ask for and in what they record, and in
@@ -347,7 +297,8 @@ async function answer(
   if (found instanceof Response) {
     return found;
   }
-  const { row, sides } = found;
+  const { row, viewer } = found;
+  const { sides } = viewer;
   const from = row.pairing.state;
 
   const refusal = transitionRefusal(from, change.to, sides);
@@ -404,5 +355,8 @@ async function answer(
     change.to === "fulfilled" ? "fulfilled" : "declined",
     transition.notifies,
   );
-  return c.json({ pairing: await detail(context, updated, sides), notified });
+  return c.json({
+    pairing: await pairingResponse(context, updated, viewer),
+    notified,
+  });
 }

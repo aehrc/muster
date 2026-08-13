@@ -11,6 +11,10 @@
 import type { MusterConfig } from "./config.js";
 import type { RateLimitStore } from "./http/rateLimit.js";
 import type { MailTransport } from "./mail/transport.js";
+import type {
+  AddressResolver,
+  OutboundFetchImpl,
+} from "./outbound/outboundFetch.js";
 import type { AccountRow } from "@muster/db";
 import type { Database } from "@muster/db";
 
@@ -33,6 +37,21 @@ export interface ServerContext {
    * time; the server is where that time comes from.
    */
   readonly clock: () => Date;
+  /**
+   * The transport and resolver the outbound guard uses.
+   *
+   * Absent in a deployment, which is what makes the guard's own defaults - the real `fetch`
+   * and the system resolver - the production behaviour. Present in a suite, so that a route
+   * whose subject is what it does with a server's answer can be driven without a network,
+   * and without a second code path to reach the network by.
+   */
+  readonly outbound?: OutboundInjection;
+}
+
+/** Where a suite substitutes the network. */
+export interface OutboundInjection {
+  readonly fetchImpl?: OutboundFetchImpl;
+  readonly resolve?: AddressResolver;
 }
 
 /**

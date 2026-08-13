@@ -21,6 +21,7 @@ import {
   resolveMigrationIdentities,
 } from "./config.js";
 import { createRateLimitStore } from "./http/rateLimit.js";
+import { ensureSigningKeys } from "./keys/keys.js";
 import {
   createMailTransport,
   describeMailTransport,
@@ -83,6 +84,15 @@ const { db, close } = createDatabase({
   url: config.databaseUrl,
   applicationName: "muster",
 });
+
+// The anchor's identity, before anything is served. Both purposes get an active key, and a
+// deployment that already has them is unchanged - so this is the same statement on a first
+// start and on a restart. Done here rather than lazily, because the JWKS is a public surface
+// and an empty one would be a document that lies about what this deployment can verify.
+const keys = await ensureSigningKeys(db, config.masterKey, new Date());
+console.log(
+  `Muster signing keys: ${keys.map((key) => `${key.purpose}=${key.kid}`).join(", ")}`,
+);
 
 const app = createApp({
   config,

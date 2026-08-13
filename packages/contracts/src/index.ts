@@ -8,3 +8,4 @@ export * from "./checks.js";
 export * from "./common.js";
 export * from "./directory.js";
 export * from "./pairings.js";
+export * from "./statements.js";

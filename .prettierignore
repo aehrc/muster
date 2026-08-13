@@ -12,3 +12,8 @@ bun.lock
 
 # Helm templates are Go templates, not YAML - Prettier cannot parse them.
 deploy/helm/*/templates
+
+# The vendor-facing contracts, embedded in the server so the docs pages ship with the
+# bundle. Byte-identical copies of `contracts/registration-profile.md` and
+# `contracts/ticket-profile.md`, which a test asserts - so Prettier must not reflow them.
+apps/server/src/http/docs

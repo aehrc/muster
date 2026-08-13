@@ -34,6 +34,7 @@ import {
   eventSummarySchema,
   organisationRefSchema,
 } from "./directory.js";
+import { dcrRunSchema, softwareStatementViewSchema } from "./statements.js";
 
 /** Which half of a pairing something belongs to. */
 export const pairingSideNameSchema = z.enum(["client", "server"]);
@@ -98,8 +99,16 @@ export const pairingSideSchema = z.object({
   organisation: organisationRefSchema,
 });
 
-/** What a member may do to a pairing next. */
-export const pairingActionSchema = z.enum(["fulfil", "decline"]);
+/**
+ * What a member may do to a pairing next.
+ *
+ * `register` is the trusted-DCR run, and it is in the same list as the manual answers
+ * because it is the same kind of thing to the console: an action the server has already
+ * decided this caller may take. Unlike the other two it belongs to the *client* side, and
+ * unlike them it is offered only when the server's entry says it would work - which is why
+ * the server computes it rather than the browser inferring it from a registration mode.
+ */
+export const pairingActionSchema = z.enum(["fulfil", "decline", "register"]);
 
 /**
  * A pairing as the list shows it.
@@ -178,6 +187,13 @@ export const pairingDetailSchema = pairingSummarySchema.extend({
   registrationFields: registrationFieldsSchema,
   timeline: z.array(pairingTimelineEntrySchema),
   /**
+   * The most recent software statement minted for this pairing, or null when none has
+   * been (FR-023). Present for both parties: the claims are what the server was asked to
+   * register, so a server owner reading the pairing can check them against their own
+   * record of the client.
+   */
+  statement: softwareStatementViewSchema.nullable(),
+  /**
    * The requested scopes the server does not advertise, or null when there is nothing to
    * say - no check has run, or the server advertises no scopes, or every scope is
    * supported. Null rather than an empty list, so a console cannot render a warning box
@@ -197,6 +213,19 @@ export const pairingDetailSchema = pairingSummarySchema.extend({
 export const pairingOutcomeSchema = z.object({
   pairing: pairingDetailSchema,
   notified: z.boolean(),
+});
+
+/**
+ * What a trusted-DCR run answers with (FR-026).
+ *
+ * The pairing as it now stands, whether the counterparty was told, and the run itself -
+ * including the one-time client secret, which appears here and on no read surface because
+ * there is no read surface it could be on.
+ */
+export const dcrRunResultSchema = z.object({
+  pairing: pairingDetailSchema,
+  notified: z.boolean(),
+  run: dcrRunSchema,
 });
 
 /**
@@ -238,3 +267,5 @@ export type PairingDetail = z.infer<typeof pairingDetailSchema>;
 export type PairingOutcome = z.infer<typeof pairingOutcomeSchema>;
 /** The refusal a duplicate request gets. */
 export type PairingConflict = z.infer<typeof pairingConflictSchema>;
+/** What a trusted-DCR run answers with. */
+export type DcrRunResult = z.infer<typeof dcrRunResultSchema>;

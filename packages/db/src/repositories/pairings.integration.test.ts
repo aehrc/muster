@@ -408,7 +408,7 @@ describe.skipIf(!hasTestDatabase())("the pairing repositories", () => {
       await transitionPairing(db, {
         pairingId: created.id,
         from: "requested",
-        change: { to: "failed" },
+        change: { to: "failed", reason: "the stub refused the statement" },
         actorAccountId: stage.appOwner.id,
         actingForOrganisationId: stage.appOrganisation.id,
         now: new Date("2026-09-03T11:00:00.000Z"),

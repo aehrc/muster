@@ -18,7 +18,9 @@ import { pingDatabase } from "@muster/db";
 import { Hono } from "hono";
 
 import { API_BASE_PATH, createApiRouter } from "./api/router.js";
+import { registerDocsRoutes } from "./http/docs.js";
 import { jsonError } from "./http/errors.js";
+import { registerJwksRoute } from "./http/jwks.js";
 import { serveConsoleAssets, serveConsoleShell } from "./http/staticFiles.js";
 
 import type { MusterEnvironment, ServerContext } from "./context.js";
@@ -53,6 +55,13 @@ export function createApp(context: ServerContext): Hono<MusterEnvironment> {
       return jsonError(c, 503, "database_unreachable");
     }
   });
+
+  // The anchor's own surfaces, which are not under `/api` because their addresses are fixed
+  // by other specifications: `.well-known/jwks.json` by RFC 8615, and `/docs/*` by
+  // `contracts/http-api.md`. Both are anonymous, and both are declared in `PUBLIC_REQUESTS`
+  // with the rest of the public surface so one list covers everything.
+  registerJwksRoute(app, context);
+  registerDocsRoutes(app, context);
 
   app.route(API_BASE_PATH, createApiRouter(context));
 

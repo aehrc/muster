@@ -28,20 +28,39 @@ import { myOrganisationView } from "../http/views.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
 import type { MyOrganisation } from "@muster/contracts";
-import type { EventRow, OrganisationRow, SystemRow } from "@muster/db";
+import type {
+  AccountRow,
+  EventRow,
+  OrganisationRow,
+  SystemRow,
+} from "@muster/db";
 import type { Context } from "hono";
 
-/** The account a guarded route is acting for. */
-export function callerId(c: Context<MusterEnvironment>): string {
-  // Guarded routes are mounted behind `requireApproved`, which refuses before a handler
-  // runs. The assertion documents that rather than re-checking it.
+/**
+ * The account a guarded route is acting for.
+ *
+ * Guarded routes are mounted behind `requireApproved`, which refuses before a handler runs.
+ * The assertion documents that rather than re-checking it - and it is an assertion rather
+ * than an optional return, because a handler that silently treated "no account" as a case
+ * would be a handler whose guard could be removed without a test failing.
+ *
+ * @param c - The request.
+ * @returns The signed-in account.
+ * @throws {Error} When the route is missing its guard.
+ */
+export function callerAccount(c: Context<MusterEnvironment>): AccountRow {
   const account = c.get("account");
   if (account === undefined) {
     throw new Error(
       "A console handler ran without an account; it is missing its requireApproved guard",
     );
   }
-  return account.id;
+  return account;
+}
+
+/** The identifier of the account a guarded route is acting for. */
+export function callerId(c: Context<MusterEnvironment>): string {
+  return callerAccount(c).id;
 }
 
 /**

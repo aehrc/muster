@@ -40,16 +40,19 @@ describe.skipIf(!hasTestDatabase())("the API's public surface", () => {
   });
 
   /**
-   * Every route the application registers under `/api`, as `METHOD path`.
+   * Every route the application registers, as `METHOD path`.
    *
    * Read off Hono's own route table rather than written out here, which is the whole point: a
-   * route added tomorrow is in this list without anybody remembering to add it.
+   * route added tomorrow is in this list without anybody remembering to add it. The whole
+   * application rather than `/api` alone, because the trust anchor's JWKS and the profile
+   * documentation are public surfaces whose addresses are fixed by other specifications, and
+   * a check that skipped them would be a check with a hole exactly where a vendor looks.
    */
   function registeredRequests(): readonly string[] {
     const seen = new Set<string>();
     for (const route of stack.app.routes) {
       // The wildcards are the session middleware and the catch-all, not routes.
-      if (route.path.includes("*") || !route.path.startsWith("/api")) {
+      if (route.path.includes("*")) {
         continue;
       }
       seen.add(`${route.method} ${route.path}`);

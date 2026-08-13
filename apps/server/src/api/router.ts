@@ -26,6 +26,7 @@ import { registerAuthRoutes } from "../auth/routes.js";
 import { registerBrandsRoutes } from "../http/brands.js";
 import { jsonError } from "../http/errors.js";
 import { registerPublicRoutes } from "../http/publicApi.js";
+import { registerDcrRoutes } from "../pairing/dcr.routes.js";
 import { registerPairingRoutes } from "../pairing/routes.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
@@ -39,6 +40,10 @@ export const API_BASE_PATH = "/api";
  * The key is `METHOD routePath` - the pattern Hono matched, not the path requested - so a
  * parameter cannot be spelled to look like one of these. Anything added here is a decision to
  * publish part of the API, which should be visible in a diff and hard to do by accident.
+ *
+ * It covers the whole application rather than only `/api`, because the trust anchor's own
+ * addresses are fixed elsewhere - `.well-known/jwks.json` by RFC 8615, `/docs/*` by
+ * `contracts/http-api.md` - and a second list for them is a second place to forget.
  */
 export const PUBLIC_REQUESTS: Readonly<Record<string, string>> = {
   "POST /api/auth/sign-up": "Creating an account cannot require having one",
@@ -57,6 +62,15 @@ export const PUBLIC_REQUESTS: Readonly<Record<string, string>> = {
   "GET /api/events/:slug/systems/:systemId": "FR-010, contacts excluded",
   "GET /api/events/:slug/brands.json":
     "FR-022 and SC-006: the brands bundle is what an app reads before it has anything else",
+  "GET /.well-known/jwks.json":
+    "FR-024 and scenario 5: a vendor verifies a statement before they have an account, and rotation depends on them being able to refetch",
+  "GET /docs/registration-profile":
+    "FR-028: the profile a vendor implements is not behind a sign-up",
+  "GET /docs/ticket-profile": "FR-028",
+  "GET /docs/:page":
+    "FR-028: an unknown profile is refused here rather than falling through to the console's shell, which would read as the documentation being empty",
+  "GET /healthz": "A liveness probe presents no credential",
+  "GET /readyz": "A readiness probe presents no credential",
 };
 
 /**
@@ -82,6 +96,7 @@ export function createApiRouter(
   registerDirectoryRoutes(router, context);
   registerMemberRoutes(router, context);
   registerPairingRoutes(router, context);
+  registerDcrRoutes(router, context);
 
   // Registered last, so it answers only what nothing above matched. A `notFound` handler
   // would not do: this router is mounted into the application, and the application's own

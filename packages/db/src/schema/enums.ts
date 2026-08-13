@@ -57,6 +57,32 @@ export const checkFailureModeEnum = pgEnum("check_failure_mode", [
 ]);
 
 /**
+ * What a signing key signs.
+ *
+ * Two purposes, sharing the machinery and nothing else: an authorization server told to
+ * trust Muster's registration key would otherwise be trusting whatever the ticket
+ * playground signs as well. `tickets` is created and published from User Story 5 even
+ * though nothing mints with it until User Story 8, because a vendor implementing against
+ * the JWKS should not have to wait for a second key to appear.
+ */
+export const signingKeyPurposeEnum = pgEnum("signing_key_purpose", [
+  "statements",
+  "tickets",
+]);
+
+/**
+ * Whether a signing key still signs.
+ *
+ * There is no `retired`. A superseded key stays published until no unexpired artefact
+ * references it (principle VI), and that is a question about artefacts rather than a third
+ * state a rotation would have to remember to move it into.
+ */
+export const signingKeyStatusEnum = pgEnum("signing_key_status", [
+  "active",
+  "superseded",
+]);
+
+/**
  * What a one-shot account token is for.
  *
  * `password_reset` is declared and unused. `data-model.md` names both purposes, and
