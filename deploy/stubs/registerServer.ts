@@ -425,6 +425,11 @@ async function handleRegister(
     return refuse("invalid_request", "the request body must be a JSON object");
   }
 
+  const outside = Object.fromEntries(
+    Object.entries(body as Record<string, unknown>).filter(
+      ([member]) => member !== "software_statement",
+    ),
+  );
   const members = Object.keys(body as Record<string, unknown>);
   const jws = (body as { software_statement?: unknown }).software_statement;
   if (typeof jws !== "string") {
@@ -442,6 +447,7 @@ async function handleRegister(
   }
 
   let verified: Awaited<ReturnType<typeof verifyStatement>>;
+
   try {
     verified = await verifyStatement(jws);
   } catch (error) {
@@ -453,7 +459,13 @@ async function handleRegister(
   if (!verified.ok) {
     return refuse("invalid_software_statement", verified.detail);
   }
-  const { claims } = verified;
+  // The whole of `accept-outside-metadata`: the members beside the statement win, so the client
+  // this server creates is not the client the anchor vouched for. Skipping the rejection alone
+  // would leave the stub conformant - the profile permits ignoring what it does not reject - and
+  // a mode that breaks no rule gives the harness nothing to catch.
+  const claims = config.broken.has("accept-outside-metadata")
+    ? { ...verified.claims, ...outside }
+    : verified.claims;
 
   if (stringClaim(claims, "iss") !== config.issuer) {
     return refuse(
