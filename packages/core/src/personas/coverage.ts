@@ -168,8 +168,13 @@ export function personaDisplay(patient: Patient): PersonaDisplay {
     )
     .join(" ");
   const text = typeof first?.text === "string" ? first.text.trim() : "";
+  // The parts, then the formatted text, then a placeholder: the first of the three that says
+  // anything at all.
+  const named = [parts, text, UNNAMED].find(
+    (candidate) => candidate.length > 0,
+  );
   return {
-    name: parts.length > 0 ? parts : text.length > 0 ? text : UNNAMED,
+    name: named ?? UNNAMED,
     birthDate: patient.birthDate ?? null,
   };
 }
