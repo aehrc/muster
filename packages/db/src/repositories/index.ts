@@ -18,3 +18,4 @@ export * from "./pairings.js";
 export * from "./personas.js";
 export * from "./rows.js";
 export * from "./statements.js";
+export * from "./tickets.js";

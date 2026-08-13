@@ -104,6 +104,15 @@ export const checkSummarySchema = z.object({
 export const checkStatusSchema = checkSummarySchema.extend({
   /** When a check last succeeded, or null when none ever has. */
   lastSuccessAt: z.string().nullable(),
+  /**
+   * The permission ticket types the server advertises (FR-034, scenario 3).
+   *
+   * On the status rather than only on the detail, because the event view has to surface
+   * which enrolled servers accept a ticket and the event view reads the status. Empty for
+   * a server that advertised none, which reads as "no support detected" rather than as a
+   * refusal: a server that has said nothing has not said no.
+   */
+  permissionTicketTypesSupported: z.array(z.string()).readonly(),
 });
 
 /** The latest check in full, with everything the server advertised. */

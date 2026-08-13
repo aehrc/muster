@@ -30,6 +30,7 @@ import { isUniqueViolation } from "./errors.js";
 import { firstRow, requireRow } from "./rows.js";
 import { signingKey } from "../schema/keys.js";
 import { softwareStatement } from "../schema/statements.js";
+import { ticket } from "../schema/tickets.js";
 
 import type { Executor } from "../executor.js";
 import type { SigningKeyRow } from "../schema/keys.js";
@@ -59,17 +60,26 @@ export type SigningKeyInstall =
 /**
  * Whether any unexpired artefact still names a key.
  *
- * One `exists` per artefact table. User Story 8 adds `ticket` to this predicate, and the
- * reason the shape is a disjunction rather than a union query is that the question is
- * "anything at all?" - which short-circuits, and which stays readable when the second
- * table arrives.
+ * One `exists` per artefact table, disjoined rather than unioned because the question is
+ * "anything at all?" - which short-circuits, and which stayed readable when the second table
+ * arrived. Both artefacts count: FR-024 says a rotated key stays published until every
+ * statement *or ticket* signed with it has expired, and a predicate that named only one of
+ * them would withdraw a key while outstanding tickets still pointed at it.
  */
 function hasLiveArtefact(now: Date) {
-  return exists(
-    sql`(select 1 from ${softwareStatement} where ${and(
-      eq(softwareStatement.keyId, signingKey.kid),
-      gt(softwareStatement.expiresAt, now),
-    )})`,
+  return or(
+    exists(
+      sql`(select 1 from ${softwareStatement} where ${and(
+        eq(softwareStatement.keyId, signingKey.kid),
+        gt(softwareStatement.expiresAt, now),
+      )})`,
+    ),
+    exists(
+      sql`(select 1 from ${ticket} where ${and(
+        eq(ticket.keyId, signingKey.kid),
+        gt(ticket.expiresAt, now),
+      )})`,
+    ),
   );
 }
 
