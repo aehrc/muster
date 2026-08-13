@@ -9,6 +9,7 @@
  * Author: John Grimes
  */
 
+export * from "./checks.js";
 export * from "./directory.js";
 export * from "./errors.js";
 export * from "./pairings.js";

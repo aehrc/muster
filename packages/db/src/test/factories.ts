@@ -150,6 +150,8 @@ export function serverProfileFixture(
     authorizationMode: "smart",
     registrationMode: "manual",
     registrationEndpoint: null,
+    authorizationEndpoint: null,
+    tokenEndpoint: null,
     notes: "",
     ...overrides,
   };

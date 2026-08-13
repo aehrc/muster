@@ -7,6 +7,7 @@
  * Author: John Grimes
  */
 
+export * from "./checks.js";
 export * from "./columns.js";
 export * from "./directory.js";
 export * from "./enums.js";

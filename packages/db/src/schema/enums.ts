@@ -41,6 +41,22 @@ export const pairingStateEnum = pgEnum("pairing_state", [
 ]);
 
 /**
+ * Why a verification check produced no usable result.
+ *
+ * The absence of a value is the fifth case: a check that succeeded carries no failure mode
+ * at all, which `data-model.md` writes as `null`. `timeout` and `refused` are deliberately
+ * separate - a slow server and a dead one are different problems for its owner (spec edge
+ * case) - and `guarded` means the outbound guard refused the address, so no request was
+ * made (FR-020, scenario 5).
+ */
+export const checkFailureModeEnum = pgEnum("check_failure_mode", [
+  "timeout",
+  "refused",
+  "guarded",
+  "invalid",
+]);
+
+/**
  * What a one-shot account token is for.
  *
  * `password_reset` is declared and unused. `data-model.md` names both purposes, and
