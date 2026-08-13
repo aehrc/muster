@@ -36,6 +36,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@types/fhir": "0.0.44",
         "@types/nodemailer": "8.0.1",
       },
     },

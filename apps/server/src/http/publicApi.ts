@@ -45,7 +45,57 @@ import {
 import { namedEvent } from "../admin/access.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
-import type { Hono } from "hono";
+import type { CheckStatusRow, EnrolledSystemRow, EventRow } from "@muster/db";
+import type { Context, Hono } from "hono";
+
+/** An event named in a path, with its enrolled systems and the latest check on each. */
+export interface EventEnrolments {
+  readonly event: EventRow;
+  readonly enrolments: readonly EnrolledSystemRow[];
+  /** Keyed by enrolment id, and absent for an enrolment nothing has checked. */
+  readonly statuses: ReadonlyMap<string, CheckStatusRow>;
+}
+
+/**
+ * Resolves the event a path names and reads its enrolments with their latest checks.
+ *
+ * Two queries for the whole event rather than one per enrolment, and one implementation
+ * rather than two: the public systems listing and the brands bundle are the same read, which
+ * is what stops a system that is in one from going missing from the other (FR-021's "the same
+ * data MUST drive the web views", read across both surfaces).
+ *
+ * An enrolment nothing has checked has no entry in the map, which is not the same claim as
+ * unreachable - a server nobody has looked at has not failed.
+ *
+ * @param context - The server's dependencies.
+ * @param c - The request context, for the refusal.
+ * @param slug - The event slug from the path.
+ * @returns The event with its enrolments in listing order and the checks keyed by enrolment,
+ *   or the 404 to return from the handler.
+ * @example
+ * ```ts
+ * const read = await namedEventEnrolments(context, c, c.req.param("slug"));
+ * if (read instanceof Response) {
+ *   return read;
+ * }
+ * ```
+ */
+export async function namedEventEnrolments(
+  context: ServerContext,
+  c: Context<MusterEnvironment>,
+  slug: string,
+): Promise<EventEnrolments | Response> {
+  const event = await namedEvent(context, c, slug);
+  if (event instanceof Response) {
+    return event;
+  }
+  const enrolments = await listEventEnrolments(context.db, event.id);
+  const statuses = await listCheckStatuses(
+    context.db,
+    enrolments.map((row) => row.enrolment.id),
+  );
+  return { event, enrolments, statuses };
+}
 
 /**
  * Registers the public read routes.
@@ -89,22 +139,14 @@ export function registerPublicRoutes(
    * September absent from this September (scenario 7).
    */
   router.get("/events/:slug/systems", async (c) => {
-    const event = await namedEvent(context, c, c.req.param("slug"));
-    if (event instanceof Response) {
-      return event;
+    const read = await namedEventEnrolments(context, c, c.req.param("slug"));
+    if (read instanceof Response) {
+      return read;
     }
-    const enrolments = await listEventEnrolments(context.db, event.id);
-    // One query for every enrolment's latest check rather than one per row, and the map is
-    // what makes an unchecked enrolment absent rather than answered with a manufactured
-    // failure.
-    const statuses = await listCheckStatuses(
-      context.db,
-      enrolments.map((row) => row.enrolment.id),
-    );
     return c.json({
-      event: eventDetailView(event),
-      systems: enrolments.map((row) =>
-        enrolledSystemView(row, statuses.get(row.enrolment.id)),
+      event: eventDetailView(read.event),
+      systems: read.enrolments.map((row) =>
+        enrolledSystemView(row, read.statuses.get(row.enrolment.id)),
       ),
     });
   });

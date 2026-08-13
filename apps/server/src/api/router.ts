@@ -23,6 +23,7 @@ import { registerDirectoryRoutes } from "../admin/directory.routes.js";
 import { registerMemberRoutes } from "../admin/members.routes.js";
 import { resolveSession } from "../auth/middleware.js";
 import { registerAuthRoutes } from "../auth/routes.js";
+import { registerBrandsRoutes } from "../http/brands.js";
 import { jsonError } from "../http/errors.js";
 import { registerPublicRoutes } from "../http/publicApi.js";
 import { registerPairingRoutes } from "../pairing/routes.js";
@@ -54,6 +55,8 @@ export const PUBLIC_REQUESTS: Readonly<Record<string, string>> = {
   "GET /api/events/:slug/systems":
     "FR-010 and FR-021: the participant table's replacement, contacts excluded",
   "GET /api/events/:slug/systems/:systemId": "FR-010, contacts excluded",
+  "GET /api/events/:slug/brands.json":
+    "FR-022 and SC-006: the brands bundle is what an app reads before it has anything else",
 };
 
 /**
@@ -75,6 +78,7 @@ export function createApiRouter(
 
   registerAuthRoutes(router, context);
   registerPublicRoutes(router, context);
+  registerBrandsRoutes(router, context);
   registerDirectoryRoutes(router, context);
   registerMemberRoutes(router, context);
   registerPairingRoutes(router, context);
