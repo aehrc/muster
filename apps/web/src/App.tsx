@@ -39,6 +39,7 @@ import { Pairings } from "./pages/Pairings.js";
 import { Personas } from "./pages/Personas.js";
 import { SignIn } from "./pages/SignIn.js";
 import { SystemDetail } from "./pages/SystemDetail.js";
+import { TicketPlayground } from "./pages/TicketPlayground.js";
 import { Verify } from "./pages/Verify.js";
 import { ROUTES } from "./routes.js";
 
@@ -79,6 +80,7 @@ export function App() {
               <Route path="events" element={<AdminEvents />} />
             </Route>
             <Route path="personas" element={<Personas />} />
+            <Route path="tickets" element={<TicketPlayground />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

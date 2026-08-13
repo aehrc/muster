@@ -223,6 +223,7 @@ describe("describeCheckStatus", () => {
       detail: null,
       driftFlags: [],
       lastSuccessAt: "2026-09-15T12:04:00.000Z",
+      permissionTicketTypesSupported: [],
       ...overrides,
     };
   }

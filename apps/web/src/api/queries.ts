@@ -35,8 +35,10 @@ import type {
   PairingDetail,
   PairingOutcome,
   PairingSummary,
+  MintedTicket,
   PersonaSearchResult,
   PersonaView,
+  TicketMintInput,
   RegistrationFieldsInput,
   SystemInput,
 } from "@muster/contracts";
@@ -596,5 +598,26 @@ export function useEventAction() {
       await client.invalidateQueries({ queryKey: keys.events() });
       await client.invalidateQueries({ queryKey: ["event"] });
     },
+  });
+}
+
+/**
+ * Mints a permission ticket (FR-033).
+ *
+ * Nothing is invalidated on success, deliberately: the mint's only lasting effect is a
+ * record nothing on this page reads, and the artefact it returns is held in the component
+ * that asked for it. Muster does not store the ticket and cannot serve it again
+ * (constitution principle IV), so a refetch could only ever lose it.
+ *
+ * @param slug - The event to mint for.
+ * @returns The mutation, whose data carries the compact JWT and its decoded claims.
+ */
+export function useMintTicket(slug: string) {
+  return useMutation({
+    mutationFn: async (input: TicketMintInput) =>
+      await post<{ ticket: MintedTicket }>(
+        `/api/events/${encodeURIComponent(slug)}/tickets`,
+        input,
+      ),
   });
 }

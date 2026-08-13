@@ -17,6 +17,8 @@ export const ROUTES = {
   home: "/",
   events: "/events",
   personas: "/personas",
+  /** The ticket playground. Members only: minting is an approved member's act (FR-033). */
+  tickets: "/tickets",
   docs: "/docs",
   pairings: "/pairings",
   myOrganisation: "/my-organisation",
@@ -103,6 +105,7 @@ export interface NavigationItem {
 export const NAVIGATION: readonly NavigationItem[] = [
   { path: ROUTES.events, label: "Events", membersOnly: false },
   { path: ROUTES.personas, label: "Personas", membersOnly: false },
+  { path: ROUTES.tickets, label: "Tickets", membersOnly: true },
   { path: ROUTES.docs, label: "Docs", membersOnly: false },
   { path: ROUTES.pairings, label: "Pairings", membersOnly: true },
   { path: ROUTES.myOrganisation, label: "My organisation", membersOnly: true },
