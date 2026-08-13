@@ -11,12 +11,24 @@ export {
 export type { Executor } from "./executor.js";
 export { pingDatabase } from "./health.js";
 export * from "./migrations.js";
+export * from "./repositories/index.js";
 export * from "./roles.js";
 export * from "./schema/index.js";
 
 // The integration-test harness. Exported because suites in `apps/server` need it and
 // cannot reach into this package's internals: only this package depends on Drizzle.
 // See `./test/harness.ts`.
+export {
+  approve,
+  clientProfileFixture,
+  makeAccount,
+  makeEvent,
+  makeOrganisation,
+  makeSystem,
+  serverProfileFixture,
+  uniqueSuffix,
+  type AccountFixture,
+} from "./test/factories.js";
 export {
   databaseUrlWith,
   hasTestDatabase,
