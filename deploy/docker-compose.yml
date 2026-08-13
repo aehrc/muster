@@ -78,7 +78,7 @@ services:
       # The stub sits on a private compose address, which the outbound guard refuses by
       # default. Naming it here is the exemption, and the port is part of the match: exempting
       # the stub does not exempt anything else on the network. Never set in production.
-      MUSTER_OUTBOUND_ALLOWED_HOSTS: stub-server:8443,stub-data-holder:8444
+      MUSTER_OUTBOUND_ALLOWED_HOSTS: stub-server:8443,stub-holder:8444
       # The stub serves TLS with the throwaway certificate in `stubs/tls`, because a server
       # entry's registration endpoint and FHIR base URL must be https - see that directory's
       # README. This is what makes Muster trust it, and nothing else.
@@ -128,7 +128,11 @@ services:
   # Run from the mounted source by the Bun image for the same two reasons the registration stub
   # is: nothing to install, and a counterparty that shared a JOSE implementation with Muster would
   # agree with it about any shared bug.
-  stub-data-holder:
+  #
+  # Named `stub-holder` because that is one of the two names `stubs/tls/stub.crt` carries, and a
+  # server entry's FHIR base URL must be https - so the name has to match the certificate or every
+  # verification check against it fails on the subject alternative name.
+  stub-holder:
     image: oven/bun:1-debian
     command: ["bun", "run", "/stubs/dataHolder.ts"]
     depends_on:
@@ -164,7 +168,7 @@ services:
     volumes:
       - ./stubs:/stubs:ro
     ports:
-      - "${STUB_DATA_HOLDER_PORT:-8444}:8444"
+      - "${STUB_HOLDER_PORT:-8444}:8444"
 
 volumes:
   postgres:

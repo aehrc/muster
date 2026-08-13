@@ -41,6 +41,17 @@ export function CheckStatusCell({
           </Tag>
         </div>
       )}
+      {check === null ||
+      check.permissionTicketTypesSupported.length === 0 ? null : (
+        // FR-034 and scenario 3: which enrolled servers accept a permission ticket, said on
+        // the event view itself and taken from what the check watched the server advertise.
+        <div>
+          <Tag>
+            Permission tickets:{" "}
+            {check.permissionTicketTypesSupported.join(", ")}
+          </Tag>
+        </div>
+      )}
     </>
   );
 }
@@ -125,6 +136,13 @@ export function VerificationPanel({
             label="Advertised registration endpoint"
             value={check.discovery?.registrationEndpoint ?? null}
           />
+          {check.discovery === null ? null : (
+            <DetailRow label="Permission ticket types accepted">
+              {check.discovery.permissionTicketTypesSupported.length === 0
+                ? "None advertised - this server has not said it accepts permission tickets"
+                : check.discovery.permissionTicketTypesSupported.join(", ")}
+            </DetailRow>
+          )}
           {check.discovery === null ? null : (
             <DetailRow label="Scopes supported">
               {check.discovery.scopesSupported.length === 0
