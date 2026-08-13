@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Static analysis and tests
+    runs-on: ubuntu-latest
+    services:
+      # The data layer's integration tests skip themselves when
+      # MUSTER_TEST_DATABASE_URL is unset, so without this service they would pass
+      # by not running. The credentials name the identity that owns the schema: the
+      # test preload creates a non-owning serving role from it and every integration
+      # suite connects as that.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: muster
+          POSTGRES_PASSWORD: muster
+          POSTGRES_DB: muster
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U muster"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MUSTER_TEST_DATABASE_URL: postgresql://muster:muster@localhost:5432/muster
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Check duplication
+        run: bun run lint:duplication
+
+      - name: Test with coverage
+        run: |
+          set -o pipefail
+          bun run test:coverage 2>&1 | tee test.log
+          # The integration suites are the reason the service above exists, and they
+          # skip themselves when no database is configured. A skipped run reports
+          # success having exercised no database at all and looks identical to a run
+          # in which they passed, so the skip count is the assertion.
+          if grep -qE '^[[:space:]]*[1-9][0-9]* skip' test.log; then
+            echo "A suite skipped itself. MUSTER_TEST_DATABASE_URL is not reaching the run."
+            exit 1
+          fi
+
+      - name: Build
+        run: bun run build
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Also enforces the self-contained-bundle guard in the Dockerfile: a new
+      # native dependency fails here rather than at deploy time.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: muster:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The image alone, with no database: the server needs one to serve the
+      # directory, and this job gains the two identities and the migrate step when
+      # the configuration loader lands.
+      - name: Smoke test the image
+        run: |
+          docker run -d --name muster -p 3000:3000 muster:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/healthz; then echo "ok"; break; fi
+            if [ "$i" = "30" ]; then
+              echo "Server did not become healthy"
+              docker logs muster
+              exit 1
+            fi
+            sleep 1
+          done
+
+  helm:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint and render the chart
+        run: |
+          # The chart lands with the polish phase. Until then this step proves the
+          # workflow wiring rather than the chart, and says so rather than passing
+          # silently. Delete the guard when `deploy/helm/muster` exists.
+          if [ ! -d deploy/helm/muster ]; then
+            echo "::notice::deploy/helm/muster does not exist yet; nothing to lint."
+            exit 0
+          fi
+          helm lint deploy/helm/muster
+          helm template muster deploy/helm/muster > /dev/null
+
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Non-default ports, deliberately. Moving the stack is a documented capability -
+    # a developer whose 3000 is taken exports these two - and the only thing that
+    # proves it is a run where every address in the stack is derived rather than
+    # hard-coded. A port left behind in compose or in the suite fails here.
+    env:
+      MUSTER_PORT: "3100"
+      POSTGRES_PORT: "55434"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      # Builds the production image and brings up Postgres and Muster. `--wait`
+      # blocks on the health checks, so a service that never becomes healthy fails
+      # here with its own logs rather than as a confusing test failure.
+      - name: Bring up the stack
+        run: bun run stack:up
+
+      # Stands in for the Playwright suite, which lands with the polish phase. It is
+      # not a placeholder that passes for nothing: it proves the image the stack
+      # built serves on the port the environment moved it to.
+      - name: Smoke test the stack
+        run: curl -fsS "http://localhost:${MUSTER_PORT}/healthz"
+
+      - name: Collect the stack's logs
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: bun run stack:down
