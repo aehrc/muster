@@ -55,6 +55,32 @@ export interface OutboundInjection {
 }
 
 /**
+ * The guard's injection points, as options to pass it.
+ *
+ * Written once because every route that fetches a participant address needs the same three
+ * lines, and two copies of "spread it only when it is present" is two chances to spread a
+ * literal `undefined` - which would override the guard's production defaults with nothing.
+ *
+ * @param outbound - The injection, absent in a deployment.
+ * @returns The options to merge into an `outboundFetch` call.
+ * @example
+ * ```ts
+ * await outboundFetch(url, { allowedHosts, ...injectedOutbound(context.outbound) });
+ * ```
+ */
+export function injectedOutbound(outbound: OutboundInjection | undefined): {
+  readonly fetchImpl?: OutboundFetchImpl;
+  readonly resolve?: AddressResolver;
+} {
+  return {
+    ...(outbound?.fetchImpl === undefined
+      ? {}
+      : { fetchImpl: outbound.fetchImpl }),
+    ...(outbound?.resolve === undefined ? {} : { resolve: outbound.resolve }),
+  };
+}
+
+/**
  * Hono's per-request variable map.
  *
  * Declared once so `c.get("account")` is typed at every call site rather than widened to

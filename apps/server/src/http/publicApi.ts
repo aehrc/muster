@@ -14,7 +14,8 @@
  * status column and the system page's verification panel are the point of User Story 3 and
  * both are readable without an account. A server nobody has checked reports `null` rather
  * than "reachable: false", which would be a claim rather than an absence. The DCR-verified
- * badge is still absent, for the same reason: no harness has run until User Story 6.
+ * badge (FR-030) is public on the same principle and is read the same way: from the latest
+ * conformance run, so that a failing run removes it rather than a flag having to be un-set.
  *
  * The list responses are single-field envelopes (`{ events: [...] }`) rather than bare
  * arrays. `contracts/http-api.md` does not settle it, so these routes do: an envelope leaves
@@ -29,10 +30,12 @@
 import {
   findCheckStatus,
   findEventEnrolment,
+  findLatestHarnessRun,
   listCheckHistory,
   listCheckStatuses,
   listEventEnrolments,
   listEvents,
+  listLatestHarnessRuns,
 } from "@muster/db";
 
 import { jsonError } from "./errors.js";
@@ -45,7 +48,12 @@ import {
 import { namedEvent } from "../admin/access.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
-import type { CheckStatusRow, EnrolledSystemRow, EventRow } from "@muster/db";
+import type {
+  CheckStatusRow,
+  EnrolledSystemRow,
+  EventRow,
+  HarnessRunRow,
+} from "@muster/db";
 import type { Context, Hono } from "hono";
 
 /** An event named in a path, with its enrolled systems and the latest check on each. */
@@ -54,6 +62,13 @@ export interface EventEnrolments {
   readonly enrolments: readonly EnrolledSystemRow[];
   /** Keyed by enrolment id, and absent for an enrolment nothing has checked. */
   readonly statuses: ReadonlyMap<string, CheckStatusRow>;
+  /**
+   * The latest conformance run per enrolment, which decides the badge (FR-030).
+   *
+   * The latest rather than the latest passing one, deliberately: a failing run removes the
+   * badge, so the reader of this map must see the failure rather than the pass before it.
+   */
+  readonly harnessRuns: ReadonlyMap<string, HarnessRunRow>;
 }
 
 /**
@@ -90,11 +105,12 @@ export async function namedEventEnrolments(
     return event;
   }
   const enrolments = await listEventEnrolments(context.db, event.id);
-  const statuses = await listCheckStatuses(
-    context.db,
-    enrolments.map((row) => row.enrolment.id),
-  );
-  return { event, enrolments, statuses };
+  const enrolmentIds = enrolments.map((row) => row.enrolment.id);
+  const [statuses, harnessRuns] = await Promise.all([
+    listCheckStatuses(context.db, enrolmentIds),
+    listLatestHarnessRuns(context.db, enrolmentIds),
+  ]);
+  return { event, enrolments, statuses, harnessRuns };
 }
 
 /**
@@ -146,7 +162,11 @@ export function registerPublicRoutes(
     return c.json({
       event: eventDetailView(read.event),
       systems: read.enrolments.map((row) =>
-        enrolledSystemView(row, read.statuses.get(row.enrolment.id)),
+        enrolledSystemView(
+          row,
+          read.statuses.get(row.enrolment.id),
+          read.harnessRuns.get(row.enrolment.id),
+        ),
       ),
     });
   });
@@ -171,13 +191,14 @@ export function registerPublicRoutes(
         "No system with that id is enrolled in this event",
       );
     }
-    const [status, history] = await Promise.all([
+    const [status, history, latestRun] = await Promise.all([
       findCheckStatus(context.db, enrolment.enrolment.id),
       listCheckHistory(context.db, enrolment.enrolment.id),
+      findLatestHarnessRun(context.db, enrolment.enrolment.id),
     ]);
     return c.json({
       event: eventDetailView(event),
-      system: enrolledSystemDetailView(enrolment, status, history),
+      system: enrolledSystemDetailView(enrolment, status, history, latestRun),
     });
   });
 }

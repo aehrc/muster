@@ -33,6 +33,13 @@
  * statement, and the DCR run has to record the server's own error against the pairing,
  * so a status is data rather than a failure of the guard.
  *
+ * **`DELETE` is here for one caller.** The conformance harness deletes the throwaway
+ * clients it registers, through RFC 7592's client configuration endpoint, and that
+ * address comes out of a participant's response - so it is exactly the kind of URL that
+ * may not be fetched any other way. Its one caller passes `maxRedirects: 0`, because a
+ * delete carries the far end's own registration access token and a redirect is a
+ * different host to hand it to.
+ *
  * **The allowlist.** Empty unless `MUSTER_OUTBOUND_ALLOWED_HOSTS` names something,
  * because a control that could be turned off by omitting a variable would not be one.
  * An entry is a `host` or a `host:port`; a port, when given, is part of the match, so
@@ -113,7 +120,7 @@ export type OutboundFetchImpl = (
 
 /** How a guarded fetch should behave. */
 export interface OutboundFetchOptions {
-  readonly method?: "GET" | "POST";
+  readonly method?: "GET" | "POST" | "DELETE";
   /** Extra request headers. No credential is ever sent through this module. */
   readonly headers?: Readonly<Record<string, string>>;
   /** A request body. Its presence also means redirects will not be followed. */

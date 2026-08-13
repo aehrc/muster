@@ -27,6 +27,7 @@ import { registerBrandsRoutes } from "../http/brands.js";
 import { jsonError } from "../http/errors.js";
 import { registerPublicRoutes } from "../http/publicApi.js";
 import { registerDcrRoutes } from "../pairing/dcr.routes.js";
+import { registerHarnessRoutes } from "../pairing/harness.routes.js";
 import { registerPairingRoutes } from "../pairing/routes.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
@@ -69,6 +70,10 @@ export const PUBLIC_REQUESTS: Readonly<Record<string, string>> = {
   "GET /docs/ticket-profile": "FR-028",
   "GET /docs/:page":
     "FR-028: an unknown profile is refused here rather than falling through to the console's shell, which would read as the documentation being empty",
+  "GET /api/enrolments/:id/harness-runs":
+    "FR-030 and SC-005: a conformance run's outcome is what the public badge claims, so the runs behind it are readable without an account",
+  "GET /api/harness-runs/:id":
+    "SC-005: a vendor produces evidence they can share, and a shared report behind a sign-in is not evidence",
   "GET /healthz": "A liveness probe presents no credential",
   "GET /readyz": "A readiness probe presents no credential",
 };
@@ -97,6 +102,7 @@ export function createApiRouter(
   registerMemberRoutes(router, context);
   registerPairingRoutes(router, context);
   registerDcrRoutes(router, context);
+  registerHarnessRoutes(router, context);
 
   // Registered last, so it answers only what nothing above matched. A `notFound` handler
   // would not do: this router is mounted into the application, and the application's own

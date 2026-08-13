@@ -51,6 +51,7 @@ import { notifyPairing } from "./notifications.js";
 import { callerPairing, pairingResponse } from "./pairingAccess.js";
 import { callerId } from "../admin/access.js";
 import { requireApproved } from "../auth/middleware.js";
+import { injectedOutbound } from "../context.js";
 import { jsonError } from "../http/errors.js";
 import { softwareStatementView } from "../http/views.js";
 import { loadSigningKey, signClaims } from "../keys/keys.js";
@@ -493,12 +494,7 @@ export function registerDcrRoutes(
       body: JSON.stringify({ software_statement: statement.jws }),
       allowedHosts: context.config.outboundAllowedHosts,
       timeoutMs: REGISTRATION_TIMEOUT_MS,
-      ...(context.outbound?.fetchImpl === undefined
-        ? {}
-        : { fetchImpl: context.outbound.fetchImpl }),
-      ...(context.outbound?.resolve === undefined
-        ? {}
-        : { resolve: context.outbound.resolve }),
+      ...injectedOutbound(context.outbound),
     });
 
     if (!presented.ok && ADDRESS_REFUSALS.has(presented.reason)) {

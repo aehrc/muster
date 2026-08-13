@@ -33,10 +33,13 @@ import type {
   CheckStatus,
   CheckSummary,
   Contact,
+  DcrVerified,
   EnrolledSystem,
   EnrolledSystemDetail,
   EventDetail,
   EventSummary,
+  HarnessRunView,
+  HarnessTarget,
   Membership,
   MyOrganisation,
   OrganisationContacts,
@@ -53,15 +56,21 @@ import type {
   SoftwareStatementView,
   SystemKind,
 } from "@muster/contracts";
-import type { AccountStanding, PairingState } from "@muster/core";
+import type {
+  AccountStanding,
+  HarnessRunRefusal,
+  PairingState,
+} from "@muster/core";
 import type {
   AccountRow,
   CheckResultRow,
   CheckStatusRow,
   ContactRow,
+  EnrolledSystemInEventRow,
   EnrolledSystemRow,
   EnrolmentRow,
   EventRow,
+  HarnessRunRow,
   MembershipRow,
   OrganisationRow,
   PairingSideRow,
@@ -152,6 +161,34 @@ export function checkDetailView(status: CheckStatusRow): CheckDetail {
 }
 
 /**
+ * The DCR-verified badge, from the latest conformance run (FR-030, scenario 2 and 3).
+ *
+ * Two conditions, and both are the requirement rather than caution. The run has to be the
+ * latest* one and it has to have passed, because "any failing run removes the badge" is a
+ * claim about the newest run - so a failure after a pass produces null here, and there is no
+ * stored flag that could disagree. And the system has to still declare trusted DCR: an owner
+ * who has since switched to manual registration is no longer offering the thing the run
+ * proved, and a badge for it would be a claim about a mode the entry no longer advertises.
+ *
+ * @param run - The latest run on the enrolment, or `undefined` when nothing has run.
+ * @param system - The system as it now stands, for its registration mode.
+ * @returns The badge, or null.
+ */
+export function dcrVerifiedView(
+  run: HarnessRunRow | undefined,
+  system: SystemRow,
+): DcrVerified | null {
+  if (
+    run === undefined ||
+    run.verdict !== "passed" ||
+    system.serverProfile?.registrationMode !== "trustedDcr"
+  ) {
+    return null;
+  }
+  return { verifiedAt: run.ranAt.toISOString(), runId: run.id };
+}
+
+/**
  * An enrolled system, as the public event view and the public JSON API present it.
  *
  * No contact detail of any kind. The owning organisation appears as a name and an
@@ -159,11 +196,14 @@ export function checkDetailView(status: CheckStatusRow): CheckDetail {
  * has to be able to tell them apart.
  *
  * `check` is null when nothing has checked the enrolment, which is not the same claim as
- * unreachable: a server nobody has looked at has not failed.
+ * unreachable: a server nobody has looked at has not failed. `dcrVerified` is null on the
+ * same principle and for a second reason besides: a server that has never been put through
+ * the harness has not failed it.
  */
 export function enrolledSystemView(
   row: EnrolledSystemRow,
   status?: CheckStatusRow,
+  latestRun?: HarnessRunRow,
 ): EnrolledSystem {
   return {
     systemId: row.system.id,
@@ -177,6 +217,7 @@ export function enrolledSystemView(
     tags: row.enrolment.tags,
     confirmedAt: row.enrolment.confirmedAt.toISOString(),
     check: status === undefined ? null : checkStatusView(status),
+    dcrVerified: dcrVerifiedView(latestRun, row.system),
   };
 }
 
@@ -185,11 +226,61 @@ export function enrolledSystemDetailView(
   row: EnrolledSystemRow,
   status: CheckStatusRow | undefined,
   history: readonly CheckResultRow[],
+  latestRun?: HarnessRunRow,
 ): EnrolledSystemDetail {
   return {
-    ...enrolledSystemView(row, status),
+    ...enrolledSystemView(row, status, latestRun),
     check: status === undefined ? null : checkDetailView(status),
     checkHistory: history.map(checkSummaryView),
+  };
+}
+
+/**
+ * One recorded conformance run, as the harness screen and the public report show it.
+ *
+ * The endpoint comes from the run's own evidence rather than from the system's record as it
+ * stands today: the run is a statement about where the statements went at the time, and an
+ * owner who has since edited the entry has not changed what happened.
+ *
+ * The checks are stored already scrubbed and already projected, so they pass through: the
+ * redaction happens once, before the row is written, rather than in every reader.
+ */
+export function harnessRunView(row: HarnessRunRow): HarnessRunView {
+  return {
+    id: row.id,
+    enrolmentId: row.enrolmentId,
+    ranAt: row.ranAt.toISOString(),
+    verdict: row.verdict,
+    registrationEndpoint: row.checks[0]?.request.url ?? "",
+    checks: row.checks.map((check) => ({
+      ...check,
+      advisories: [...check.advisories],
+    })),
+    cleanup: row.cleanup,
+  };
+}
+
+/**
+ * The entry a run is aimed at, and whether this caller may aim one (FR-037).
+ *
+ * The refusal is computed from the same rule the route enforces, so the sentence the screen
+ * shows and the answer the server would give cannot disagree.
+ */
+export function harnessTargetView(
+  row: EnrolledSystemInEventRow,
+  refusal?: HarnessRunRefusal,
+): HarnessTarget {
+  return {
+    enrolmentId: row.enrolment.id,
+    systemId: row.system.id,
+    systemName: row.system.name,
+    organisationName: row.organisation.name,
+    eventSlug: row.event.slug,
+    eventName: row.event.name,
+    registrationEndpoint:
+      row.system.serverProfile?.registrationEndpoint ?? null,
+    canRun: refusal === undefined,
+    refusal: refusal ?? null,
   };
 }
 
