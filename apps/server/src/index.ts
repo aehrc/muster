@@ -1,47 +1,102 @@
 /**
  * The server's entry point.
  *
- * A placeholder, and deliberately the smallest one that can be deployed: it answers
- * the liveness probe the container image and the compose stack are wired to, so the
- * image can be built, started and proved before there is anything to serve. The
- * routing, the error envelope and the configuration loader arrive with the
- * foundational phase, which replaces the body of this file with the real app factory.
+ * Two things run from here: the server, and the `migrate` command the deployment's
+ * pre-install hook invokes. The command is dispatched before the configuration is
+ * resolved, because it needs less than the server does - a migration uses a connection
+ * and nothing else, and demanding a public URL and a master key to run one would be an
+ * operator told off by name for omitting something the command never reads.
  *
  * Author: John Grimes
  */
 
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
+import { createDatabase } from "@muster/db";
 
-import { ConfigError, resolveMigrationIdentities } from "./config.js";
+import { createApp } from "./app.js";
+import {
+  ConfigError,
+  loadConfig,
+  resolveMigrationIdentities,
+} from "./config.js";
+import {
+  createMailTransport,
+  describeMailTransport,
+} from "./mail/transport.js";
 import { runMigrateCommand } from "./migrate.js";
 
-// The commands are dispatched before the server's configuration is resolved, because
-// each needs less than the server does: a migration uses a connection and nothing
-// else, and demanding a public URL and a master key to run one would be an operator
-// told off by name for omitting something the command never reads.
+/** Reports a problem the way an operator can act on, and stops. */
+function fail(prefix: string, error: unknown): never {
+  console.error(
+    error instanceof ConfigError
+      ? `Muster configuration error: ${error.message}`
+      : `${prefix}: ${error instanceof Error ? error.message : String(error)}`,
+  );
+  process.exit(1);
+}
+
 if (process.argv[2] === "migrate") {
   try {
     const identities = resolveMigrationIdentities(process.env);
     await runMigrateCommand(identities.ownerUrl, identities.servingRole);
   } catch (error) {
-    console.error(
-      error instanceof ConfigError
-        ? `Muster configuration error: ${error.message}`
-        : `Muster migration failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    process.exit(1);
+    fail("Muster migration failed", error);
   }
   process.exit(0);
 }
 
-const app = new Hono();
+let config;
+try {
+  config = loadConfig(process.env);
+} catch (error) {
+  fail("Muster could not start", error);
+}
 
-// The only route the image's HEALTHCHECK and the compose stack's `--wait` need.
-app.get("/healthz", (context) => context.json({ status: "ok" }));
-
-const port = Number(process.env["PORT"] ?? "3000");
-
-serve({ fetch: app.fetch, port }, (address) => {
-  console.log(`Muster listening on port ${address.port}`);
+const { db, close } = createDatabase({
+  url: config.databaseUrl,
+  applicationName: "muster",
 });
+
+const app = createApp({
+  config,
+  db,
+  mail: createMailTransport({
+    smtpUrl: config.smtpUrl,
+    from: config.mailFrom,
+  }),
+  clock: () => new Date(),
+});
+
+// Reported at startup rather than left to be discovered: a deployment that believes it
+// is sending mail and is only logging it has an approval queue nobody is told about.
+// The description never contains the credential in the SMTP URL.
+console.log(`Muster mail transport: ${describeMailTransport(config.smtpUrl)}`);
+
+const server = serve({ fetch: app.fetch, port: config.port }, (address) => {
+  console.log(
+    `Muster listening on port ${String(address.port)}, public URL ${config.publicUrl}`,
+  );
+});
+
+/**
+ * Stops accepting connections, then releases the database pool.
+ *
+ * In that order: closing the pool first would fail every request already in flight,
+ * including one part-way through recording a pairing transition.
+ */
+async function shutdown(signal: string): Promise<void> {
+  console.log(`Muster shutting down on ${signal}`);
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      resolve();
+    });
+  });
+  await close();
+  process.exit(0);
+}
+
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    void shutdown(signal);
+  });
+}

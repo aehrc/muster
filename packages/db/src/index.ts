@@ -9,6 +9,7 @@ export {
   type DatabaseOptions,
 } from "./client.js";
 export type { Executor } from "./executor.js";
+export { pingDatabase } from "./health.js";
 export * from "./migrations.js";
 export * from "./roles.js";
 export * from "./schema/index.js";
