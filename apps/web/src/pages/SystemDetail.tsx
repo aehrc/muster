@@ -1,0 +1,219 @@
+/**
+ * One enrolled system, in full.
+ *
+ * Public, with one exception, and the exception is the page's whole point: the contacts panel is a
+ * locked placeholder for an anonymous reader and the owning organisation's members for a signed-in
+ * approved one (FR-007, scenarios 5 and 6). The contacts are fetched separately and only when
+ * there is a session, so an anonymous visitor's page makes no request that would be refused.
+ *
+ * Author: John Grimes
+ */
+
+import { Link } from "react-router";
+
+import { describeRegistrationMode } from "./eventFilters.js";
+import { describeError } from "../api/errors.js";
+import { useContacts, useEventSystem, useMe } from "../api/queries.js";
+import {
+  DetailRow,
+  EmptyState,
+  ErrorAlert,
+  Loading,
+  PageHeader,
+  Panel,
+  Tag,
+} from "../components/layout.js";
+import { eventPath, ROUTES } from "../routes.js";
+
+import type { ClientProfile, ServerProfile } from "@muster/contracts";
+
+/** The system's structured details, its verification status and its contacts. */
+export function SystemDetail({
+  slug,
+  systemId,
+}: Readonly<{ readonly slug: string; readonly systemId: string }>) {
+  const entry = useEventSystem(slug, systemId);
+  const me = useMe();
+  const signedIn = me.data?.account != null;
+  const contacts = useContacts(
+    entry.data?.system.organisation.id ?? "",
+    signedIn && entry.data !== undefined,
+  );
+
+  if (entry.isPending) {
+    return <Loading label="Loading the system" />;
+  }
+  if (entry.error !== null) {
+    return <ErrorAlert message={describeError(entry.error)} />;
+  }
+
+  const { event, system } = entry.data;
+
+  return (
+    <article className="page-wide">
+      <p className="back">
+        <Link to={eventPath(slug)}>&larr; Back to {event.name}</Link>
+      </p>
+
+      <PageHeader title={system.name} subtitle={system.organisation.name} />
+
+      <div className="chips">
+        {system.kinds.map((kind) => (
+          <Tag key={kind}>{kind === "server" ? "Server" : "Client"}</Tag>
+        ))}
+        {system.tags.map((tag) => (
+          <Tag key={tag}>{tag}</Tag>
+        ))}
+      </div>
+
+      {system.description.length === 0 ? null : (
+        <p className="lede">{system.description}</p>
+      )}
+
+      <div className="detail-columns">
+        <div className="detail-main">
+          {system.serverProfile === null ? null : (
+            <ServerDetails profile={system.serverProfile} />
+          )}
+          {system.clientProfile === null ? null : (
+            <ClientDetails profile={system.clientProfile} />
+          )}
+        </div>
+
+        <div className="detail-side">
+          <Panel
+            title="Verification"
+            description="Muster fetches each enrolled server's SMART configuration on a schedule and reports what it finds."
+          >
+            <DetailRow label="Last check">
+              Not checked yet - scheduled verification arrives with the liveness
+              checks.
+            </DetailRow>
+            <DetailRow label="Details confirmed by its owner">
+              {system.confirmedAt}
+            </DetailRow>
+          </Panel>
+
+          <Panel title="Contacts">
+            {signedIn ? (
+              <ContactList
+                pending={contacts.isPending}
+                error={contacts.error}
+                members={contacts.data?.members ?? []}
+              />
+            ) : (
+              <EmptyState>
+                Locked. <Link to={ROUTES.signIn}>Sign in</Link> as an approved
+                member to see who to talk to about this system.
+              </EmptyState>
+            )}
+          </Panel>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** What the system declares as a server. */
+function ServerDetails({
+  profile,
+}: Readonly<{ readonly profile: ServerProfile }>) {
+  return (
+    <Panel title="Server details">
+      <DetailRow label="FHIR base URL">
+        <span className="wrap">{profile.fhirBaseUrl}</span>
+      </DetailRow>
+      <DetailRow label="Authorization">
+        {profile.authorizationMode === "smart"
+          ? "SMART App Launch"
+          : "Open - no authorization"}
+      </DetailRow>
+      <DetailRow label="Registration mode">
+        {describeRegistrationMode(profile.registrationMode)}
+      </DetailRow>
+      {profile.registrationEndpoint === null ? null : (
+        <DetailRow label="Registration endpoint">
+          <span className="wrap">{profile.registrationEndpoint}</span>
+        </DetailRow>
+      )}
+      {profile.notes.length === 0 ? null : (
+        <DetailRow label="Notes">{profile.notes}</DetailRow>
+      )}
+    </Panel>
+  );
+}
+
+/** What the system declares as a client. */
+function ClientDetails({
+  profile,
+}: Readonly<{ readonly profile: ClientProfile }>) {
+  return (
+    <Panel title="Client details">
+      <DetailRow label="Launch URL">
+        <span className="wrap">{profile.launchUrl}</span>
+      </DetailRow>
+      <DetailRow label="Redirect URIs">
+        <ul className="plain-list">
+          {profile.redirectUris.map((uri) => (
+            <li className="wrap" key={uri}>
+              {uri}
+            </li>
+          ))}
+        </ul>
+      </DetailRow>
+      <DetailRow label="Scopes">
+        <span className="wrap">{profile.scopes.join(" ")}</span>
+      </DetailRow>
+      <DetailRow label="Confidentiality">
+        {profile.confidentiality === "confidential" ? "Confidential" : "Public"}
+      </DetailRow>
+      <DetailRow label="Launch context">
+        {profile.launchContext.length === 0
+          ? "None stated"
+          : profile.launchContext}
+      </DetailRow>
+      <DetailRow label="Token introspection">
+        {profile.needsIntrospection ? "Required" : "Not required"}
+      </DetailRow>
+    </Panel>
+  );
+}
+
+/** The owning organisation's members, once they have loaded. */
+function ContactList({
+  pending,
+  error,
+  members,
+}: Readonly<{
+  readonly pending: boolean;
+  readonly error: unknown;
+  readonly members: readonly {
+    readonly accountId: string;
+    readonly displayName: string;
+    readonly email: string;
+  }[];
+}>) {
+  if (pending) {
+    return <Loading label="Loading the contacts" />;
+  }
+  if (error !== null && error !== undefined) {
+    return <ErrorAlert message={describeError(error)} />;
+  }
+  if (members.length === 0) {
+    return (
+      <EmptyState>
+        This organisation has no members. Its entries are unmanageable until a
+        track admin reassigns it.
+      </EmptyState>
+    );
+  }
+  return (
+    <ul className="plain-list">
+      {members.map((member) => (
+        <li key={member.accountId}>
+          {member.displayName} - <span className="wrap">{member.email}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}

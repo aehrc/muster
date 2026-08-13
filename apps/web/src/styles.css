@@ -139,3 +139,370 @@ body {
   font-size: 1.05rem;
   color: var(--ink-quiet);
 }
+
+/*
+ * Beyond the shell: the pieces `components/layout.tsx` and `components/fields.tsx` render, and the
+ * tables the event view is built from. Kept to one stylesheet, matching the grayscale wireframes;
+ * layout is flexbox throughout.
+ */
+
+.page-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space);
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  color: var(--ink-quiet);
+  font-size: 0.9rem;
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: var(--space);
+  background: var(--surface-raised);
+  border: 2px solid var(--rule);
+  border-radius: 6px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+}
+
+.panel-header h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-quiet);
+}
+
+.panel-description,
+.note,
+.field-hint,
+.quiet {
+  font-size: 0.8rem;
+  color: var(--ink-quiet);
+}
+
+.tag {
+  display: inline-block;
+  margin: 0 0.35rem 0.25rem 0;
+  padding: 0.15rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--ink-quiet);
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: default;
+}
+
+button.tag {
+  cursor: pointer;
+}
+
+.tag-on {
+  font-weight: 600;
+  color: var(--ink);
+  background: #ddd;
+  border-color: #888;
+}
+
+.state {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  border: 2px solid var(--rule);
+  border-radius: 4px;
+}
+
+.state-pending {
+  color: var(--ink-quiet);
+}
+
+.state-error {
+  color: var(--ink);
+  background: #eee;
+  border-color: #888;
+  font-weight: 600;
+}
+
+.state-ok {
+  background: var(--surface-sunken);
+}
+
+.state-empty {
+  color: var(--ink-quiet);
+  border-style: dashed;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border: 2px solid var(--rule);
+  vertical-align: top;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--header);
+}
+
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space);
+}
+
+.filter-bar > .field {
+  flex: 1 1 12rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.card-row,
+.detail-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space);
+}
+
+.card-row > .panel {
+  flex: 1 1 16rem;
+}
+
+.detail-main {
+  display: flex;
+  flex: 2 1 24rem;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.detail-side {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.6rem;
+}
+
+.detail-label,
+.field-label {
+  font-size: 0.8rem;
+  color: var(--ink-quiet);
+}
+
+.detail-value {
+  font-size: 0.9rem;
+}
+
+.plain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--ink-quiet);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--rule);
+  border-radius: 4px;
+}
+
+.field-check {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-check input {
+  width: auto;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 2px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.button-primary {
+  font-weight: 600;
+  background: #ddd;
+  border-color: #888;
+}
+
+.button:disabled {
+  color: var(--ink-quiet);
+  cursor: progress;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid var(--rule);
+}
+
+.tab {
+  flex: 1;
+  padding: 0.5rem;
+  font: inherit;
+  color: var(--ink-quiet);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.tab-on {
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom-color: #888;
+}
+
+.shell-account {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 10rem;
+  list-style: none;
+}
+
+.admin-nav a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--ink-quiet);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.admin-nav a.current {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-sunken);
+}
+
+.admin-main {
+  flex: 1 1 30rem;
+}
+
+.organisation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+}
+
+.organisation h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.enrolment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface-sunken);
+  border: 2px solid var(--rule);
+  border-radius: 4px;
+}
+
+.event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.back {
+  font-size: 0.9rem;
+}

@@ -21,8 +21,33 @@ export const ROUTES = {
   pairings: "/pairings",
   myOrganisation: "/my-organisation",
   admin: "/admin",
+  adminMembers: "/admin/members",
+  adminEvents: "/admin/events",
   signIn: "/sign-in",
+  /** Where a verification link lands. The token arrives as a query parameter. */
+  verify: "/verify",
 } as const;
+
+/**
+ * The address of one event's page.
+ *
+ * @param slug - The event's slug.
+ * @returns The path.
+ */
+export function eventPath(slug: string): string {
+  return `${ROUTES.events}/${slug}`;
+}
+
+/**
+ * The address of one enrolled system's page, within an event.
+ *
+ * @param slug - The event's slug.
+ * @param systemId - The system's identifier.
+ * @returns The path.
+ */
+export function systemPath(slug: string, systemId: string): string {
+  return `${eventPath(slug)}/systems/${systemId}`;
+}
 
 /** One destination in the header. */
 export interface NavigationItem {
