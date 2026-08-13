@@ -17,10 +17,11 @@
 import { pingDatabase } from "@muster/db";
 import { Hono } from "hono";
 
+import { API_BASE_PATH, createApiRouter } from "./api/router.js";
 import { jsonError } from "./http/errors.js";
 import { serveConsoleAssets, serveConsoleShell } from "./http/staticFiles.js";
 
-import type { ServerContext } from "./context.js";
+import type { MusterEnvironment, ServerContext } from "./context.js";
 
 /**
  * Builds the Hono application.
@@ -34,8 +35,8 @@ import type { ServerContext } from "./context.js";
  * serve({ fetch: app.fetch, port: config.port });
  * ```
  */
-export function createApp(context: ServerContext): Hono {
-  const app = new Hono();
+export function createApp(context: ServerContext): Hono<MusterEnvironment> {
+  const app = new Hono<MusterEnvironment>();
 
   // Liveness answers from the process alone. A pod whose database is down is still
   // alive, and restarting it would neither fix the database nor help anybody.
@@ -52,6 +53,8 @@ export function createApp(context: ServerContext): Hono {
       return jsonError(c, 503, "database_unreachable");
     }
   });
+
+  app.route(API_BASE_PATH, createApiRouter(context));
 
   // Last, and only when a build is present: the console answers whatever the API did
   // not claim. Mounted here rather than first, which is what keeps an unmatched API

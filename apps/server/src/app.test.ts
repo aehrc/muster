@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import nodePath from "node:path";
 
 import { createApp } from "./app.js";
+import { createUnlimitedStore } from "./http/rateLimit.js";
 
 import type { ServerContext } from "./context.js";
 
@@ -43,6 +44,7 @@ function contextWith(
     },
     db: { execute } as unknown as ServerContext["db"],
     mail: { send: async () => await Promise.resolve() },
+    rateLimits: createUnlimitedStore(),
     clock: () => new Date(0),
   };
 }
@@ -96,13 +98,18 @@ describe("createApp probes", () => {
 
 describe("createApp error contract", () => {
   it("answers an unmatched path with the error envelope", async () => {
+    // A path no route claims. `/api/events/nope` would now match the public event route
+    // and reach the database, which this fake does not provide.
     const response = await createApp(contextWith(async () => {})).request(
-      "/api/events/nope",
+      "/api/no-such-surface",
     );
 
     expect(response.status).toBe(404);
     expect(response.headers.get("content-type")).toContain("application/json");
-    await expect(response.json()).resolves.toEqual({ error: "not_found" });
+    await expect(response.json()).resolves.toEqual({
+      error: "not_found",
+      detail: "No such API route",
+    });
   });
 
   it("answers a thrown error with the envelope and no internal detail", async () => {
@@ -153,12 +160,15 @@ describe("createApp serving the console", () => {
   it("still answers an unmatched API path with JSON", async () => {
     const app = createApp(contextWith(async () => {}, buildWebRoot()));
 
-    const response = await app.request("/api/events/nope", {
+    const response = await app.request("/api/no-such-surface", {
       headers: { accept: "text/html" },
     });
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: "not_found" });
+    await expect(response.json()).resolves.toEqual({
+      error: "not_found",
+      detail: "No such API route",
+    });
   });
 
   it("does not serve a file outside the web root", async () => {
