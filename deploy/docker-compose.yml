@@ -46,8 +46,10 @@ services:
       # address a browser outside the stack uses rather than the service name.
       MUSTER_PUBLIC_URL: http://localhost:${MUSTER_PORT:-3000}
       # The two identities a deployment runs as: the first migrates, the second
-      # serves. The serving role is created and granted by the migrate command, so a
-      # bootstrap service joins this file when that command lands.
+      # serves. `node dist/index.js migrate` grants the serving role its access but
+      # does not create it - it holds no authority to create a role and no password
+      # to give one - so a service that creates the role and runs the migration
+      # joins this file with the end-to-end suite that needs the stack to come up.
       MUSTER_DATABASE_OWNER_URL: postgresql://muster:muster@postgres:5432/muster
       MUSTER_DATABASE_URL: postgresql://muster_app:muster_app@postgres:5432/muster
       # A throwaway key: this stack holds nothing worth protecting, and a real
