@@ -601,3 +601,60 @@ button.tag {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
 }
+
+/*
+ * The persona page.
+ *
+ * The four coverage tones are deliberately distinguishable without colour: the symbol and
+ * the word carry the claim, and the background only reinforces it. A reader deciding
+ * whether to go and load a patient must not have to rely on a shade of grey - and
+ * `unverifiable` must never look like a quieter `missing`.
+ */
+.persona-cards > .panel {
+  min-width: 16rem;
+}
+
+.persona-facts {
+  margin: 0 0 0.75rem;
+}
+
+.persona-facts dt {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.persona-facts dd {
+  margin: 0 0 0.5rem;
+}
+
+/* Wide grids scroll inside the panel rather than pushing the page sideways. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.coverage {
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.coverage .quiet {
+  white-space: normal;
+  max-width: 16rem;
+}
+
+.coverage-ok {
+  background: #eef6ee;
+}
+
+.coverage-bad {
+  background: #f8eeee;
+}
+
+.coverage-unknown {
+  background: #f5f2e8;
+}
+
+.coverage-none {
+  background: #f4f4f4;
+  color: #888;
+}

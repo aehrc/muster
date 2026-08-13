@@ -1,12 +1,20 @@
 /**
- * Admin: creating events, editing them, and opening and closing them.
+ * Admin: creating events, editing them, opening and closing them, and curating personas.
  *
- * The wireframe's event list and edit panel. Persona curation is on the same screen in the
- * wireframe and arrives with the persona index; the space it will occupy is named rather than
- * mocked, so nobody mistakes an empty table for a broken one.
+ * The wireframe's event list, edit panel and persona table, on one screen.
  *
  * Closing an event is here rather than being a separate verb, per `contracts/http-api.md`, and it
  * is one way: the transition is refused by the server, and the button disappears once it is taken.
+ *
+ * The persona table reads the *public* personas route rather than an admin-only one. That is the
+ * constitution's rule about view-only data paths, and it has a second benefit: the flag an admin
+ * comes to this page for - a persona the source server no longer holds - is the same field a
+ * participant reads on the public page, so the two cannot disagree about it (FR-032).
+ *
+ * A search puts a request on somebody else's server, so it happens when the admin asks for it and
+ * never because the panel was rendered. Its results carry the patients that *cannot* be curated
+ * as well as the ones that can, each with the reason - which is what scenario 2 requires and what
+ * a filtered list would quietly lose.
  *
  * Author: John Grimes
  */
@@ -16,7 +24,15 @@ import { Link } from "react-router";
 
 import { AdminOnly } from "./AdminOnly.js";
 import { describeError } from "../../api/errors.js";
-import { useEventAction, useEvents, useMe } from "../../api/queries.js";
+import {
+  useAddPersona,
+  useEventAction,
+  useEvents,
+  useMe,
+  usePersonas,
+  usePersonaSearch,
+} from "../../api/queries.js";
+import { EventPicker } from "../../components/eventPicker.js";
 import { SubmitButton, TextField } from "../../components/fields.js";
 import {
   EmptyState,
@@ -33,6 +49,7 @@ import {
   EMPTY_EVENT_FORM,
   removeCapabilityTag,
 } from "../../forms/eventForm.js";
+import { describeSourceStatus, openEventSlug } from "../personaGrid.js";
 
 import type { EventForm } from "../../forms/eventForm.js";
 import type { EventSummary } from "@muster/contracts";
@@ -96,15 +113,7 @@ export function AdminEvents() {
 
       <EventFormPanel />
 
-      <Panel
-        title="Personas"
-        description="Curated from the event's configured source server. Arrives with the persona index."
-      >
-        <EmptyState>
-          Persona curation is not built yet. The source server is set on the
-          event above.
-        </EmptyState>
-      </Panel>
+      <PersonasPanel events={events.data?.events ?? []} />
     </article>
   );
 }
@@ -295,5 +304,187 @@ function EventFormPanel() {
         from it.
       </p>
     </Panel>
+  );
+}
+
+/**
+ * Curating one event's personas from its configured source server (FR-031).
+ *
+ * The event is chosen here rather than inherited from an edit form, because curation and
+ * editing are separate jobs an admin does at different times.
+ */
+function PersonasPanel({
+  events,
+}: Readonly<{ readonly events: readonly EventSummary[] }>) {
+  const [slug, setSlug] = useState<string | undefined>();
+  const chosen = openEventSlug(events, slug) ?? "";
+  const personas = usePersonas(chosen);
+
+  return (
+    <Panel
+      title="Personas"
+      description="The event's shared test patients, curated from the FHIR server set as its persona source. Only patients carrying an IHI are eligible."
+      actions={
+        <EventPicker events={events} chosen={chosen} onChoose={setSlug} />
+      }
+    >
+      {events.length === 0 ? (
+        <EmptyState>Create an event before curating personas.</EmptyState>
+      ) : null}
+      {personas.isPending && chosen.length > 0 ? (
+        <Loading label="Loading the personas" />
+      ) : null}
+      {personas.error === null ? null : (
+        <ErrorAlert message={describeError(personas.error)} />
+      )}
+      {personas.data === undefined ? null : (
+        <>
+          {personas.data.event.personaSourceUrl === null ? (
+            <ErrorAlert message="This event names no persona source server, so there is nothing to search. Set one when you create the event." />
+          ) : null}
+          {personas.data.personas.length === 0 ? (
+            <EmptyState>No personas curated for this event yet.</EmptyState>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>IHI</th>
+                  <th>Source status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {personas.data.personas.map((persona) => {
+                  const source = describeSourceStatus(persona.sourceStatus);
+                  return (
+                    <tr key={persona.id}>
+                      <td>
+                        {persona.canonicalUrl === null ? (
+                          persona.display.name
+                        ) : (
+                          <a
+                            href={persona.canonicalUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {persona.display.name}
+                          </a>
+                        )}
+                        <div className="quiet">
+                          {persona.display.birthDate ?? "no date of birth"}
+                        </div>
+                      </td>
+                      <td>
+                        <code>{persona.ihi}</code>
+                      </td>
+                      <td className={source.flagged ? "check-bad" : undefined}>
+                        {source.text}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <PersonaSearchPanel slug={chosen} />
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * Searching the source server, and adding what it found.
+ *
+ * The search is submitted rather than typed-into-live: each one is a request to a
+ * participant's FHIR server, and a search-as-you-type box would send one per keystroke.
+ */
+function PersonaSearchPanel({ slug }: Readonly<{ readonly slug: string }>) {
+  const [typed, setTyped] = useState("");
+  const [asked, setAsked] = useState("");
+  const results = usePersonaSearch(slug, asked, asked.length > 0);
+  const add = useAddPersona(slug);
+
+  return (
+    <div className="persona-search">
+      <form
+        className="filter-bar"
+        onSubmit={(submitted) => {
+          submitted.preventDefault();
+          setAsked(typed.trim());
+        }}
+      >
+        <TextField
+          label="Search the source server"
+          value={typed}
+          onChange={setTyped}
+          placeholder="Morris"
+          hint="Searches the event's persona source by patient name. Only patients carrying an IHI can be added; the rest are listed with the reason."
+        />
+        <SubmitButton pending={results.isFetching && asked.length > 0}>
+          Search
+        </SubmitButton>
+      </form>
+
+      {results.error === null ? null : (
+        <ErrorAlert message={describeError(results.error)} />
+      )}
+      {add.error === null ? null : (
+        <ErrorAlert message={describeError(add.error)} />
+      )}
+      {add.isSuccess && add.data !== undefined ? (
+        <InfoAlert>
+          {add.data.persona.display.name} added as a persona.
+        </InfoAlert>
+      ) : null}
+
+      {results.data === undefined ? null : (
+        <>
+          {results.data.candidates.length === 0 &&
+          results.data.ineligible.length === 0 ? (
+            <EmptyState>
+              The source server matched no patients for that search.
+            </EmptyState>
+          ) : null}
+          {results.data.candidates.map((candidate) => (
+            <div className="event-row" key={candidate.patientId}>
+              <div>
+                <strong>{candidate.display.name}</strong>
+                <div className="quiet">
+                  {candidate.display.birthDate ?? "no date of birth"} - IHI{" "}
+                  <code>{candidate.ihi}</code>
+                </div>
+              </div>
+              <div className="page-actions">
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={add.isPending}
+                  onClick={() => {
+                    add.mutate(candidate.patientId);
+                  }}
+                >
+                  Add persona
+                </button>
+              </div>
+            </div>
+          ))}
+          {results.data.ineligible.map((refused) => (
+            <div
+              className="event-row"
+              key={refused.patientId ?? refused.display.name}
+            >
+              <div>
+                <strong>{refused.display.name}</strong>
+                {/* Scenario 2: the reason is stated, not left to be guessed at. */}
+                <div className="state state-error" role="status">
+                  {refused.detail}
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
   );
 }

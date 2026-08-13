@@ -36,6 +36,7 @@ import { MyOrganisation } from "./pages/MyOrganisation.js";
 import { NotFound } from "./pages/NotFound.js";
 import { PairingDetail } from "./pages/PairingDetail.js";
 import { Pairings } from "./pages/Pairings.js";
+import { Personas } from "./pages/Personas.js";
 import { SignIn } from "./pages/SignIn.js";
 import { SystemDetail } from "./pages/SystemDetail.js";
 import { Verify } from "./pages/Verify.js";
@@ -77,7 +78,7 @@ export function App() {
               <Route path="members" element={<AdminMembers />} />
               <Route path="events" element={<AdminEvents />} />
             </Route>
-            {/* The persona page is mounted here by the user story that builds it. */}
+            <Route path="personas" element={<Personas />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

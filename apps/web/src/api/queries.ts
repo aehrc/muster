@@ -28,12 +28,15 @@ import type {
   EventSummary,
   HarnessRunResult,
   HarnessRuns,
+  EventPersonas,
   Me,
   MyOrganisation,
   OrganisationContacts,
   PairingDetail,
   PairingOutcome,
   PairingSummary,
+  PersonaSearchResult,
+  PersonaView,
   RegistrationFieldsInput,
   SystemInput,
 } from "@muster/contracts";
@@ -66,6 +69,13 @@ export const keys = {
     "enrolment",
     enrolmentId,
     "harness-runs",
+  ],
+  personas: (slug: string): QueryKey => ["event", slug, "personas"],
+  personaSearch: (slug: string, query: string): QueryKey => [
+    "admin",
+    "persona-search",
+    slug,
+    query,
   ],
   jwks: (): QueryKey => ["jwks"],
   accounts: (status: string): QueryKey => ["admin", "accounts", status],
@@ -457,6 +467,71 @@ export function useHarnessRun(enrolmentId: string) {
         queryKey: keys.harnessRuns(enrolmentId),
       });
       await client.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}
+
+/**
+ * One event's personas and its coverage grid (FR-032).
+ *
+ * Public, like the page it feeds: the personas are shared test patients and the grid is a
+ * claim about servers anybody can see (scenario 5). The admin console reads the same query
+ * rather than an admin-only variant, so the table an admin curates and the page a
+ * participant reads cannot disagree.
+ */
+export function usePersonas(slug: string) {
+  return useQuery({
+    queryKey: keys.personas(slug),
+    enabled: slug.length > 0,
+    queryFn: async ({ signal }) =>
+      await get<EventPersonas>(
+        `/api/events/${encodeURIComponent(slug)}/personas`,
+        signal,
+      ),
+  });
+}
+
+/**
+ * Patients on the event's configured source server, as an admin searches it (FR-031).
+ *
+ * `enabled` is the caller's, because a search with nothing typed into it is not a search -
+ * and because this is the one query on the admin page that puts a request on somebody else's
+ * server. It returns the ineligible results too, so the console can say why a patient an
+ * admin can see cannot be curated (scenario 2).
+ */
+export function usePersonaSearch(
+  slug: string,
+  query: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: keys.personaSearch(slug, query),
+    enabled: enabled && slug.length > 0 && query.length > 0,
+    queryFn: async ({ signal }) =>
+      await get<PersonaSearchResult>(
+        `/api/admin/events/${encodeURIComponent(slug)}/persona-search?q=${encodeURIComponent(query)}`,
+        signal,
+      ),
+  });
+}
+
+/**
+ * Curates one patient from the source server as a persona (FR-031).
+ *
+ * Only the identifier is sent. The demographics and the IHI are read from the source by the
+ * server, so what the persona claims is what the source says rather than what this page
+ * happened to be showing.
+ */
+export function useAddPersona(slug: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (patientId: string) =>
+      await post<{ persona: PersonaView }>(
+        `/api/admin/events/${encodeURIComponent(slug)}/personas`,
+        { patientId },
+      ),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: keys.personas(slug) });
     },
   });
 }
