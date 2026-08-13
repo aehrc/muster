@@ -17,17 +17,22 @@
  * scenario 6), and an enrolment is what ties a system to an event; referencing systems would
  * leave the event to be implied by a column that could disagree with both of them.
  *
- * **The timeline is append-only.** `pairing_event` has no `updated_at` and nothing updates it -
- * `data-model.md` names exactly the columns below, and `at` is the whole of the row's time
- * story. Its rows outlive their causes: `from_state` is null for the request that created the
- * pairing, and `actor_account_id` is nullable so that a lapse nobody triggered by hand still
- * records what happened.
+ * **The timeline is append-only, and totally ordered.** `pairing_event` has no `updated_at` and
+ * nothing updates it; `at` is the whole of the row's time story. It carries one column beyond
+ * those `data-model.md` names - `sequence` - because `at` alone does not order a log: two
+ * transitions can land in the same millisecond (a failed registration and its retry, or anything
+ * driven by a clock a test has frozen), and a timeline whose order depended on a random
+ * identifier would show the two parties different histories of the same pairing. Its rows outlive
+ * their causes: `from_state` is null for the request that created the pairing, and
+ * `actor_account_id` is nullable so that a lapse nobody triggered by hand still records what
+ * happened.
  *
  * Author: John Grimes
  */
 
 import { sql } from "drizzle-orm";
 import {
+  bigserial,
   check,
   index,
   jsonb,
@@ -123,10 +128,15 @@ export const pairingEvent = pgTable(
     toState: pairingStateEnum("to_state").notNull(),
     detail: jsonb("detail").$type<PairingEventDetail>().notNull().default({}),
     at: instant("at").notNull(),
+    /** The order the entries were appended in. The database assigns it. */
+    sequence: bigserial("sequence", { mode: "number" }).notNull(),
   },
   (table) => [
     // "What has happened to this pairing?", asked by the detail screen for both parties.
-    index("pairing_event_pairing_id_at_idx").on(table.pairingId, table.at),
+    index("pairing_event_pairing_id_sequence_idx").on(
+      table.pairingId,
+      table.sequence,
+    ),
   ],
 );
 

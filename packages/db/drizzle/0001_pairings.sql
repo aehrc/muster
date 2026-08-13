@@ -22,7 +22,8 @@ CREATE TABLE "pairing_event" (
 	"from_state" "pairing_state",
 	"to_state" "pairing_state" NOT NULL,
 	"detail" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"at" timestamp with time zone NOT NULL
+	"at" timestamp with time zone NOT NULL,
+	"sequence" bigserial NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "pairing" ADD CONSTRAINT "pairing_event_id_event_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."event"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -35,4 +36,4 @@ CREATE UNIQUE INDEX "pairing_event_client_server_unique" ON "pairing" USING btre
 CREATE INDEX "pairing_client_enrolment_id_idx" ON "pairing" USING btree ("client_enrolment_id");--> statement-breakpoint
 CREATE INDEX "pairing_server_enrolment_id_idx" ON "pairing" USING btree ("server_enrolment_id");--> statement-breakpoint
 CREATE INDEX "pairing_event_id_idx" ON "pairing" USING btree ("event_id");--> statement-breakpoint
-CREATE INDEX "pairing_event_pairing_id_at_idx" ON "pairing_event" USING btree ("pairing_id","at");
+CREATE INDEX "pairing_event_pairing_id_sequence_idx" ON "pairing_event" USING btree ("pairing_id","sequence");

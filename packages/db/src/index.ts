@@ -22,12 +22,14 @@ export {
   approve,
   clientProfileFixture,
   makeAccount,
+  makeEnrolment,
   makeEvent,
   makeOrganisation,
   makeSystem,
   serverProfileFixture,
   uniqueSuffix,
   type AccountFixture,
+  type EnrolmentFixture,
 } from "./test/factories.js";
 export {
   databaseUrlWith,

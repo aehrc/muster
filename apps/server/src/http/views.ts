@@ -18,7 +18,12 @@
  * Author: John Grimes
  */
 
-import { writeRefusal } from "@muster/core";
+import {
+  pairingTransition,
+  REQUEST_NOTIFIES,
+  transitionRefusal,
+  writeRefusal,
+} from "@muster/core";
 
 import type {
   AdminAccount,
@@ -31,9 +36,16 @@ import type {
   OrganisationContacts,
   OrganisationRef,
   OrganisationSystem,
+  PairingAction,
+  PairingDetail,
+  PairingSideName,
+  PairingSideView,
+  PairingSummary,
+  PairingTimelineEntry,
   SessionAccount,
   SystemKind,
 } from "@muster/contracts";
+import type { PairingState } from "@muster/core";
 import type {
   AccountRow,
   ContactRow,
@@ -42,6 +54,9 @@ import type {
   EventRow,
   MembershipRow,
   OrganisationRow,
+  PairingSideRow,
+  PairingTimelineRow,
+  PairingWithSides,
   SystemEnrolmentRow,
   SystemRow,
 } from "@muster/db";
@@ -235,6 +250,123 @@ export function adminAccountView(
     createdAt: row.createdAt.toISOString(),
     approvedAt: row.approvedAt?.toISOString() ?? null,
     organisations: [...organisations],
+  };
+}
+
+/** One half of a pairing: the enrolled system, and who owns it. */
+export function pairingSideView(row: PairingSideRow): PairingSideView {
+  return {
+    enrolmentId: row.enrolment.id,
+    systemId: row.system.id,
+    name: row.system.name,
+    organisation: organisationRefView(row.organisation),
+  };
+}
+
+/**
+ * Which sides of a pairing the caller's organisations hold.
+ *
+ * Both, for a member of both organisations (spec edge case) - which is why this is a list rather
+ * than a single side, and why the actions below are computed from it rather than from whichever
+ * side the request happened to arrive through.
+ *
+ * @param row - The pairing with both sides.
+ * @param organisationIds - The organisations the caller belongs to.
+ * @returns The sides held, client before server.
+ */
+export function pairingSides(
+  row: PairingWithSides,
+  organisationIds: readonly string[],
+): readonly PairingSideName[] {
+  const mine = new Set(organisationIds);
+  return [
+    ...(mine.has(row.client.organisation.id) ? (["client"] as const) : []),
+    ...(mine.has(row.server.organisation.id) ? (["server"] as const) : []),
+  ];
+}
+
+/** The state each offered action asks for. */
+const ACTION_TARGETS = {
+  fulfil: "fulfilled",
+  decline: "declined",
+} as const satisfies Readonly<Record<PairingAction, PairingState>>;
+
+/**
+ * What the caller may do to a pairing now.
+ *
+ * Computed from the same rule that would refuse the request, so the action the console offers and
+ * the transition the server admits cannot disagree - and so the console holds no copy of who may
+ * answer a pairing.
+ */
+function pairingActions(
+  state: PairingState,
+  sides: readonly PairingSideName[],
+): readonly PairingAction[] {
+  return (Object.keys(ACTION_TARGETS) as readonly PairingAction[]).filter(
+    (action) =>
+      transitionRefusal(state, ACTION_TARGETS[action], sides) === undefined,
+  );
+}
+
+/** A pairing as the list shows it. */
+export function pairingSummaryView(
+  row: PairingWithSides,
+  sides: readonly PairingSideName[],
+): PairingSummary {
+  return {
+    id: row.pairing.id,
+    event: eventSummaryView(row.event),
+    state: row.pairing.state,
+    client: pairingSideView(row.client),
+    server: pairingSideView(row.server),
+    clientId: row.pairing.clientId,
+    declineReason: row.pairing.declineReason,
+    sides: [...sides],
+    actions: [...pairingActions(row.pairing.state, sides)],
+    requestedAt: row.pairing.createdAt.toISOString(),
+    updatedAt: row.pairing.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * One recorded transition.
+ *
+ * `notifies` is derived from the transition rather than stored, so both organisations read the
+ * same claim about who was told (FR-014). Whether the message was accepted for delivery is
+ * reported to whoever acted, by the mutation's own response.
+ */
+export function pairingTimelineEntryView(
+  row: PairingTimelineRow,
+): PairingTimelineEntry {
+  const { entry } = row;
+  return {
+    id: entry.id,
+    at: entry.at.toISOString(),
+    fromState: entry.fromState,
+    toState: entry.toState,
+    actorDisplayName: row.actorDisplayName,
+    actingFor:
+      row.actingFor === null ? null : organisationRefView(row.actingFor),
+    clientId: entry.detail.clientId ?? null,
+    reason: entry.detail.reason ?? null,
+    notifies: [
+      ...(entry.fromState === null
+        ? REQUEST_NOTIFIES
+        : (pairingTransition(entry.fromState, entry.toState)?.notifies ?? [])),
+    ],
+  };
+}
+
+/** A pairing in full: its registration snapshot and its whole history. */
+export function pairingDetailView(
+  row: PairingWithSides,
+  sides: readonly PairingSideName[],
+  timeline: readonly PairingTimelineRow[],
+): PairingDetail {
+  return {
+    ...pairingSummaryView(row, sides),
+    registrationFields: row.pairing.registrationFields,
+    timeline: timeline.map(pairingTimelineEntryView),
   };
 }
 

@@ -37,6 +37,7 @@ import {
   addOrganisationMember,
   findAccountByEmail,
   insertEvent,
+  lapseOpenPairings,
   insertOrganisationWithFirstMember,
   insertSystem,
   isUniqueViolation,
@@ -65,6 +66,7 @@ import {
   organisationContactsView,
   organisationSystemView,
 } from "../http/views.js";
+import { LAPSE_NOTIFIES, notifyPairing } from "../pairing/notifications.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
 import type { OrganisationRow } from "@muster/db";
@@ -362,14 +364,41 @@ export function registerDirectoryRoutes(
       );
     }
 
+    const now = context.clock();
     const edited = await updateEvent(context.db, {
       slug: event.slug,
       patch: body,
-      now: context.clock(),
+      now,
     });
     if (edited === undefined) {
       return jsonError(c, 404, "not_found", "No event has that slug");
     }
-    return c.json({ event: eventDetailView(edited) });
+
+    // FR-011: closing an event lapses the pairings still waiting for an answer. Conditional on
+    // the event having just closed, so re-saving a closed event neither lapses anything nor
+    // sends a second round of notices about pairings that lapsed last week.
+    const lapsed =
+      edited.status === "closed" && event.status !== "closed"
+        ? await lapseOpenPairings(context.db, {
+            eventId: edited.id,
+            actorAccountId: callerId(c),
+            now,
+          })
+        : [];
+    // Both organisations, because neither of them chose it. Sent after the transitions are
+    // recorded: the record is what matters, and a relay failure must not undo it.
+    await Promise.all(
+      lapsed.map(
+        async (row) =>
+          await notifyPairing(context, row, "lapsed", LAPSE_NOTIFIES),
+      ),
+    );
+
+    return c.json({
+      event: eventDetailView(edited),
+      // Said rather than left to be discovered: closing an event retires other people's open
+      // requests, and the admin who did it should see how many (FR-037).
+      lapsedPairings: lapsed.length,
+    });
   });
 }

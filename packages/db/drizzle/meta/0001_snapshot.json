@@ -1,5 +1,5 @@
 {
-  "id": "e763902f-5da4-45c7-8287-dfa5f9e792a1",
+  "id": "c72701db-68a5-4b76-8534-4b3f929bab25",
   "prevId": "56252fa7-8718-4755-9e84-4cd09cb0ad9c",
   "version": "7",
   "dialect": "postgresql",
@@ -1059,11 +1059,17 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigserial",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {
-        "pairing_event_pairing_id_at_idx": {
-          "name": "pairing_event_pairing_id_at_idx",
+        "pairing_event_pairing_id_sequence_idx": {
+          "name": "pairing_event_pairing_id_sequence_idx",
           "columns": [
             {
               "expression": "pairing_id",
@@ -1072,7 +1078,7 @@
               "nulls": "last"
             },
             {
-              "expression": "at",
+              "expression": "sequence",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

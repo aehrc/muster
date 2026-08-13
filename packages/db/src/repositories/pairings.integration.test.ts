@@ -27,6 +27,7 @@ import { updateSystem } from "./directory.js";
 import { isCheckViolation } from "./errors.js";
 import {
   findPairing,
+  findPairingSide,
   insertPairing,
   lapseOpenPairings,
   listPairingTimeline,
@@ -495,6 +496,27 @@ describe.skipIf(!hasTestDatabase())("the pairing repositories", () => {
       expect(isCheckViolation(thrown, "pairing_declined_has_reason")).toBe(
         true,
       );
+    });
+  });
+
+  describe("findPairingSide", () => {
+    it("resolves an enrolment to its system and owner", async () => {
+      // What the request route needs before it can judge anything: which event the enrolment is
+      // in, whether its system is a client or a server, and whose it is.
+      const stage = await scene();
+
+      const side = await findPairingSide(db, stage.clientEnrolment.id);
+
+      expect(side?.enrolment.eventId).toBe(stage.event.id);
+      expect(side?.system.id).toBe(stage.clientSystem.id);
+      expect(side?.system.clientProfile).not.toBeNull();
+      expect(side?.organisation.id).toBe(stage.appOrganisation.id);
+    });
+
+    it("finds nothing for an enrolment that does not exist", async () => {
+      expect(
+        await findPairingSide(db, "00000000-0000-4000-8000-000000000000"),
+      ).toBeUndefined();
     });
   });
 

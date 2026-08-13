@@ -413,6 +413,37 @@ export async function transitionPairing(
 }
 
 /**
+ * One enrolment as a pairing side: the system it names, and who owns it.
+ *
+ * What the request route needs before it can judge anything - which event the enrolment is in,
+ * whether the system is a client or a server, and whose organisation may act for it - in one
+ * query, because asking those three questions separately invites two of them to be asked about
+ * different rows.
+ *
+ * @param db - The executor.
+ * @param enrolmentId - The enrolment's identifier.
+ * @returns The side, or `undefined` when no enrolment has that identifier.
+ * @example
+ * ```ts
+ * const client = await findPairingSide(context.db, body.clientEnrolmentId);
+ * ```
+ */
+export async function findPairingSide(
+  db: Executor,
+  enrolmentId: string,
+): Promise<PairingSideRow | undefined> {
+  return firstRow(
+    await db
+      .select({ enrolment, system, organisation })
+      .from(enrolment)
+      .innerJoin(system, eq(system.id, enrolment.systemId))
+      .innerJoin(organisation, eq(organisation.id, system.organisationId))
+      .where(eq(enrolment.id, enrolmentId))
+      .limit(1),
+  );
+}
+
+/**
  * The pairings with these identifiers, most recently changed first.
  *
  * One query for however many, because the alternative - a lookup per pairing - is the shape that
@@ -519,7 +550,9 @@ export async function listPairingTimeline(
       eq(organisation.id, pairingEvent.actingForOrganisationId),
     )
     .where(eq(pairingEvent.pairingId, pairingId))
-    .orderBy(pairingEvent.at, pairingEvent.id);
+    // By the append order rather than by the timestamp: two transitions can share a
+    // millisecond, and both parties must read the same history (FR-013).
+    .orderBy(pairingEvent.sequence);
   return rows.map((row) => ({
     entry: row.entry,
     actorDisplayName: row.actorDisplayName,

@@ -25,6 +25,7 @@ import { resolveSession } from "../auth/middleware.js";
 import { registerAuthRoutes } from "../auth/routes.js";
 import { jsonError } from "../http/errors.js";
 import { registerPublicRoutes } from "../http/publicApi.js";
+import { registerPairingRoutes } from "../pairing/routes.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
 
@@ -76,6 +77,7 @@ export function createApiRouter(
   registerPublicRoutes(router, context);
   registerDirectoryRoutes(router, context);
   registerMemberRoutes(router, context);
+  registerPairingRoutes(router, context);
 
   // Registered last, so it answers only what nothing above matched. A `notFound` handler
   // would not do: this router is mounted into the application, and the application's own
