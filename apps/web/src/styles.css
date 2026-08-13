@@ -1,0 +1,141 @@
+/*
+ * The console's styling.
+ *
+ * Plain CSS and one stylesheet, matching the grayscale wireframes. There is no
+ * framework here on purpose: the console is a directory of tables and forms, and a
+ * dependency that has to be configured, themed and upgraded is a cost this is not yet
+ * paying. Layout uses flexbox throughout.
+ *
+ * Author: John Grimes
+ */
+
+:root {
+  --ink: #333;
+  --ink-quiet: #6b6b6b;
+  --rule: #ccc;
+  --surface: #fff;
+  --surface-sunken: #f0f0f0;
+  --surface-raised: #fafafa;
+  --header: #e8e8e8;
+  --space: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface-sunken);
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 75rem;
+  margin: 0 auto;
+  background: var(--surface);
+}
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space);
+  padding: var(--space) 1.5rem;
+  background: var(--header);
+  border-bottom: 2px solid var(--rule);
+}
+
+.shell-brand {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.shell-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  list-style: none;
+}
+
+.shell-nav a {
+  font-size: 0.9rem;
+  color: var(--ink-quiet);
+  text-decoration: none;
+}
+
+.shell-nav a:hover,
+.shell-nav a:focus-visible {
+  text-decoration: underline;
+}
+
+/* Which destination the reader is on, stated rather than implied. */
+.shell-nav a.current {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.shell-nav-note {
+  font-size: 0.75rem;
+  color: var(--ink-quiet);
+}
+
+.shell-sign-in {
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface-raised);
+  border: 2px solid var(--rule);
+  border-radius: 4px;
+}
+
+.shell-main {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.shell-footer {
+  padding: var(--space) 1.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-quiet);
+  border-top: 2px solid var(--rule);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+  max-width: 45rem;
+}
+
+.page h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-quiet);
+}
+
+.page ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--ink-quiet);
+}
