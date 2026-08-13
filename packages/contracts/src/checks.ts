@@ -52,9 +52,9 @@ export const discoveryHighlightsSchema = z.object({
   registrationEndpoint: z.string().nullable(),
   introspectionEndpoint: z.string().nullable(),
   jwksUri: z.string().nullable(),
-  scopesSupported: z.array(z.string()),
-  capabilities: z.array(z.string()),
-  grantTypesSupported: z.array(z.string()),
+  scopesSupported: z.array(z.string()).readonly(),
+  capabilities: z.array(z.string()).readonly(),
+  grantTypesSupported: z.array(z.string()).readonly(),
   /**
    * The permission ticket types the server advertises.
    *
@@ -62,7 +62,7 @@ export const discoveryHighlightsSchema = z.object({
    * "which servers accept a ticket?" is answered from a recorded fact rather than by
    * re-fetching every server when somebody opens the playground.
    */
-  permissionTicketTypesSupported: z.array(z.string()),
+  permissionTicketTypesSupported: z.array(z.string()).readonly(),
 });
 
 /** The CapabilityStatement highlights a check recorded. */
@@ -72,7 +72,7 @@ export const capabilityHighlightsSchema = z.object({
   softwareVersion: z.string().nullable(),
   /** `implementation.url`: the server's own statement of where it lives. */
   implementationUrl: z.string().nullable(),
-  resourceTypes: z.array(z.string()),
+  resourceTypes: z.array(z.string()).readonly(),
   smartAuthorizationEndpoint: z.string().nullable(),
   smartTokenEndpoint: z.string().nullable(),
   smartRegisterEndpoint: z.string().nullable(),
@@ -91,7 +91,7 @@ export const checkSummarySchema = z.object({
   failureMode: checkFailureModeSchema.nullable(),
   /** What went wrong, or what was missing, in words a server owner can act on. */
   detail: z.string().nullable(),
-  driftFlags: z.array(driftFlagSchema),
+  driftFlags: z.array(driftFlagSchema).readonly(),
 });
 
 /**
@@ -119,7 +119,7 @@ export const checkDetailSchema = checkStatusSchema.extend({
  * and a server that has since added the scope should not be argued with.
  */
 export const scopeWarningSchema = z.object({
-  unsupportedScopes: z.array(z.string()),
+  unsupportedScopes: z.array(z.string()).readonly(),
   checkedAt: z.string(),
 });
 

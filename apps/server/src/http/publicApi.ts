@@ -10,10 +10,11 @@
  * email address. A reader who wants contacts signs in and asks
  * `GET /api/organisations/{id}/contacts`.
  *
- * Verification status and the DCR-verified badge are not here yet. No check has run, and a
- * field reporting "reachable: false" for a server nobody has looked at would be a claim
- * rather than an absence; User Story 3 adds them to `enrolledSystemSchema` and to these
- * responses together.
+ * Verification status is here and public, per constitution principle V: the event view's
+ * status column and the system page's verification panel are the point of User Story 3 and
+ * both are readable without an account. A server nobody has checked reports `null` rather
+ * than "reachable: false", which would be a claim rather than an absence. The DCR-verified
+ * badge is still absent, for the same reason: no harness has run until User Story 6.
  *
  * The list responses are single-field envelopes (`{ events: [...] }`) rather than bare
  * arrays. `contracts/http-api.md` does not settle it, so these routes do: an envelope leaves
@@ -26,13 +27,17 @@
  */
 
 import {
+  findCheckStatus,
   findEventEnrolment,
+  listCheckHistory,
+  listCheckStatuses,
   listEventEnrolments,
   listEvents,
 } from "@muster/db";
 
 import { jsonError } from "./errors.js";
 import {
+  enrolledSystemDetailView,
   enrolledSystemView,
   eventDetailView,
   eventSummaryView,
@@ -89,9 +94,18 @@ export function registerPublicRoutes(
       return event;
     }
     const enrolments = await listEventEnrolments(context.db, event.id);
+    // One query for every enrolment's latest check rather than one per row, and the map is
+    // what makes an unchecked enrolment absent rather than answered with a manufactured
+    // failure.
+    const statuses = await listCheckStatuses(
+      context.db,
+      enrolments.map((row) => row.enrolment.id),
+    );
     return c.json({
       event: eventDetailView(event),
-      systems: enrolments.map(enrolledSystemView),
+      systems: enrolments.map((row) =>
+        enrolledSystemView(row, statuses.get(row.enrolment.id)),
+      ),
     });
   });
 
@@ -115,9 +129,13 @@ export function registerPublicRoutes(
         "No system with that id is enrolled in this event",
       );
     }
+    const [status, history] = await Promise.all([
+      findCheckStatus(context.db, enrolment.enrolment.id),
+      listCheckHistory(context.db, enrolment.enrolment.id),
+    ]);
     return c.json({
       event: eventDetailView(event),
-      system: enrolledSystemView(enrolment),
+      system: enrolledSystemDetailView(enrolment, status, history),
     });
   });
 }

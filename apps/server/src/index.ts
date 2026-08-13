@@ -26,6 +26,7 @@ import {
   describeMailTransport,
 } from "./mail/transport.js";
 import { runMigrateCommand } from "./migrate.js";
+import { checkCadence, startCheckScheduler } from "./scheduler/scheduler.js";
 import { runSeedCommand, seedOptionsFrom } from "./seed.js";
 
 /** Reports a problem the way an operator can act on, and stops. */
@@ -99,6 +100,23 @@ const app = createApp({
 // The description never contains the credential in the SMTP URL.
 console.log(`Muster mail transport: ${describeMailTransport(config.smtpUrl)}`);
 
+// The liveness checks, on an in-process interval in this one instance - which is why the
+// Helm chart pins `replicas: 1`. The first pass runs immediately, so a restart mid-event
+// does not leave every entry stale for a whole interval, and what it did is logged rather
+// than left to be inferred (FR-037).
+const checks = startCheckScheduler({
+  db,
+  clock: () => new Date(),
+  allowedHosts: config.outboundAllowedHosts,
+  cadence: checkCadence(config.checkIntervalMs),
+  log: (message) => {
+    console.warn(message);
+  },
+});
+void checks.firstPass.then((summary) => {
+  console.log(`Muster check pass: ${JSON.stringify(summary)}`);
+});
+
 const server = serve({ fetch: app.fetch, port: config.port }, (address) => {
   console.log(
     `Muster listening on port ${String(address.port)}, public URL ${config.publicUrl}`,
@@ -106,13 +124,15 @@ const server = serve({ fetch: app.fetch, port: config.port }, (address) => {
 });
 
 /**
- * Stops accepting connections, then releases the database pool.
+ * Stops the scheduler, then accepting connections, then releases the database pool.
  *
  * In that order: closing the pool first would fail every request already in flight,
- * including one part-way through recording a pairing transition.
+ * including one part-way through recording a pairing transition, and a check pass that
+ * started after the pool closed would log a failure nobody caused.
  */
 async function shutdown(signal: string): Promise<void> {
   console.log(`Muster shutting down on ${signal}`);
+  checks.stop();
   await new Promise<void>((resolve) => {
     server.close(() => {
       resolve();

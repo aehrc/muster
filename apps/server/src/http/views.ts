@@ -22,13 +22,18 @@ import {
   pairingTransition,
   REQUEST_NOTIFIES,
   transitionRefusal,
+  unsupportedScopes,
   writeRefusal,
 } from "@muster/core";
 
 import type {
   AdminAccount,
+  CheckDetail,
+  CheckStatus,
+  CheckSummary,
   Contact,
   EnrolledSystem,
+  EnrolledSystemDetail,
   EventDetail,
   EventSummary,
   Membership,
@@ -42,12 +47,15 @@ import type {
   PairingSideView,
   PairingSummary,
   PairingTimelineEntry,
+  ScopeWarning,
   SessionAccount,
   SystemKind,
 } from "@muster/contracts";
 import type { PairingState } from "@muster/core";
 import type {
   AccountRow,
+  CheckResultRow,
+  CheckStatusRow,
   ContactRow,
   EnrolledSystemRow,
   EnrolmentRow,
@@ -101,13 +109,59 @@ export function systemKinds(row: SystemRow): readonly SystemKind[] {
 }
 
 /**
+ * One verification check, as a badge (FR-017).
+ *
+ * The advertised documents are deliberately absent: they belong to {@link checkDetailView},
+ * because an event listing shows a badge and a time for every server and sending twenty
+ * servers' scopes and resource types with it would pay for nothing.
+ */
+export function checkSummaryView(row: CheckResultRow): CheckSummary {
+  return {
+    checkedAt: row.checkedAt.toISOString(),
+    reachable: row.reachable,
+    failureMode: row.failureMode,
+    detail: row.detail,
+    driftFlags: [...row.driftFlags],
+  };
+}
+
+/**
+ * The latest check, with the last time one succeeded.
+ *
+ * The second time is what scenario 2 asks for: an unreachable server shown with the time of
+ * the last successful check, which the latest row cannot carry because it is the row that
+ * failed.
+ */
+export function checkStatusView(status: CheckStatusRow): CheckStatus {
+  return {
+    ...checkSummaryView(status.latest),
+    lastSuccessAt: status.lastSuccessAt?.toISOString() ?? null,
+  };
+}
+
+/** The latest check in full, with everything the server advertised. */
+export function checkDetailView(status: CheckStatusRow): CheckDetail {
+  return {
+    ...checkStatusView(status),
+    discovery: status.latest.discovery,
+    capability: status.latest.capability,
+  };
+}
+
+/**
  * An enrolled system, as the public event view and the public JSON API present it.
  *
  * No contact detail of any kind. The owning organisation appears as a name and an
  * identifier, because two organisations may hold systems with the same name and the reader
  * has to be able to tell them apart.
+ *
+ * `check` is null when nothing has checked the enrolment, which is not the same claim as
+ * unreachable: a server nobody has looked at has not failed.
  */
-export function enrolledSystemView(row: EnrolledSystemRow): EnrolledSystem {
+export function enrolledSystemView(
+  row: EnrolledSystemRow,
+  status?: CheckStatusRow,
+): EnrolledSystem {
   return {
     systemId: row.system.id,
     enrolmentId: row.enrolment.id,
@@ -119,6 +173,20 @@ export function enrolledSystemView(row: EnrolledSystemRow): EnrolledSystem {
     clientProfile: row.system.clientProfile,
     tags: row.enrolment.tags,
     confirmedAt: row.enrolment.confirmedAt.toISOString(),
+    check: status === undefined ? null : checkStatusView(status),
+  };
+}
+
+/** One enrolled system on its own page, with the whole of its verification record. */
+export function enrolledSystemDetailView(
+  row: EnrolledSystemRow,
+  status: CheckStatusRow | undefined,
+  history: readonly CheckResultRow[],
+): EnrolledSystemDetail {
+  return {
+    ...enrolledSystemView(row, status),
+    check: status === undefined ? null : checkDetailView(status),
+    checkHistory: history.map(checkSummaryView),
   };
 }
 
@@ -357,16 +425,57 @@ export function pairingTimelineEntryView(
   };
 }
 
-/** A pairing in full: its registration snapshot and its whole history. */
+/**
+ * The scopes a server does not advertise, for one pairing (FR-019).
+ *
+ * Computed from the pairing's own registration snapshot rather than from the client's record
+ * as it stands today, because the snapshot is what the server owner was actually asked to
+ * register (`data-model.md`).
+ *
+ * Null rather than an empty list when there is nothing to say, so a console cannot render a
+ * warning box with nothing in it. There are three ways for that to happen and all of them
+ * mean the same thing: no check has run, the server advertises no scopes, or every
+ * requested scope is supported.
+ *
+ * @param row - The pairing, for its registration snapshot.
+ * @param status - The latest check on the server side's enrolment, if any.
+ * @returns The warning, or null.
+ */
+export function pairingScopeWarning(
+  row: PairingWithSides,
+  status: CheckStatusRow | undefined,
+): ScopeWarning | null {
+  const unsupported = unsupportedScopes(
+    row.pairing.registrationFields.scopes,
+    status?.latest.discovery?.scopesSupported ?? null,
+  );
+  return unsupported.length === 0 || status === undefined
+    ? null
+    : {
+        unsupportedScopes: [...unsupported],
+        // The check's own time: the warning is only as current as the check behind it, and a
+        // server that has since added the scope should not be argued with.
+        checkedAt: status.latest.checkedAt.toISOString(),
+      };
+}
+
+/**
+ * A pairing in full: its registration snapshot, its whole history, and its warnings.
+ *
+ * The scope warning is the same value for both organisations, because FR-019 warns both
+ * parties.
+ */
 export function pairingDetailView(
   row: PairingWithSides,
   sides: readonly PairingSideName[],
   timeline: readonly PairingTimelineRow[],
+  scopeWarning: ScopeWarning | null,
 ): PairingDetail {
   return {
     ...pairingSummaryView(row, sides),
     registrationFields: row.pairing.registrationFields,
     timeline: timeline.map(pairingTimelineEntryView),
+    scopeWarning,
   };
 }
 

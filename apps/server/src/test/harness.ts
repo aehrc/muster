@@ -100,6 +100,7 @@ function testConfig(databaseUrl: string): MusterConfig {
     smtpUrl: undefined,
     mailFrom: "no-reply@muster.test",
     outboundAllowedHosts: [],
+    checkIntervalMs: 900_000,
   };
 }
 

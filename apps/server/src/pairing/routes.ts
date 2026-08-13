@@ -22,9 +22,8 @@
  * (FR-037). The transition stands either way: it is recorded, and re-sending an email is not
  * something the actor could do from here.
  *
- * What is deliberately absent: scope warnings, which need a check to have run (User Story 3), and
- * the trusted-DCR run with its `failed → requested` retry (User Story 5). Both extend this module
- * rather than replacing it.
+ * What is deliberately absent: the trusted-DCR run with its `failed → requested` retry (User
+ * Story 5), which extends this module rather than replacing it.
  *
  * Author: John Grimes
  */
@@ -42,6 +41,7 @@ import {
   transitionRefusal,
 } from "@muster/core";
 import {
+  findCheckStatus,
   findPairing,
   findPairingSide,
   insertPairing,
@@ -59,6 +59,7 @@ import { jsonError } from "../http/errors.js";
 import { parseBody } from "../http/requestBody.js";
 import {
   pairingDetailView,
+  pairingScopeWarning,
   pairingSides,
   pairingSummaryView,
 } from "../http/views.js";
@@ -305,16 +306,28 @@ export function registerPairingRoutes(
   });
 }
 
-/** A pairing in full, with its history read in one further query. */
+/**
+ * A pairing in full, with its history and its scope warning.
+ *
+ * The warning comes from the latest check on the *server* side's enrolment (FR-019), and it
+ * is the same value whichever side asked: both parties are warned, because an app owner who
+ * cannot see it goes on believing the pairing will work and a server owner who cannot see it
+ * is asked to register something their own server will refuse.
+ */
 async function detail(
   context: ServerContext,
   row: PairingWithSides,
   sides: readonly PairingSideName[],
 ) {
+  const [timeline, status] = await Promise.all([
+    listPairingTimeline(context.db, row.pairing.id),
+    findCheckStatus(context.db, row.server.enrolment.id),
+  ]);
   return pairingDetailView(
     row,
     sides,
-    await listPairingTimeline(context.db, row.pairing.id),
+    timeline,
+    pairingScopeWarning(row, status),
   );
 }
 

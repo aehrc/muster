@@ -24,6 +24,7 @@
 import {
   clientProfileFixture,
   hasTestDatabase,
+  insertCheckResult,
   makeEnrolment,
   makeEvent,
   makeOrganisation,
@@ -832,6 +833,143 @@ describe.skipIf(!hasTestDatabase())("the pairing routes", () => {
       );
 
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe("the scope warning", () => {
+    /**
+     * Records a check against the scene's server, advertising these scopes.
+     *
+     * Written straight to the repository rather than run through the scheduler: what this
+     * block is about is the warning the pairing detail computes from a check, and the
+     * scheduler's own suite covers producing one.
+     */
+    async function advertise(
+      stage: Awaited<ReturnType<typeof scene>>,
+      scopesSupported: readonly string[],
+      checkedAt = new Date("2026-09-15T12:04:00.000Z"),
+    ) {
+      await insertCheckResult(stack.db, {
+        enrolmentId: stage.serverEnrolment.id,
+        checkedAt,
+        reachable: true,
+        failureMode: null,
+        detail: null,
+        discovery: {
+          issuer: null,
+          authorizationEndpoint: null,
+          tokenEndpoint: "https://mr.test/token",
+          registrationEndpoint: null,
+          introspectionEndpoint: null,
+          jwksUri: null,
+          scopesSupported: [...scopesSupported],
+          capabilities: [],
+          grantTypesSupported: [],
+          permissionTicketTypesSupported: [],
+        },
+        capability: null,
+        driftFlags: [],
+      });
+    }
+
+    /** The pairing as one side reads it. */
+    async function detailAs(pairingId: string, cookie: string) {
+      const body = await apiJson<{ pairing: PairingDetail }>(
+        stack,
+        "GET",
+        `/api/pairings/${pairingId}`,
+        { cookie },
+      );
+      return body.pairing;
+    }
+
+    it("warns both parties, naming the unsupported scopes (FR-019, scenario 4)", async () => {
+      // Both, because an app owner who cannot see it goes on believing the pairing will
+      // work and a server owner who cannot see it is asked to register something their
+      // own server will refuse.
+      const stage = await scene();
+      const created = await request(stage);
+      await advertise(stage, ["launch", "openid", "fhirUser"]);
+
+      const asApp = await detailAs(created.pairing.id, stage.app.cookie);
+      const asServer = await detailAs(created.pairing.id, stage.server.cookie);
+
+      expect(asApp.scopeWarning).toEqual({
+        unsupportedScopes: ["patient/Patient.rs"],
+        checkedAt: "2026-09-15T12:04:00.000Z",
+      });
+      expect(asServer.scopeWarning).toEqual(asApp.scopeWarning);
+    });
+
+    it("says nothing when the server advertises every requested scope", async () => {
+      const stage = await scene();
+      const created = await request(stage);
+      await advertise(stage, [
+        "launch",
+        "openid",
+        "fhirUser",
+        "patient/*.cruds",
+      ]);
+
+      expect(
+        (await detailAs(created.pairing.id, stage.app.cookie)).scopeWarning,
+      ).toBeNull();
+    });
+
+    it("says nothing when no check has run against the server", async () => {
+      // A warning computed from nothing would name every scope the client asked for.
+      const stage = await scene();
+      const created = await request(stage);
+
+      expect(
+        (await detailAs(created.pairing.id, stage.app.cookie)).scopeWarning,
+      ).toBeNull();
+    });
+
+    it("judges the snapshot the request carried, not the client's record today", async () => {
+      // The registration fields are a snapshot (`data-model.md`), so the warning is about
+      // what the server owner was actually asked to register.
+      const stage = await scene();
+      const created = await apiJson<PairingOutcome>(
+        stack,
+        "POST",
+        "/api/pairings",
+        {
+          cookie: stage.app.cookie,
+          body: requestBody(stage, {
+            ...FIELDS,
+            scopes: ["launch", "system/Binary.rs"],
+          }),
+        },
+        201,
+      );
+      await advertise(stage, ["launch", "patient/*.rs"]);
+
+      expect(
+        (await detailAs(created.pairing.id, stage.app.cookie)).scopeWarning
+          ?.unsupportedScopes,
+      ).toEqual(["system/Binary.rs"]);
+    });
+
+    it("reads the newest check rather than the first one", async () => {
+      // A server that has since added the scope should not be argued with, which is why
+      // the warning carries the check's own time.
+      const stage = await scene();
+      const created = await request(stage);
+      await advertise(
+        stage,
+        ["launch"],
+        new Date("2026-09-15T09:31:00.000Z"),
+      );
+      await advertise(
+        stage,
+        ["launch", "openid", "fhirUser", "patient/Patient.rs"],
+        new Date("2026-09-15T12:04:00.000Z"),
+      );
+
+      expect(
+        (await detailAs(created.pairing.id, stage.server.cookie)).scopeWarning,
+      ).toBeNull();
     });
   });
 

@@ -25,6 +25,11 @@
 import { z } from "zod";
 
 import {
+  checkDetailSchema,
+  checkStatusSchema,
+  checkSummarySchema,
+} from "./checks.js";
+import {
   accountStatusSchema,
   authorizationModeSchema,
   confidentialitySchema,
@@ -84,6 +89,19 @@ export const serverProfileSchema = z
     authorizationMode: authorizationModeSchema,
     registrationMode: registrationModeSchema,
     registrationEndpoint: httpsUrlSchema.nullable().default(null),
+    /**
+     * The authorization endpoint the owner says their server uses.
+     *
+     * Optional, and not in `data-model.md`'s original field list. It is here because
+     * spec scenario 3 and quickstart scenario 5 both describe drift as "a declared
+     * authorization endpoint differing from the discovery document" - which is not a
+     * comparison a record with no declared endpoint can make. Declaring one is what
+     * lets FR-018 name both values; leaving it null means the check has nothing to
+     * disagree with and says nothing.
+     */
+    authorizationEndpoint: httpsUrlSchema.nullable().default(null),
+    /** The token endpoint the owner says their server uses. See above. */
+    tokenEndpoint: httpsUrlSchema.nullable().default(null),
     notes: z.string().max(4000).default(""),
   })
   .check((ctx) => {
@@ -265,9 +283,8 @@ export const eventDetailSchema = eventSummarySchema.extend({
  * name, because two organisations may hold systems with the same name and the reader has
  * to be able to tell them apart (spec edge case).
  *
- * Verification status and the DCR-verified badge are not here yet: no check has run, and
- * a field reporting "reachable: false" for a server nobody has looked at would be a
- * claim rather than an absence. User Story 3 adds them.
+ * The DCR-verified badge is not here yet: no harness has run, and a badge for a server
+ * nobody has tested would be a claim rather than an absence. User Story 6 adds it.
  */
 export const enrolledSystemSchema = z.object({
   systemId: z.uuid(),
@@ -281,6 +298,27 @@ export const enrolledSystemSchema = z.object({
   tags: z.array(z.string()),
   /** When the owner last confirmed the details were current. */
   confirmedAt: z.string(),
+  /**
+   * The latest verification check, or null when none has run (FR-017).
+   *
+   * Null rather than a manufactured failure: a server nobody has looked at has not been
+   * found unreachable, and saying so would be a claim rather than an absence. A client
+   * that is not also a server is never checked, so its entry carries null for good.
+   */
+  check: checkStatusSchema.nullable(),
+});
+
+/**
+ * One enrolled system on its own page, with the whole of its verification record.
+ *
+ * The advertised documents and the check history are here and not on the listing: twenty
+ * servers' scopes and resource types would multiply the listing's size for a page that
+ * shows a badge and a time.
+ */
+export const enrolledSystemDetailSchema = enrolledSystemSchema.extend({
+  check: checkDetailSchema.nullable(),
+  /** Newest first. The history is retained, per `data-model.md`. */
+  checkHistory: z.array(checkSummarySchema),
 });
 
 /** One person's contact details. Members only, never public (FR-007). */
@@ -438,6 +476,8 @@ export type EventSummary = z.infer<typeof eventSummarySchema>;
 export type EventDetail = z.infer<typeof eventDetailSchema>;
 /** An enrolled system, as the public surfaces present it. */
 export type EnrolledSystem = z.infer<typeof enrolledSystemSchema>;
+/** One enrolled system on its own page, with its whole verification record. */
+export type EnrolledSystemDetail = z.infer<typeof enrolledSystemDetailSchema>;
 /** One person's contact details. */
 export type Contact = z.infer<typeof contactSchema>;
 /** An organisation's contact details. */

@@ -174,6 +174,31 @@ describe("loadConfig outbound allowlist", () => {
   });
 });
 
+describe("loadConfig check interval", () => {
+  it("defaults to the fifteen minutes SC-004 asks for", () => {
+    // The default is the requirement: an unreachable enrolled server is visibly flagged
+    // within one check interval, fifteen minutes or less during an event.
+    expect(loadConfig(MINIMAL).checkIntervalMs).toBe(900_000);
+  });
+
+  it("takes a shorter interval from the environment", () => {
+    expect(
+      loadConfig(withEnv({ MUSTER_CHECK_INTERVAL_MINUTES: "5" }))
+        .checkIntervalMs,
+    ).toBe(300_000);
+  });
+
+  it("refuses a value that is not a whole number of minutes in range", () => {
+    // Refused rather than clamped: an operator who asked for zero has a reason, and
+    // silently substituting fifteen would hide it.
+    for (const minutes of ["0", "-5", "2.5", "1441", "soon"]) {
+      expect(() =>
+        loadConfig(withEnv({ MUSTER_CHECK_INTERVAL_MINUTES: minutes })),
+      ).toThrow(/MUSTER_CHECK_INTERVAL_MINUTES/);
+    }
+  });
+});
+
 describe("resolveDatabaseUrl", () => {
   // The migrate command needs a connection and nothing else. Demanding a public URL
   // and a master key to run one would be an operator told off by name for omitting

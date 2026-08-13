@@ -18,14 +18,12 @@
  * (`data-model.md`: append-only, identical for both), and naming them is not the same as
  * publishing how to reach them - which stays behind `GET /api/organisations/{id}/contacts`.
  *
- * Scope warnings are absent too: no check has run against a server until User Story 3 lands
- * the scheduler, and a warning computed from nothing would be a claim rather than an absence.
- *
  * Author: John Grimes
  */
 
 import { z } from "zod";
 
+import { scopeWarningSchema } from "./checks.js";
 import {
   confidentialitySchema,
   pairingStateSchema,
@@ -169,10 +167,23 @@ export const pairingEventDetailSchema = z.object({
   reason: z.string().optional(),
 });
 
-/** A pairing in full: its registration snapshot and its whole history. */
+/**
+ * A pairing in full: its registration snapshot, its whole history, and its warnings.
+ *
+ * `scopeWarning` is the same value for both organisations, because FR-019 warns both
+ * parties: an app owner who cannot see it goes on believing the pairing will work, and a
+ * server owner who cannot see it is asked to register something their server will refuse.
+ */
 export const pairingDetailSchema = pairingSummarySchema.extend({
   registrationFields: registrationFieldsSchema,
   timeline: z.array(pairingTimelineEntrySchema),
+  /**
+   * The requested scopes the server does not advertise, or null when there is nothing to
+   * say - no check has run, or the server advertises no scopes, or every scope is
+   * supported. Null rather than an empty list, so a console cannot render a warning box
+   * with nothing in it.
+   */
+  scopeWarning: scopeWarningSchema.nullable(),
 });
 
 /**

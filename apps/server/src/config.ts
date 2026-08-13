@@ -53,6 +53,15 @@ export interface MusterConfig {
    * is exempt.
    */
   readonly outboundAllowedHosts: readonly string[];
+  /**
+   * How often an open event's enrolled servers are verified.
+   *
+   * Defaulted rather than required, because SC-004 fixes the number this has to be at or
+   * below - fifteen minutes during an event - so the default is the requirement and a
+   * deployment overriding it is choosing to check more often. A draft or closed event's
+   * cadence is a multiple of this one, declared in the scheduler.
+   */
+  readonly checkIntervalMs: number;
 }
 
 /** The two identities the `migrate` command needs. */
@@ -137,6 +146,36 @@ function readPort(env: Environment): number {
     );
   }
   return port;
+}
+
+/**
+ * The longest check interval accepted: a day.
+ *
+ * Beyond that the checks would be reporting yesterday's news at an event that lasts three
+ * days, which is the staleness they exist to remove.
+ */
+const MAX_CHECK_INTERVAL_MINUTES = 1440;
+
+/**
+ * Reads how often an open event's servers are checked.
+ *
+ * @throws {ConfigError} When it is not a whole number of minutes in range. Refused rather
+ *   than clamped: an operator who asked for zero has a reason, and silently substituting
+ *   fifteen would hide it.
+ */
+function readCheckIntervalMs(env: Environment): number {
+  const raw = read(env, "MUSTER_CHECK_INTERVAL_MINUTES") ?? "15";
+  const minutes = Number(raw);
+  if (
+    !Number.isInteger(minutes) ||
+    minutes < 1 ||
+    minutes > MAX_CHECK_INTERVAL_MINUTES
+  ) {
+    throw new ConfigError(
+      `MUSTER_CHECK_INTERVAL_MINUTES must be an integer between 1 and ${String(MAX_CHECK_INTERVAL_MINUTES)}, got "${raw}"`,
+    );
+  }
+  return minutes * 60_000;
 }
 
 /**
@@ -295,5 +334,6 @@ export function loadConfig(env: Environment): MusterConfig {
     mailFrom:
       read(env, "MUSTER_MAIL_FROM") ?? `muster@${new URL(publicUrl).hostname}`,
     outboundAllowedHosts: readHostList(env, "MUSTER_OUTBOUND_ALLOWED_HOSTS"),
+    checkIntervalMs: readCheckIntervalMs(env),
   };
 }

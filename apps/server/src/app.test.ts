@@ -41,6 +41,7 @@ function contextWith(
       smtpUrl: undefined,
       mailFrom: "no-reply@muster.example",
       outboundAllowedHosts: [],
+    checkIntervalMs: 900_000,
     },
     db: { execute } as unknown as ServerContext["db"],
     mail: { send: async () => await Promise.resolve() },
