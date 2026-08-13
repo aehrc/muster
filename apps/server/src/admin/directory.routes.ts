@@ -328,7 +328,12 @@ export function registerDirectoryRoutes(
     }
     try {
       const created = await insertEvent(context.db, body);
-      return c.json({ event: eventDetailView(created) }, 201);
+      // `lapsedPairings` is always zero here - a draft event has no pairings - and it is present
+      // so that both event mutations answer with the one shape (`eventChangeSchema`).
+      return c.json(
+        { event: eventDetailView(created), lapsedPairings: 0 },
+        201,
+      );
     } catch (error) {
       if (isUniqueViolation(error, "event_slug_unique")) {
         return jsonError(

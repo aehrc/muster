@@ -21,11 +21,16 @@ import { get, patch, post, remove } from "./client.js";
 import type {
   AdminAccount,
   EnrolledSystem,
+  EventChange,
   EventDetail,
   EventSummary,
   Me,
   MyOrganisation,
   OrganisationContacts,
+  PairingDetail,
+  PairingOutcome,
+  PairingSummary,
+  RegistrationFieldsInput,
   SystemInput,
 } from "@muster/contracts";
 import type { QueryKey } from "@tanstack/react-query";
@@ -48,6 +53,11 @@ export const keys = {
     "contacts",
   ],
   organisations: (): QueryKey => ["organisations"],
+  pairings: (eventSlug?: string): QueryKey => [
+    "pairings",
+    eventSlug ?? "every-event",
+  ],
+  pairing: (id: string): QueryKey => ["pairing", id],
   accounts: (status: string): QueryKey => ["admin", "accounts", status],
 } as const;
 
@@ -288,6 +298,84 @@ export function useEnrolAction(slug: string) {
   });
 }
 
+/**
+ * The pairings the caller's organisations are party to, both directions.
+ *
+ * @param eventSlug - One event, or `undefined` for every event.
+ */
+export function usePairings(eventSlug?: string) {
+  return useQuery({
+    queryKey: keys.pairings(eventSlug),
+    queryFn: async ({ signal }) =>
+      await get<{ pairings: PairingSummary[] }>(
+        eventSlug === undefined
+          ? "/api/pairings"
+          : `/api/pairings?event=${encodeURIComponent(eventSlug)}`,
+        signal,
+      ),
+  });
+}
+
+/** One pairing, with the timeline both organisations read. */
+export function usePairing(id: string) {
+  return useQuery({
+    queryKey: keys.pairing(id),
+    queryFn: async ({ signal }) =>
+      await get<{ pairing: PairingDetail }>(
+        `/api/pairings/${encodeURIComponent(id)}`,
+        signal,
+      ),
+  });
+}
+
+/** What requesting a pairing needs. */
+export interface PairingRequestAction {
+  readonly eventSlug: string;
+  readonly clientEnrolmentId: string;
+  readonly serverEnrolmentId: string;
+  readonly registrationFields: RegistrationFieldsInput;
+}
+
+/** Requests a pairing between one of the caller's clients and an enrolled server. */
+export function usePairingRequest() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: PairingRequestAction) =>
+      await post<PairingOutcome>("/api/pairings", action),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["pairings"] });
+    },
+  });
+}
+
+/** How the server's organisation answers a request. */
+export type PairingAnswerAction =
+  | { readonly kind: "fulfil"; readonly clientId: string }
+  | { readonly kind: "decline"; readonly reason: string };
+
+/**
+ * Fulfils or declines a pairing.
+ *
+ * One mutation for both, because they end the same way: the pairing has a new state, a new
+ * timeline entry, and the counterparty has been told.
+ */
+export function usePairingAnswer(pairingId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: PairingAnswerAction) =>
+      await post<PairingOutcome>(
+        `/api/pairings/${encodeURIComponent(pairingId)}/${action.kind}`,
+        action.kind === "fulfil"
+          ? { clientId: action.clientId }
+          : { reason: action.reason },
+      ),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: keys.pairing(pairingId) });
+      await client.invalidateQueries({ queryKey: ["pairings"] });
+    },
+  });
+}
+
 /** Approves or revokes an account. */
 export function useAccountDecision() {
   const client = useQueryClient();
@@ -320,12 +408,9 @@ export function useEventAction() {
   return useMutation({
     mutationFn: async (action: EventAction) => {
       if (action.kind === "create") {
-        return await post<{ event: EventDetail }>(
-          "/api/admin/events",
-          action.event,
-        );
+        return await post<EventChange>("/api/admin/events", action.event);
       }
-      return await patch<{ event: EventDetail }>(
+      return await patch<EventChange>(
         `/api/admin/events/${encodeURIComponent(action.slug)}`,
         action.patch,
       );

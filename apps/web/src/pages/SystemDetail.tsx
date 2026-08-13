@@ -1,10 +1,15 @@
 /**
  * One enrolled system, in full.
  *
- * Public, with one exception, and the exception is the page's whole point: the contacts panel is a
- * locked placeholder for an anonymous reader and the owning organisation's members for a signed-in
- * approved one (FR-007, scenarios 5 and 6). The contacts are fetched separately and only when
+ * Public, with two exceptions, and both are the page's point. The contacts panel is a locked
+ * placeholder for an anonymous reader and the owning organisation's members for a signed-in
+ * approved one (FR-007, scenarios 5 and 6); the contacts are fetched separately and only when
  * there is a session, so an anonymous visitor's page makes no request that would be refused.
+ *
+ * The pairing panel is the entry point to User Story 2: this is where somebody browsing the
+ * directory decides they want to register a client with this server. For a server whose
+ * registration mode is `open` it says no pairing is needed and offers nothing (FR-016). It is
+ * shown only for systems that act as servers, because there is nothing to register with a client.
  *
  * Author: John Grimes
  */
@@ -12,6 +17,7 @@
 import { Link } from "react-router";
 
 import { describeRegistrationMode } from "./eventFilters.js";
+import { RequestPairing } from "./RequestPairing.js";
 import { describeError } from "../api/errors.js";
 import { useContacts, useEventSystem, useMe } from "../api/queries.js";
 import {
@@ -81,6 +87,10 @@ export function SystemDetail({
         </div>
 
         <div className="detail-side">
+          {system.serverProfile === null ? null : (
+            <RequestPairing event={event} signedIn={signedIn} system={system} />
+          )}
+
           <Panel
             title="Verification"
             description="Muster fetches each enrolled server's SMART configuration on a schedule and reports what it finds."

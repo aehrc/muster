@@ -19,17 +19,33 @@ export class ApiError extends Error {
   public readonly status: number;
   /** The API's own code: `not_found`, `forbidden`, `guarded_address`, and so on. */
   public readonly code: string;
+  /**
+   * Whatever the response body parsed to.
+   *
+   * Kept because one refusal carries more than the envelope: a duplicate pairing request answers
+   * with the existing pairing's identifier, and FR-015 asks the console to link to it rather than
+   * mention it. Reading it is {@link conflictingPairingId}'s job, so no page touches this
+   * directly.
+   */
+  public readonly body: unknown;
 
   /**
    * @param status - The HTTP status.
    * @param code - The API error code.
    * @param message - What to show a person.
+   * @param body - The parsed response body, when there was one.
    */
-  public constructor(status: number, code: string, message: string) {
+  public constructor(
+    status: number,
+    code: string,
+    message: string,
+    body?: unknown,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.body = body;
   }
 }
 
@@ -64,7 +80,29 @@ export function toApiError(status: number, body: unknown): ApiError {
     detail ??
     (code === "error" ? `The server answered ${String(status)}` : code);
 
-  return new ApiError(status, code, message);
+  return new ApiError(status, code, message, body);
+}
+
+/**
+ * The pairing a duplicate request collided with (FR-015).
+ *
+ * @param error - The value that was thrown.
+ * @returns The existing pairing's identifier, or `undefined` for any other failure.
+ * @example
+ * ```ts
+ * const existing = conflictingPairingId(request.error);
+ * {existing === undefined ? null : <Link to={pairingPath(existing)}>the pairing you already have</Link>}
+ * ```
+ */
+export function conflictingPairingId(error: unknown): string | undefined {
+  if (!(error instanceof ApiError) || error.code !== "pairing_exists") {
+    return undefined;
+  }
+  const body =
+    typeof error.body === "object" && error.body !== null
+      ? (error.body as Record<string, unknown>)
+      : {};
+  return typeof body["pairingId"] === "string" ? body["pairingId"] : undefined;
 }
 
 /**

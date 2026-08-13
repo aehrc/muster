@@ -14,6 +14,7 @@ import { describe, expect, it } from "bun:test";
 
 import {
   ApiError,
+  conflictingPairingId,
   describeError,
   isUnauthenticated,
   toApiError,
@@ -73,6 +74,34 @@ describe("describeError", () => {
     const blank = new TypeError("replaced below");
     blank.message = "";
     expect(describeError(blank).length).toBeGreaterThan(0);
+  });
+});
+
+describe("conflictingPairingId", () => {
+  it("reads the existing pairing out of a duplicate refusal", () => {
+    // FR-015: the refusal links to the pairing that already exists, which the console can only
+    // do if it can read the identifier back off the error.
+    const error = toApiError(409, {
+      error: "pairing_exists",
+      detail: "This client already has a pairing with this server",
+      pairingId: "3f6a2c9e-0000-4000-8000-000000000001",
+    });
+
+    expect(conflictingPairingId(error)).toBe(
+      "3f6a2c9e-0000-4000-8000-000000000001",
+    );
+  });
+
+  it("finds nothing in any other refusal", () => {
+    expect(
+      conflictingPairingId(toApiError(409, { error: "conflict" })),
+    ).toBeUndefined();
+    expect(
+      conflictingPairingId(
+        toApiError(409, { error: "pairing_exists", pairingId: 7 }),
+      ),
+    ).toBeUndefined();
+    expect(conflictingPairingId(new Error("offline"))).toBeUndefined();
   });
 });
 

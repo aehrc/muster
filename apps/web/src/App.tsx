@@ -31,6 +31,8 @@ import { EventView } from "./pages/EventView.js";
 import { Home } from "./pages/Home.js";
 import { MyOrganisation } from "./pages/MyOrganisation.js";
 import { NotFound } from "./pages/NotFound.js";
+import { PairingDetail } from "./pages/PairingDetail.js";
+import { Pairings } from "./pages/Pairings.js";
 import { SignIn } from "./pages/SignIn.js";
 import { SystemDetail } from "./pages/SystemDetail.js";
 import { Verify } from "./pages/Verify.js";
@@ -56,6 +58,8 @@ export function App() {
               path="events/:slug/systems/:systemId"
               element={<SystemRoute />}
             />
+            <Route path="pairings" element={<Pairings />} />
+            <Route path="pairings/:id" element={<PairingRoute />} />
             <Route path="my-organisation" element={<MyOrganisation />} />
             <Route path="sign-in" element={<SignIn />} />
             <Route path="verify" element={<Verify />} />
@@ -67,8 +71,8 @@ export function App() {
               <Route path="members" element={<AdminMembers />} />
               <Route path="events" element={<AdminEvents />} />
             </Route>
-            {/* The persona, docs and pairing pages are mounted here by the user
-                stories that build them. */}
+            {/* The persona and docs pages are mounted here by the user stories
+                that build them. */}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
@@ -81,6 +85,12 @@ export function App() {
 function EventRoute() {
   const { slug } = useParams();
   return slug === undefined ? <NotFound /> : <EventView slug={slug} />;
+}
+
+/** Reads the pairing's identifier from the URL. */
+function PairingRoute() {
+  const { id } = useParams();
+  return id === undefined ? <NotFound /> : <PairingDetail id={id} />;
 }
 
 /** Reads the event's slug and the system's identifier from the URL. */

@@ -49,6 +49,19 @@ export function systemPath(slug: string, systemId: string): string {
   return `${eventPath(slug)}/systems/${systemId}`;
 }
 
+/**
+ * The address of one pairing's page.
+ *
+ * The same shape as the link every notification carries (`pairingUrl` in the server's
+ * `mail/messages.ts`), so a member following an email lands here.
+ *
+ * @param pairingId - The pairing's identifier.
+ * @returns The path.
+ */
+export function pairingPath(pairingId: string): string {
+  return `${ROUTES.pairings}/${pairingId}`;
+}
+
 /** One destination in the header. */
 export interface NavigationItem {
   readonly path: string;

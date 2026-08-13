@@ -14,6 +14,8 @@
  * Author: John Grimes
  */
 
+import { lines, words } from "./textLists.js";
+
 import type { OrganisationSystem, SystemInput } from "@muster/contracts";
 
 /** The system form's fields, all as text. */
@@ -87,19 +89,6 @@ export function systemForm(system: OrganisationSystem): SystemForm {
     launchContext: client?.launchContext ?? "",
     needsIntrospection: client?.needsIntrospection ?? false,
   };
-}
-
-/** The non-empty lines of a textarea. */
-function lines(value: string): string[] {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-}
-
-/** The whitespace-separated words of a field. */
-function words(value: string): string[] {
-  return value.split(/\s+/).filter((word) => word.length > 0);
 }
 
 /**

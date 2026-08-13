@@ -375,6 +375,18 @@ export const adminAccountSchema = z.object({
 });
 
 /**
+ * The outcome of creating or editing an event.
+ *
+ * `lapsedPairings` is part of the answer rather than a detail: closing an event retires other
+ * people's open pairing requests (FR-011), and an admin who did that should see how many rather
+ * than find out from the notifications (FR-037).
+ */
+export const eventChangeSchema = z.object({
+  event: eventDetailSchema,
+  lapsedPairings: z.number().int(),
+});
+
+/**
  * The outcome of approving or revoking an account.
  *
  * `notified` is part of the answer, not a detail: an admin who approves somebody is
@@ -442,5 +454,7 @@ export type SessionAccount = z.infer<typeof sessionAccountSchema>;
 export type Me = z.infer<typeof meSchema>;
 /** An account in the admin queue. */
 export type AdminAccount = z.infer<typeof adminAccountSchema>;
+/** The outcome of creating or editing an event. */
+export type EventChange = z.infer<typeof eventChangeSchema>;
 /** The outcome of approving or revoking an account. */
 export type AccountDecision = z.infer<typeof accountDecisionSchema>;

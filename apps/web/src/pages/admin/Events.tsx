@@ -57,7 +57,14 @@ export function AdminEvents() {
       {action.error === null ? null : (
         <ErrorAlert message={describeError(action.error)} />
       )}
-      {action.isSuccess ? <InfoAlert>Event saved.</InfoAlert> : null}
+      {action.isSuccess ? (
+        <InfoAlert>
+          Event saved.
+          {action.data === undefined || action.data.lapsedPairings === 0
+            ? ""
+            : ` ${String(action.data.lapsedPairings)} open pairing${action.data.lapsedPairings === 1 ? "" : "s"} lapsed, and both organisations were emailed.`}
+        </InfoAlert>
+      ) : null}
 
       <Panel title="All events">
         {events.isPending ? <Loading label="Loading the events" /> : null}
