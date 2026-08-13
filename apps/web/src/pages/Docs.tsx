@@ -28,10 +28,17 @@ import {
   Panel,
 } from "../components/layout.js";
 
-/** A copy-and-run registration request. */
-const REGISTRATION_EXAMPLE = String.raw`curl -sS -X POST https://auth.example.org/register \\
-  -H "Content-Type: application/json" \\
-  -d '{"software_statement": "eyJhbGciOiJFUzI1NiIsImtpZCI6Ii4uLiJ9..."}'`;
+/**
+ * A copy-and-run registration request.
+ *
+ * Joined from lines rather than written as one template literal, so the shell's line
+ * continuations are the characters they look like rather than an escaping puzzle.
+ */
+const REGISTRATION_EXAMPLE = [
+  "curl -sS -X POST https://auth.example.org/register \\",
+  '  -H "Content-Type: application/json" \\',
+  `  -d '{"software_statement": "eyJhbGciOiJFUzI1NiIsImtpZCI6Ii4uLiJ9..."}'`,
+].join("\n");
 
 /** What a server does with it. */
 const VERIFICATION_EXAMPLE = `# 1. Read the protected header's kid.

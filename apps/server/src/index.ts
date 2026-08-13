@@ -1,9 +1,9 @@
 /**
  * The server's entry point.
  *
- * Two things run from here: the server, and the `migrate` command the deployment's
- * pre-install hook invokes. The command is dispatched before the configuration is
- * resolved, because it needs less than the server does - a migration uses a connection
+ * Four things run from here: the server, the `migrate` command the deployment's pre-install
+ * hook invokes, `seed`, and `rotate-key`. Each command is dispatched before the configuration
+ * is resolved, because each needs less than the server does - a migration uses a connection
  * and nothing else, and demanding a public URL and a master key to run one would be an
  * operator told off by name for omitting something the command never reads.
  *
@@ -11,17 +11,19 @@
  */
 
 import { serve } from "@hono/node-server";
-import { createDatabase } from "@muster/db";
+import { SIGNING_KEY_PURPOSES } from "@muster/core";
+import { createDatabase, findActiveSigningKey } from "@muster/db";
 
 import { createApp } from "./app.js";
 import {
   ConfigError,
   loadConfig,
+  requireMasterKey,
   resolveDatabaseUrl,
   resolveMigrationIdentities,
 } from "./config.js";
 import { createRateLimitStore } from "./http/rateLimit.js";
-import { ensureSigningKeys } from "./keys/keys.js";
+import { ensureSigningKeys, rotateSigningKeyFor } from "./keys/keys.js";
 import {
   createMailTransport,
   describeMailTransport,
@@ -68,6 +70,49 @@ if (process.argv[2] === "seed") {
   } catch (error) {
     await handle.close();
     fail("Muster seeding failed", error);
+  }
+  await handle.close();
+  process.exit(0);
+}
+
+// Rotating a signing key. An operator action rather than a route, for the same reason `seed` is
+// one: it changes the anchor's identity, and a deployment where that could be done over HTTP by
+// whoever held a session would have a different security model. Nothing outstanding is
+// invalidated - the superseded key stays published until every artefact signed with it has
+// expired (FR-024, principle VI).
+if (process.argv[2] === "rotate-key") {
+  const purpose = process.argv[3];
+  if (purpose !== "statements" && purpose !== "tickets") {
+    console.error(
+      `Muster rotate-key needs a purpose: ${SIGNING_KEY_PURPOSES.join(" or ")}`,
+    );
+    process.exit(1);
+  }
+  const handle = (() => {
+    try {
+      return createDatabase({
+        url: resolveDatabaseUrl(process.env),
+        applicationName: "muster-rotate-key",
+      });
+    } catch (error) {
+      return fail("Muster could not rotate the key", error);
+    }
+  })();
+  try {
+    const masterKey = requireMasterKey(process.env);
+    const superseded = await findActiveSigningKey(handle.db, purpose);
+    const rotated = await rotateSigningKeyFor(
+      handle.db,
+      masterKey,
+      purpose,
+      new Date(),
+    );
+    console.log(
+      `Muster rotated the ${purpose} key: ${superseded?.kid ?? "none"} superseded, ${rotated.kid} active. The superseded key stays published until everything signed with it has expired.`,
+    );
+  } catch (error) {
+    await handle.close();
+    fail("Muster could not rotate the key", error);
   }
   await handle.close();
   process.exit(0);

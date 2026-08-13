@@ -28,9 +28,11 @@
     "noEmit": true
   },
   "include": [
-    // The seed entry point. Not a test, but the same situation: a Bun script outside every
-    // package's project, which nothing consumes and which still has to be typechecked.
+    // The seed entry point and the stack's stubs. Not tests, but the same situation: Bun
+    // scripts outside every package's project, which nothing consumes and which still have to
+    // be typechecked.
     "scripts/*.ts",
+    "deploy/stubs/*.ts",
     "packages/*/src/**/*.test.ts",
     "packages/*/src/**/*.test.tsx",
     "apps/*/src/**/*.test.ts",

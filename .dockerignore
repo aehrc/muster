@@ -17,5 +17,9 @@ deploy/helm
 **/.env.*
 !**/.env.example
 
+# Documentation is not part of the image - except the vendor-facing contracts, which the
+# server imports as text so the public profile pages ship inside the bundle. See
+# `apps/server/src/http/docs.ts`.
 **/*.md
+!apps/server/src/http/docs/*.md
 .DS_Store

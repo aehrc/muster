@@ -280,6 +280,35 @@ export function resolveMigrationIdentities(
 }
 
 /**
+ * Resolves just the envelope key.
+ *
+ * Separate from {@link loadConfig} for the same reason {@link resolveDatabaseUrl} is: the
+ * `rotate-key` command reads a signing key and writes another, and needs nothing else - so an
+ * operator running it is not told off for omitting a public URL it never reads.
+ *
+ * @param env - The environment to read.
+ * @returns The master key.
+ * @throws {ConfigError} When it is absent or too short to protect anything.
+ * @example
+ * ```ts
+ * const masterKey = requireMasterKey(process.env);
+ * ```
+ */
+export function requireMasterKey(env: Environment): string {
+  const masterKey = requireValue(
+    env,
+    "MUSTER_MASTER_KEY",
+    "it encrypts signing private keys at rest",
+  );
+  if (masterKey.length < MIN_MASTER_KEY_LENGTH) {
+    throw new ConfigError(
+      `MUSTER_MASTER_KEY must be at least ${String(MIN_MASTER_KEY_LENGTH)} characters`,
+    );
+  }
+  return masterKey;
+}
+
+/**
  * Resolves the server's configuration, refusing rather than half-configuring.
  *
  * @param env - The environment to read.
@@ -303,16 +332,7 @@ export function loadConfig(env: Environment): MusterConfig {
 
   const databaseUrl = resolveDatabaseUrl(env);
 
-  const masterKey = requireValue(
-    env,
-    "MUSTER_MASTER_KEY",
-    "it encrypts signing private keys at rest",
-  );
-  if (masterKey.length < MIN_MASTER_KEY_LENGTH) {
-    throw new ConfigError(
-      `MUSTER_MASTER_KEY must be at least ${String(MIN_MASTER_KEY_LENGTH)} characters`,
-    );
-  }
+  const masterKey = requireMasterKey(env);
 
   const logLevel = read(env, "MUSTER_LOG_LEVEL") ?? "info";
   if (!LOG_LEVELS.has(logLevel)) {

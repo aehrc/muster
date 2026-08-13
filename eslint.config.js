@@ -183,7 +183,14 @@ export default tseslint.config(
   // have no program to work from and `console`/`process` are the intended
   // interface.
   {
-    files: ["scripts/**/*.mjs", "scripts/**/*.js", "scripts/**/*.ts"],
+    files: [
+      "scripts/**/*.mjs",
+      "scripts/**/*.js",
+      "scripts/**/*.ts",
+      // The stack's stubs: Bun entry points that run a socket at the top level, like the
+      // server's own, and whose console output is the point rather than a lapse.
+      "deploy/stubs/*.ts",
+    ],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: { console: "readonly", process: "readonly" },

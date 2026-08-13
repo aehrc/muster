@@ -1,7 +1,8 @@
-# The local stack: Muster, its database, and the migration that comes between them.
+# The local stack: Muster, its database, the migration between them, and the stub registration
+# server that quickstart scenario 3 and the conformance harness run against.
 #
-# The stub registration server and the stub data holder join it with the user stories that need
-# them, and the end-to-end suite runs against whatever this file brings up.
+# The stub data holder joins it with the user story that needs it, and the end-to-end suite runs
+# against whatever this file brings up.
 #
 # Ports are read from the environment rather than fixed, so that a developer whose 3000 or 5432 is
 # taken can move the stack without editing this file - and so that CI can prove every URL in the
@@ -71,8 +72,50 @@ services:
       # to this service's log. That is how the quickstart reads a verification link, and it is why
       # `MUSTER_SMTP_URL` must be set in anything that is not a development stack.
       MUSTER_LOG_LEVEL: debug
+      # The stub sits on a private compose address, which the outbound guard refuses by
+      # default. Naming it here is the exemption, and the port is part of the match: exempting
+      # the stub does not exempt anything else on the network. Never set in production.
+      MUSTER_OUTBOUND_ALLOWED_HOSTS: stub-server:8443
+      # The stub serves TLS with the throwaway certificate in `stubs/tls`, because a server
+      # entry's registration endpoint and FHIR base URL must be https - see that directory's
+      # README. This is what makes Muster trust it, and nothing else.
+      NODE_EXTRA_CA_CERTS: /stubs/tls/stub.crt
+    volumes:
+      - ./stubs/tls:/stubs/tls:ro
     ports:
       - "${MUSTER_PORT:-3000}:3000"
+
+  # A reference implementation of `contracts/registration-profile.md`: it accepts a
+  # statement-only registration, verifies it against Muster's published keys, and refuses a
+  # tampered, expired or replayed one. `STUB_BROKEN_MODE` turns individual rules off so the
+  # conformance harness can be shown to fail when the far end is wrong.
+  #
+  # Run from the mounted source by the Bun image rather than built: it has no dependencies -
+  # its JOSE verification is Web Crypto - so there is nothing to install, and a counterparty
+  # that shared a JOSE implementation with Muster would agree with it about any shared bug.
+  stub-server:
+    image: oven/bun:1-debian
+    command: ["bun", "run", "/stubs/registerServer.ts"]
+    depends_on:
+      muster:
+        condition: service_started
+    environment:
+      STUB_PORT: 8443
+      # The issuer a statement must carry: the address a browser outside the stack uses, which
+      # is what Muster puts in `iss`.
+      STUB_ISSUER: http://localhost:${MUSTER_PORT:-3000}
+      # Where the keys are fetched from, which is inside the network. Split horizon, exactly as
+      # a real deployment behind a load balancer would have.
+      STUB_JWKS_URL: http://muster:3000/.well-known/jwks.json
+      STUB_TLS_CERT: /stubs/tls/stub.crt
+      STUB_TLS_KEY: /stubs/tls/stub.key
+      # Empty: the stub is conformant unless a run deliberately breaks it. Set it to
+      # `skip-signature` for quickstart scenario 4's second half.
+      STUB_BROKEN_MODE: "${STUB_BROKEN_MODE:-}"
+    volumes:
+      - ./stubs:/stubs:ro
+    ports:
+      - "${STUB_SERVER_PORT:-8443}:8443"
 
 volumes:
   postgres:
