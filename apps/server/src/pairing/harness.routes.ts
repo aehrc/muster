@@ -70,6 +70,7 @@ import { callerId } from "../admin/access.js";
 import { requireApproved } from "../auth/middleware.js";
 import { injectedOutbound } from "../context.js";
 import { jsonError } from "../http/errors.js";
+import { isIdentifier } from "../http/identifiers.js";
 import { harnessRunView, harnessTargetView } from "../http/views.js";
 import { loadSigningKey, signClaims } from "../keys/keys.js";
 import { checkOutboundUrl, outboundFetch } from "../outbound/outboundFetch.js";
@@ -438,6 +439,11 @@ async function namedEnrolment(
   c: Context<MusterEnvironment>,
   enrolmentId: string,
 ): Promise<EnrolledSystemInEventRow | Response> {
+  if (!isIdentifier(enrolmentId)) {
+    // Not something that could name an enrolment. The same answer as one that names nothing:
+    // a malformed identifier is a caller's mistake rather than a fault of Muster's.
+    return jsonError(c, 404, "not_found", "No enrolment has that id");
+  }
   const target = await findEnrolmentById(context.db, enrolmentId);
   return target ?? jsonError(c, 404, "not_found", "No enrolment has that id");
 }
@@ -525,7 +531,10 @@ export function registerHarnessRoutes(
 
   /** One run, with its evidence (SC-005). Public, for the same reason as the list. */
   router.get("/harness-runs/:id", async (c) => {
-    const run = await findHarnessRun(context.db, c.req.param("id"));
+    const runId = c.req.param("id");
+    const run = isIdentifier(runId)
+      ? await findHarnessRun(context.db, runId)
+      : undefined;
     if (run === undefined) {
       return jsonError(c, 404, "not_found", "No conformance run has that id");
     }

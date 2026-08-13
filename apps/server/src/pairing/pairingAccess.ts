@@ -28,6 +28,7 @@ import {
 
 import { callerAccount } from "../admin/access.js";
 import { jsonError } from "../http/errors.js";
+import { isIdentifier } from "../http/identifiers.js";
 import {
   pairingDetailView,
   pairingScopeWarning,
@@ -67,7 +68,9 @@ export async function callerPairing(
   pairingId: string,
 ): Promise<CallerPairing | Response> {
   const account = callerAccount(c);
-  const row = await findPairing(context.db, pairingId);
+  const row = isIdentifier(pairingId)
+    ? await findPairing(context.db, pairingId)
+    : undefined;
   const mine =
     row === undefined
       ? []

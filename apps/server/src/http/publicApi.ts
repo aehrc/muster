@@ -39,6 +39,7 @@ import {
 } from "@muster/db";
 
 import { jsonError } from "./errors.js";
+import { isIdentifier } from "./identifiers.js";
 import {
   enrolledSystemDetailView,
   enrolledSystemView,
@@ -177,10 +178,10 @@ export function registerPublicRoutes(
     if (event instanceof Response) {
       return event;
     }
-    const enrolment = await findEventEnrolment(context.db, {
-      eventId: event.id,
-      systemId: c.req.param("systemId"),
-    });
+    const systemId = c.req.param("systemId");
+    const enrolment = isIdentifier(systemId)
+      ? await findEventEnrolment(context.db, { eventId: event.id, systemId })
+      : undefined;
     if (enrolment === undefined) {
       // A system that exists but is not enrolled in this event answers the same way as one
       // that does not exist: from this event's point of view there is no difference.

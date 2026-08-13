@@ -24,6 +24,7 @@ import {
 } from "@muster/db";
 
 import { jsonError } from "../http/errors.js";
+import { isIdentifier } from "../http/identifiers.js";
 import { myOrganisationView } from "../http/views.js";
 
 import type { MusterEnvironment, ServerContext } from "../context.js";
@@ -73,7 +74,9 @@ export async function callerOrganisation(
   c: Context<MusterEnvironment>,
   organisationId: string,
 ): Promise<OrganisationRow | Response> {
-  const organisation = await findOrganisationById(context.db, organisationId);
+  const organisation = isIdentifier(organisationId)
+    ? await findOrganisationById(context.db, organisationId)
+    : undefined;
   if (
     organisation === undefined ||
     !(await isOrganisationMember(context.db, {
@@ -102,7 +105,9 @@ export async function callerSystem(
   c: Context<MusterEnvironment>,
   systemId: string,
 ): Promise<SystemRow | Response> {
-  const system = await findSystemById(context.db, systemId);
+  const system = isIdentifier(systemId)
+    ? await findSystemById(context.db, systemId)
+    : undefined;
   if (
     system === undefined ||
     !(await isOrganisationMember(context.db, {
@@ -128,7 +133,9 @@ export async function namedOrganisation(
   c: Context<MusterEnvironment>,
   organisationId: string,
 ): Promise<OrganisationRow | Response> {
-  const organisation = await findOrganisationById(context.db, organisationId);
+  const organisation = isIdentifier(organisationId)
+    ? await findOrganisationById(context.db, organisationId)
+    : undefined;
   if (organisation === undefined) {
     return jsonError(c, 404, "not_found", "No organisation has that id");
   }

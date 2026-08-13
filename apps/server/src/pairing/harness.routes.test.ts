@@ -724,6 +724,18 @@ describe.skipIf(!hasTestDatabase())("the conformance harness", () => {
       expect(read.target.refusal).toBe("not_signed_in");
     });
 
+    it("answers 404 for an identifier that could not name anything", async () => {
+      // A malformed identifier reaches a uuid comparison in Postgres and comes back as a driver
+      // error, which used to surface as a 500 on a public read surface.
+      for (const path of [
+        "/api/harness-runs/undefined",
+        "/api/enrolments/not-a-uuid/harness-runs",
+      ]) {
+        const response = await apiRequest(stack, "GET", path);
+        expect(response.status).toBe(404);
+      }
+    });
+
     it("answers 404 for a run that does not exist", async () => {
       const response = await apiRequest(
         stack,
