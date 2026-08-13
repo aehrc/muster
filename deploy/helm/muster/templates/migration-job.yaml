@@ -1,0 +1,59 @@
+{{- if .Values.muster.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate
+  labels:
+    {{- include "muster.labels" . | nindent 4 }}
+  annotations:
+    # Before the pod rolls out, on install and on upgrade both: the schema the
+    # new image expects has to exist before anything serves from it, and a
+    # migration that fails must not replace a running server.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.muster.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.muster.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      # Deliberately not `muster.selectorLabels`: these pods must not match the
+      # Service's selector, or a migration would briefly be an endpoint of the
+      # server it is migrating for.
+      labels:
+        app.kubernetes.io/name: {{ printf "%s-migrate" .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      imagePullSecrets: {{ toJson .Values.muster.imagePullSecrets }}
+      securityContext: {{ toJson .Values.muster.podSecurityContext }}
+      containers:
+        - name: migrate
+          image: {{ .Values.muster.image | quote }}
+          imagePullPolicy: {{ .Values.muster.imagePullPolicy | quote }}
+          securityContext: {{ toJson .Values.muster.securityContext }}
+          command: ["bun", "dist/index.js", "migrate"]
+          env:
+            # The only pod spec in this chart carrying the owning identity. The
+            # server's Deployment gets `muster.env`, which is the serving role
+            # and nothing else, and `scripts/checkChart.mjs` asserts the
+            # difference against the rendered output.
+            #
+            # This Job grants the serving role its access. It cannot *create*
+            # that role - it holds neither the authority nor a password to give
+            # one - so the role must already exist, and a first install against a
+            # database where it does not fails here with Postgres saying so. See
+            # "Before the first install" in the chart's README.
+            {{- include "muster.migrationEnv" . | nindent 12 }}
+          resources: {{ toJson .Values.muster.resources }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      nodeSelector: {{ toJson .Values.muster.nodeSelector }}
+      affinity: {{ toJson .Values.muster.affinity }}
+      tolerations: {{ toJson .Values.muster.tolerations }}
+{{- end }}

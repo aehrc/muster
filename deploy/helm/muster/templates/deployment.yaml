@@ -1,0 +1,104 @@
+{{- include "muster.validate" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+  labels:
+    {{- include "muster.labels" . | nindent 4 }}
+spec:
+  # One, and not a value.
+  #
+  # Muster's scheduled work - the liveness and drift checks over every enrolled
+  # server, and the persona coverage pass - runs on an in-process interval inside
+  # the server (`apps/server/src/scheduler/scheduler.ts`). The constitution
+  # forbids queues, workers and background services, so there is nowhere else for
+  # it to run and nothing coordinating one copy of it with another. A second pod
+  # is a second scheduler: two passes arriving at the same participant's test
+  # server at once, two rows written for one check, and a single-flight guard
+  # that holds within a process and not across pods.
+  #
+  # So this is not an operator's decision to make, and it is not exposed as one.
+  # A deployment that needs to survive a node loss should be looking at a
+  # restart, not at a second replica.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "muster.selectorLabels" . | nindent 6 }}
+  strategy:
+    # For the same reason. A rolling update surges a new pod before the old one
+    # goes away, which would run two schedulers for the length of every rollout -
+    # the exact thing `replicas: 1` exists to prevent. The cost is a few seconds
+    # of downtime on upgrade, which is the honest price of the constraint.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "muster.selectorLabels" . | nindent 8 }}
+        {{- range $label, $value := .Values.muster.podLabels }}
+        {{ $label }}: {{ $value | quote }}
+        {{- end }}
+      # The checksum rolls the pod when `secretConfig` changes. Without it the
+      # Deployment is unchanged by an edit to the Secret it reads, and the
+      # running pod keeps the old values with nothing to show for it.
+      annotations: {{ toJson (merge (dict "muster/secret-config-checksum" (toJson .Values.muster.secretConfig | sha256sum)) .Values.muster.podAnnotations) }}
+    spec:
+      # Muster never calls the Kubernetes API, so it is given no token to do it
+      # with.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.muster.terminationGracePeriodSeconds }}
+      imagePullSecrets: {{ toJson .Values.muster.imagePullSecrets }}
+      securityContext: {{ toJson .Values.muster.podSecurityContext }}
+      containers:
+        - name: muster
+          image: {{ .Values.muster.image | quote }}
+          imagePullPolicy: {{ .Values.muster.imagePullPolicy | quote }}
+          securityContext: {{ toJson .Values.muster.securityContext }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.muster.service.targetPort }}
+              protocol: TCP
+          env:
+            {{- include "muster.env" . | nindent 12 }}
+          {{- if gt (len .Values.muster.secretConfig) 0 }}
+          # Before `env`, so a name set in both `config` and `secretConfig` takes
+          # its value from `config`: Kubernetes lets `env` override `envFrom`.
+          envFrom:
+            - secretRef:
+                name: {{ printf "%s-config" .Release.Name | quote }}
+          {{- end }}
+          # `/healthz` answers from the process alone and `/readyz` consults the
+          # database, so a pod that has lost its connection is taken out of the
+          # Service rather than restarted.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources: {{ toJson .Values.muster.resources }}
+          volumeMounts:
+            # readOnlyRootFilesystem is on, so anything needing writes is
+            # mounted.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      nodeSelector: {{ toJson .Values.muster.nodeSelector }}
+      affinity: {{ toJson .Values.muster.affinity }}
+      tolerations: {{ toJson .Values.muster.tolerations }}

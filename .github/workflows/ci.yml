@@ -124,17 +124,23 @@ jobs:
 
       - uses: azure/setup-helm@v4
 
+      # The example values are a complete, working configuration rather than an
+      # illustration, which is why they are what the chart is linted and rendered
+      # against: a chart that only lints against values nobody would deploy is a
+      # chart nobody has proved deployable. Rendering with the defaults is
+      # *supposed* to fail - MUSTER_PUBLIC_URL has no sensible default - and
+      # `check:chart` below asserts that it does.
       - name: Lint and render the chart
         run: |
-          # The chart lands with the polish phase. Until then this step proves the
-          # workflow wiring rather than the chart, and says so rather than passing
-          # silently. Delete the guard when `deploy/helm/muster` exists.
-          if [ ! -d deploy/helm/muster ]; then
-            echo "::notice::deploy/helm/muster does not exist yet; nothing to lint."
-            exit 0
-          fi
-          helm lint deploy/helm/muster
-          helm template muster deploy/helm/muster > /dev/null
+          helm lint deploy/helm/muster -f deploy/helm/example-values.yaml
+          helm template muster deploy/helm/muster -f deploy/helm/example-values.yaml > /dev/null
+
+      # What neither `helm lint` nor a reading of the templates catches: one
+      # replica and one at a time, the owning identity confined to the migration
+      # Job, every required variable present, and no credential in the rendered
+      # output. See the script's own header.
+      - name: Check the rendered chart
+        run: node scripts/checkChart.mjs
 
   e2e:
     name: End to end

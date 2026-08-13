@@ -1,0 +1,14 @@
+apiVersion: v2
+name: muster
+description: Connectathon participant directory
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - fhir
+  - smart-on-fhir
+  - connectathon
+  - directory
+  - dynamic-client-registration
+maintainers:
+  - name: John Grimes

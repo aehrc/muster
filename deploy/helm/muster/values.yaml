@@ -1,0 +1,107 @@
+# Muster - connectathon participant directory.
+#
+# README.md in this directory documents every value below, and the repository's
+# `.env.example` lists every variable the server reads.
+
+muster:
+  image: "ghcr.io/csiro/muster:0.1.0"
+  imagePullPolicy: "Always"
+  imagePullSecrets: []
+
+  # Non-sensitive environment for the server. Any variable Muster reads may go
+  # here except the four that are credentials, which have blocks of their own
+  # below.
+  #
+  # MUSTER_PUBLIC_URL has no default and the chart refuses to render without it:
+  # every public URL Muster emits derives from it, including the issuer of every
+  # software statement and permission ticket already in circulation. A wrong
+  # value produces verification links that resolve nowhere and statements no
+  # server will accept, with nothing anywhere to say why.
+  config:
+    MUSTER_PUBLIC_URL: ""
+    MUSTER_IHI_SYSTEM: "http://ns.electronichealth.net.au/id/hi/ihi/1.0"
+    MUSTER_LOG_LEVEL: "info"
+    # MUSTER_MAIL_FROM: "Muster <no-reply@example.org>"
+    # MUSTER_CHECK_INTERVAL_MINUTES: "15"
+    # MUSTER_OUTBOUND_ALLOWED_HOSTS: ""
+
+  # Sensitive environment, written to a Secret and mounted by reference. Same
+  # shape as `config`, which takes precedence for a name set in both: Kubernetes
+  # lets a container's `env` override its `envFrom`.
+  secretConfig: {}
+
+  # Envelope key protecting signing private keys at rest. Leave both unset and
+  # the chart generates one on install and keeps it across upgrades; a real
+  # deployment should manage it outside the chart and set `existingSecret`.
+  masterKey:
+    existingSecret: ~
+    existingSecretKey: "masterKey"
+    value: ~
+
+  # The two identities a deployment runs as. The server serves with a role that
+  # owns nothing and cannot issue DDL; migrations are applied by the identity
+  # that owns the schema, which reaches the migration Job and nothing else.
+  #
+  # The serving role must already exist: the migration grants it its access but
+  # cannot create it, holding neither the authority nor a password to give one.
+  # See "Before the first install" in README.md.
+  database:
+    existingSecret: ~
+    existingSecretKey: "url"
+    url: ~
+    ownerExistingSecret: ~
+    ownerExistingSecretKey: "ownerUrl"
+    ownerUrl: ~
+
+  # Where mail is sent. Leave all three unset and Muster uses the console
+  # transport, which logs the rendered message instead of sending it - so
+  # verification links reach nobody and no account can be created.
+  smtp:
+    existingSecret: ~
+    existingSecretKey: "url"
+    url: ~
+
+  # Applies migrations and grants the serving role, as a Helm hook that runs
+  # before new pods roll out.
+  migrations:
+    enabled: true
+    backoffLimit: 3
+    activeDeadlineSeconds: 600
+
+  service:
+    type: "ClusterIP"
+    port: 80
+    targetPort: 3000
+    annotations: {}
+
+  resources: {}
+    # requests:
+    #   cpu: "100m"
+    #   memory: "256Mi"
+    # limits:
+    #   cpu: "1"
+    #   memory: "512Mi"
+
+  podAnnotations: {}
+  podLabels: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: "RuntimeDefault"
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - "ALL"
+
+  terminationGracePeriodSeconds: 30
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

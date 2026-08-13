@@ -1,0 +1,46 @@
+# A realistic deployment of the Muster chart: an external database, and every
+# credential in a Secret the chart neither creates nor reads.
+#
+# This is what `bun run check:chart` and the CI workflow render and lint against,
+# so it is a working configuration rather than an illustration. Copy it, change
+# the origin and the Secret names, and `helm install` it.
+#
+# The two identities and the Secrets they live in have to exist first - see
+# "Before the first install" in `muster/README.md`.
+
+muster:
+  image: "ghcr.io/csiro/muster:0.1.0"
+
+  config:
+    # The address counterparties reach Muster on. Every public URL derives from
+    # it, including the issuer of every software statement and permission ticket.
+    MUSTER_PUBLIC_URL: "https://muster.example.org"
+    MUSTER_IHI_SYSTEM: "http://ns.electronichealth.net.au/id/hi/ihi/1.0"
+    MUSTER_LOG_LEVEL: "info"
+    MUSTER_MAIL_FROM: "Muster <no-reply@example.org>"
+    # An open event's servers are verified this often, in minutes. Fifteen is the
+    # ceiling the success criteria put on it, so this is the requirement rather
+    # than a preference.
+    MUSTER_CHECK_INTERVAL_MINUTES: "15"
+
+  masterKey:
+    existingSecret: "muster-master-key"
+    existingSecretKey: "masterKey"
+
+  database:
+    existingSecret: "muster-db"
+    existingSecretKey: "url"
+    ownerExistingSecret: "muster-db-owner"
+    ownerExistingSecretKey: "ownerUrl"
+
+  smtp:
+    existingSecret: "muster-smtp"
+    existingSecretKey: "url"
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"

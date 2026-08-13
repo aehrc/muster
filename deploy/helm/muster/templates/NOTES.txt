@@ -1,0 +1,38 @@
+{{- $publicUrl := .Values.muster.config.MUSTER_PUBLIC_URL -}}
+Muster {{ .Chart.AppVersion }} is installed as release {{ .Release.Name }}.
+
+Public origin: {{ $publicUrl }}
+
+Every public URL derives from that origin:
+
+    {{ $publicUrl }}/events/{slug}            the event view
+    {{ $publicUrl }}/api/events/{slug}/systems  the machine-readable directory
+    {{ $publicUrl }}/.well-known/jwks.json     the keys counterparties verify with
+
+Watch the rollout with:
+
+    kubectl rollout status deployment/{{ .Release.Name }}-deployment
+
+There is no way in over HTTP until the first administrator exists, and no route
+can create one. Run the seed against the serving connection:
+
+    kubectl run muster-seed --rm -it --restart=Never \
+      --image={{ .Values.muster.image }} \
+      --env=MUSTER_DATABASE_URL="<the serving connection>" \
+      --env=MUSTER_SEED_ADMIN_EMAIL="you@example.org" \
+      --env=MUSTER_SEED_ADMIN_PASSWORD="<a password>" \
+      --command -- bun dist/index.js seed
+{{ if not .Values.muster.masterKey.existingSecret }}
+WARNING: no existing Secret was supplied for the signing-key envelope key, so
+the chart generated one into {{ .Release.Name }}-master-key. It is annotated
+`helm.sh/resource-policy: keep` so upgrades preserve it. Back it up - if it is
+lost, every stored signing key becomes undecryptable, and every software
+statement and permission ticket already issued becomes unverifiable. For
+production, manage it externally and set `muster.masterKey.existingSecret`.
+{{- end }}
+{{ if not (or .Values.muster.smtp.existingSecret .Values.muster.smtp.url) }}
+WARNING: no SMTP relay is configured, so Muster is using the console transport:
+every message it sends is written to the pod's log instead of being delivered.
+Nobody can verify an address, so nobody but the seeded administrator can sign
+in. Set `muster.smtp.existingSecret` before anyone else is asked to.
+{{- end }}

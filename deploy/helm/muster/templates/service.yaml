@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-service
+  labels:
+    {{- include "muster.labels" . | nindent 4 }}
+  annotations: {{ toJson .Values.muster.service.annotations }}
+spec:
+  type: {{ .Values.muster.service.type | quote }}
+  ports:
+    - port: {{ .Values.muster.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "muster.selectorLabels" . | nindent 4 }}
