@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // This package must run unchanged on the server and in the browser (the
+    // console evaluates the same rules the server signs against), so it must not
+    // depend on the Node type surface. DOM is included for the web-standard
+    // globals it genuinely needs - `URL`, `crypto.subtle`, `TextEncoder` - all of
+    // which Node has provided since v18.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src/**/*"],
+  // The tests are typechecked by the root `tsconfig.tests.json`, which is the only
+  // project carrying Bun's types. Keeping them out of this one is what preserves the
+  // restriction above: `bun:test` cannot be seen without `bun-types`, and
+  // `bun-types` references `@types/node`.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

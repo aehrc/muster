@@ -1,0 +1,21 @@
+{
+  "name": "@muster/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Muster HTTP surface: public API, console API, scheduler and outbound guard",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "bun build src/index.ts --target=node --outdir=dist --sourcemap=linked",
+    "dev": "bun --watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "bun test src/ --timeout 120000"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.0",
+    "@muster/contracts": "workspace:*",
+    "@muster/core": "workspace:*",
+    "@muster/db": "workspace:*",
+    "hono": "^4.13.1"
+  }
+}

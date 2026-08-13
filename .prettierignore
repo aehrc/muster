@@ -1,0 +1,14 @@
+dist
+coverage
+node_modules
+playwright-report
+test-results
+# Feature specifications, written by the spec skill. Git ignores them, so CI never
+# sees them and only a local `format:check` goes red - which is the worst shape for
+# a gate to fail in, because it fails only for the person who has the files.
+.local
+packages/db/drizzle
+bun.lock
+
+# Helm templates are Go templates, not YAML - Prettier cannot parse them.
+deploy/helm/*/templates
