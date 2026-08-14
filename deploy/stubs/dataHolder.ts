@@ -36,6 +36,20 @@
  * implementation gets wrong by defaulting to an hour: the lifetime is the smaller of this
  * holder's own and the ticket's remaining validity.
  *
+ * ## It is also the stack's persona source
+ *
+ * Quickstart scenario 6 curates personas from the event's configured source server, which in
+ * a real deployment is the Sparked AU Core server. The end-to-end suite cannot reach it: an
+ * external dependency in a suite that has to pass on a machine with no egress is a suite that
+ * reports a network outage as a product defect. So the compose stack points the event's
+ * persona source at this holder, which is already a FHIR server holding the persona whose
+ * coverage it reports.
+ *
+ * That costs a `Patient` read, a `name` search, and one more patient - one carrying **no**
+ * IHI, because scenario 6 asks for a patient without one to be refused and a source with
+ * nothing to refuse would prove only half of the rule. Nothing about the ticket exchange
+ * reads either of them.
+ *
  * Author: John Grimes
  */
 
@@ -77,8 +91,15 @@ interface StubConfig {
   readonly acceptedTicketTypes: readonly string[];
   /** Every scope this holder will ever release, whatever a ticket permits. */
   readonly policyScopes: readonly string[];
-  /** The one patient this holder has loaded. */
+  /** The one patient this holder releases, and the only subject it resolves. */
   readonly patient: StubPatient;
+  /**
+   * A patient carrying no IHI, served by the search and by nothing else.
+   *
+   * Here so that the stack's persona source has something to refuse: "only patients with an
+   * IHI can be personas" is a rule whose failing case is the interesting one.
+   */
+  readonly patientWithoutIhi: { readonly id: string; readonly name: string };
   /** The client that may present tickets. */
   readonly clientId: string;
   readonly clientSecret: string;
@@ -143,6 +164,10 @@ function loadConfig(): StubConfig {
       name: read("STUB_PATIENT_NAME") ?? "Charlotte Morris",
       identifierSystem,
       identifierValue,
+    },
+    patientWithoutIhi: {
+      id: read("STUB_UNIDENTIFIED_PATIENT_ID") ?? "rowan-bell",
+      name: read("STUB_UNIDENTIFIED_PATIENT_NAME") ?? "Rowan Bell",
     },
     clientId: read("STUB_CLIENT_ID") ?? "muster-playground",
     clientSecret: read("STUB_CLIENT_SECRET") ?? "playground-secret",
@@ -632,54 +657,106 @@ function capabilityStatement(): Response {
   );
 }
 
+/** A patient this holder serves, and the IHI it carries if it carries one. */
+interface LoadedPatient {
+  readonly id: string;
+  readonly name: string;
+  readonly ihi: { readonly system: string; readonly value: string } | null;
+}
+
+/** Everything this holder will show a searcher. Only the first is ever released. */
+const LOADED: readonly LoadedPatient[] = [
+  {
+    id: config.patient.id,
+    name: config.patient.name,
+    ihi: {
+      system: config.patient.identifierSystem,
+      value: config.patient.identifierValue,
+    },
+  },
+  { ...config.patientWithoutIhi, ihi: null },
+];
+
+/** One patient as FHIR. A patient with no IHI carries no `identifier` at all. */
+function patientResource(patient: LoadedPatient): Record<string, unknown> {
+  const parts = patient.name.split(" ");
+  return {
+    resourceType: "Patient",
+    id: patient.id,
+    ...(patient.ihi === null ? {} : { identifier: [patient.ihi] }),
+    name: [{ given: [parts[0] ?? ""], family: parts.slice(1).join(" ") }],
+  };
+}
+
+/** A FHIR response, which is `application/fhir+json` and so not `Response.json`. */
+function fhir(body: unknown, status = 200): Response {
+  // eslint-disable-next-line unicorn/prefer-response-static-json
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/fhir+json; charset=UTF-8" },
+  });
+}
+
 /**
- * The one patient this holder has loaded, as a searchset.
+ * The patients this holder has loaded, as a searchset.
  *
- * Answered anonymously so that Muster's persona coverage check can find it: the point of a
+ * Answered anonymously so that Muster's persona coverage check can find them: the point of a
  * data holder in this stack is that the persona it releases is one the coverage grid has
- * already reported it holds.
+ * already reported it holds - and the point of the `name` search is that the same server is
+ * the stack's persona source (see this file's header).
+ *
+ * An unrecognised parameter narrows nothing, deliberately. Muster reads a searchset that
+ * ignored the `identifier` it was given as `unverifiable` rather than as coverage, and a stub
+ * that refused unknown parameters would hide that behaviour rather than exhibit it.
  */
 function patientSearch(query: URLSearchParams): Response {
-  const asked = query.get("identifier");
-  // Both spellings of the search, because a client may qualify the value with its system or
-  // may not, and this holder knows only one.
-  const holds =
-    asked === null ||
-    [
-      `${config.patient.identifierSystem}|${config.patient.identifierValue}`,
-      config.patient.identifierValue,
-    ].includes(asked);
-  return new Response(
-    // eslint-disable-next-line unicorn/prefer-response-static-json
-    JSON.stringify({
-      resourceType: "Bundle",
-      type: "searchset",
-      total: holds ? 1 : 0,
-      entry: holds
-        ? [
+  const askedIdentifier = query.get("identifier");
+  const askedName = query.get("name");
+
+  const matched = LOADED.filter((patient) => {
+    if (askedIdentifier !== null) {
+      // Both spellings of the search, because a client may qualify the value with its
+      // system or may not, and this holder knows only one.
+      const spellings =
+        patient.ihi === null
+          ? []
+          : [`${patient.ihi.system}|${patient.ihi.value}`, patient.ihi.value];
+      if (!spellings.includes(askedIdentifier)) {
+        return false;
+      }
+    }
+    return (
+      askedName === null ||
+      patient.name.toLowerCase().includes(askedName.toLowerCase())
+    );
+  });
+
+  return fhir({
+    resourceType: "Bundle",
+    type: "searchset",
+    total: matched.length,
+    entry: matched.map((patient) => ({ resource: patientResource(patient) })),
+  });
+}
+
+/** One patient by id, which is how a persona is curated once it has been found. */
+function patientRead(id: string): Response {
+  const found = LOADED.find((patient) => patient.id === id);
+  return found === undefined
+    ? fhir(
+        {
+          resourceType: "OperationOutcome",
+          issue: [
             {
-              resource: {
-                resourceType: "Patient",
-                id: config.patient.id,
-                identifier: [
-                  {
-                    system: config.patient.identifierSystem,
-                    value: config.patient.identifierValue,
-                  },
-                ],
-                name: [
-                  {
-                    given: [config.patient.name.split(" ", 1)[0] ?? ""],
-                    family: config.patient.name.split(" ").slice(1).join(" "),
-                  },
-                ],
-              },
+              severity: "error",
+              code: "not-found",
+              diagnostics: `This holder has no patient with the id "${id}".`,
             },
-          ]
-        : [],
-    }),
-    { headers: { "content-type": "application/fhir+json; charset=UTF-8" } },
-  );
+          ],
+        },
+        404,
+      )
+    : fhir(patientResource(found));
 }
 
 /** Routes one request. */
@@ -706,6 +783,11 @@ async function handle(request: Request): Promise<Response> {
   }
   if (url.pathname === "/Patient") {
     return patientSearch(url.searchParams);
+  }
+  if (url.pathname.startsWith("/Patient/")) {
+    return patientRead(
+      decodeURIComponent(url.pathname.slice("/Patient/".length)),
+    );
   }
   return Response.json({ error: "not_found" }, { status: 404 });
 }

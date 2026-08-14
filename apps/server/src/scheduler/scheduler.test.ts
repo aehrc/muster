@@ -57,6 +57,7 @@ import {
   createCheckRunner,
   DEFAULT_OPEN_CHECK_INTERVAL_MS,
   isCheckDue,
+  passIntervalFor,
   startCheckScheduler,
 } from "./scheduler.js";
 
@@ -120,6 +121,30 @@ describe("checkIntervalMs", () => {
     expect(checkIntervalMs("closed", CADENCE)).toBeGreaterThan(
       checkIntervalMs("draft", CADENCE),
     );
+  });
+});
+
+describe("passIntervalFor", () => {
+  // How often the scheduler *looks* is not how often a server is fetched: a pass over
+  // targets that are not due is a query and nothing else. The invariant is that it looks
+  // more often than the shortest thing it is looking for, because a pass interval equal to
+  // the check interval turns "every fifteen minutes" into "every fifteen to thirty".
+  it("looks more often than an open event's servers are checked", () => {
+    for (const minutes of [1, 2, 5, 15, 60, 1440]) {
+      const openInterval = minutes * MINUTE;
+      expect(passIntervalFor(openInterval)).toBeLessThan(openInterval);
+    }
+  });
+
+  it("looks every minute at the default cadence", () => {
+    // The behaviour every deployment that does not override the interval has had.
+    expect(passIntervalFor(DEFAULT_OPEN_CHECK_INTERVAL_MS)).toBe(MINUTE);
+  });
+
+  it("never looks more than once every five seconds", () => {
+    // A floor rather than an unbounded fraction: an operator who asks for a one-minute
+    // cadence is asking for prompt checks, not for a busy loop over the database.
+    expect(passIntervalFor(MINUTE)).toBeGreaterThanOrEqual(5000);
   });
 });
 

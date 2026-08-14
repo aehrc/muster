@@ -603,11 +603,49 @@ function capabilityStatement(): Response {
   );
 }
 
+/**
+ * The patient search, refused for want of a token.
+ *
+ * This server holds no data and never intended to answer one. It answers *this way* because
+ * quickstart scenario 6 turns on the difference between "this server does not hold the
+ * persona" and "this server has said nothing about the persona": a search that needs
+ * authorization is the case the coverage grid's third value exists for, and a stack with no
+ * server that requires one could not demonstrate it.
+ */
+function patientSearchRequiresAuthorization(): Response {
+  return new Response(
+    // Labelled `application/fhir+json` rather than `application/json`, which `Response.json`
+    // would fix - and the media type is what Muster's own reading of the answer turns on.
+    // eslint-disable-next-line unicorn/prefer-response-static-json
+    JSON.stringify({
+      resourceType: "OperationOutcome",
+      issue: [
+        {
+          severity: "error",
+          code: "login",
+          diagnostics:
+            "This server requires an access token to search patients.",
+        },
+      ],
+    }),
+    {
+      status: 401,
+      headers: {
+        "content-type": "application/fhir+json; charset=UTF-8",
+        "www-authenticate": 'Bearer realm="stub-server"',
+      },
+    },
+  );
+}
+
 /** Routes one request. */
 async function handle(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const origin = `${url.protocol}//${url.host}`;
 
+  if (url.pathname === "/Patient" || url.pathname.startsWith("/Patient/")) {
+    return patientSearchRequiresAuthorization();
+  }
   if (url.pathname === "/healthz") {
     return Response.json({
       status: "ok",

@@ -175,6 +175,47 @@ export function checkCadence(openIntervalMs: number): CheckCadence {
 }
 
 /**
+ * The longest a pass may be apart, and the shortest.
+ *
+ * The ceiling is the interval every deployment that leaves the cadence alone has always
+ * had. The floor stops a very short cadence from turning the scheduler into a busy loop
+ * over the database.
+ */
+const MAX_PASS_INTERVAL_MS = 60_000;
+const MIN_PASS_INTERVAL_MS = 5000;
+
+/** How many passes fit in one check interval, at cadences short enough for it to matter. */
+const PASSES_PER_INTERVAL = 4;
+
+/**
+ * How often the scheduler looks for work.
+ *
+ * This is how often it *looks*, not how often a server is fetched: a pass over targets that
+ * are none of them due is one query. So it has to be shorter than the shortest thing it is
+ * looking for, which a fixed minute is not - a deployment configured to check every minute
+ * would look exactly as often as its targets became due, and jitter would turn "every
+ * minute" into "every one to two". A connectathon that shortened the cadence to see failures
+ * quickly would get half the promptness it asked for, with nothing to say why.
+ *
+ * @param openIntervalMs - How often an open event's servers are checked, which is the
+ *   shortest of the three cadences.
+ * @returns The interval between passes, in milliseconds.
+ * @example
+ * ```ts
+ * passIntervalFor(60_000); // 15_000
+ * ```
+ */
+export function passIntervalFor(openIntervalMs: number): number {
+  return Math.min(
+    MAX_PASS_INTERVAL_MS,
+    Math.max(
+      MIN_PASS_INTERVAL_MS,
+      Math.floor(openIntervalMs / PASSES_PER_INTERVAL),
+    ),
+  );
+}
+
+/**
  * How often a target of an event in this status is checked.
  *
  * @param status - The event's status.
@@ -353,7 +394,8 @@ export function createCheckRunner(options: CheckRunnerOptions): CheckRunner {
  *
  * @param options - The runner's options, and how often a pass runs. A pass is cheap when
  *   nothing is due, so the pass interval is shorter than any check interval: it is how
- *   often the scheduler *looks*, not how often a server is fetched.
+ *   often the scheduler *looks*, not how often a server is fetched. Left unset it derives
+ *   from the cadence - see {@link passIntervalFor}.
  * @returns The scheduler, its first pass, and the means to stop it.
  * @example
  * ```ts
@@ -424,9 +466,15 @@ export function startCheckScheduler(
     }
   };
 
-  const timer = setInterval(() => {
-    void pass();
-  }, options.passIntervalMs ?? 60_000);
+  const timer = setInterval(
+    () => {
+      void pass();
+    },
+    options.passIntervalMs ??
+      passIntervalFor(
+        (options.cadence ?? checkCadence(DEFAULT_OPEN_CHECK_INTERVAL_MS)).open,
+      ),
+  );
   // So that a pass in flight cannot hold the process open past a shutdown. Guarded because
   // the method is Node's and not part of the DOM timer type.
   timer.unref?.();
