@@ -135,7 +135,7 @@ bun run format:check      # Prettier
 bun run lint              # ESLint
 bun run typecheck         # tsc --build --force, every project including e2e/
 bun run lint:duplication  # jscpd, threshold 0
-bun test                  # unit and integration
+bun run test              # unit and integration (`bun test` runs the same suites)
 bun run test:coverage     # the same, with lcov totals checked at 80% lines and functions
 bun run build             # both bundles
 bun run check:bundle      # the server bundle is one self-contained file
@@ -155,8 +155,9 @@ suspiciously easily.
 bun run stack:reset && bun run stack:seed && bun run test:e2e
 ```
 
-Seven specs, one per quickstart scenario, run in order by one worker against the
-compose stack. It is a single journey rather than seven independent tests -
+Seven specs (`e2e/tests/*.e2e.ts` - the suffix keeps them out of Bun's test
+discovery, which would otherwise collect them and abort), one per quickstart
+scenario, run in order by one worker against the compose stack. It is a single journey rather than seven independent tests -
 an account is approved before it owns an organisation, a system is enrolled
 before it can be paired with, a persona exists before a ticket can name it - so
 it needs a database with nothing in it, which is what `stack:reset` provides.

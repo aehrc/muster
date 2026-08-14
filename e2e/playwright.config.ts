@@ -47,6 +47,13 @@ import { resolveStackUrls } from "./src/stackUrls.js";
 
 export default defineConfig({
   testDir: "./tests",
+  // `.e2e.ts`, not Playwright's default `.spec.ts`. Bun's test runner discovers `*.spec.*`
+  // and `*.test.*` anywhere under the working directory and has no way to be told to ignore a
+  // path, so a spec named the default way is collected by `bun test` at the repository root -
+  // where it aborts with "Playwright Test did not expect test() to be called here". The two
+  // runners are separated by name because that is the only place they can be separated.
+  // `e2e/src/specNaming.test.ts` guards the rule.
+  testMatch: "**/*.e2e.ts",
   globalSetup: "./globalSetup.ts",
   fullyParallel: false,
   workers: 1,

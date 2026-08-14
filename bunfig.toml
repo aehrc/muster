@@ -10,14 +10,22 @@
 # migrate for themselves when the preload has not run, and the coverage gate is only
 # meaningful over the whole suite anyway.
 #
-# **Why the scripts pass `src/`.** `tsc --build` emits the composite packages into
-# `dist`, test files included, and Bun's default discovery would run those too -
-# doubling every assertion and reporting a stale copy of a test as if it were the
-# current one. Bun has no ignore-patterns setting for test discovery, so the scripts
-# narrow discovery with a positional filter instead. Every test file in this
-# repository lives under a package's `src`, which is what makes that filter
-# equivalent to excluding `dist`. A test file placed anywhere else would not be run,
-# so do not place one anywhere else.
+# **Why the scripts pass `src/`.** Bun has no ignore-patterns setting for test
+# discovery, so the scripts narrow it with a positional filter: only what lives under
+# a `src` directory is a test of this repository's, and anything emitted or copied
+# elsewhere - `tsc --build` writes each composite package into its `dist` - is never a
+# second, stale copy of a suite that already ran. Every test file in this repository
+# lives under a package's `src`. A test file placed anywhere else would not be run by
+# the scripts, so do not place one anywhere else.
+#
+# **Why the Playwright specs end in `.e2e.ts`.** The filter above is a property of the
+# scripts, and a developer types `bun test` - which discovers `*.test.*` and `*.spec.*`
+# anywhere under the working directory, `e2e/tests` included, and aborts on a
+# Playwright spec with "Playwright Test did not expect test() to be called here". Bun
+# cannot be told to skip a directory, so the specs are named out of its reach and
+# `e2e/playwright.config.ts` names that suffix in `testMatch`. `bun test` and
+# `bun run test` therefore run the same suites, the second with the timeout the
+# integration files need. `e2e/src/specNaming.test.ts` guards the rule.
 
 [test]
 # Migrates the test database and creates the serving role before the first test
