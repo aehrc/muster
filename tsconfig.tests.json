@@ -36,6 +36,7 @@
     "packages/*/src/**/*.test.ts",
     "packages/*/src/**/*.test.tsx",
     "apps/*/src/**/*.test.ts",
-    "apps/*/src/**/*.test.tsx"
+    "apps/*/src/**/*.test.tsx",
+    "e2e/src/**/*.test.ts"
   ]
 }

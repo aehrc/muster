@@ -3,6 +3,9 @@ coverage
 node_modules
 playwright-report
 test-results
+# The end-to-end suite's saved sessions. Git ignores them; Prettier does not, and a
+# format gate that fails only for whoever last ran the suite is the worst kind.
+e2e/playwright
 # Feature specifications, written by the spec skill. Git ignores them, so CI never
 # sees them and only a local `format:check` goes red - which is the worst shape for
 # a gate to fail in, because it fails only for the person who has the files.

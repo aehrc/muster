@@ -258,6 +258,22 @@ export default tseslint.config(
   },
 
   {
+    // The end-to-end suite.
+    files: ["e2e/**/*.ts"],
+    rules: {
+      // The specs are numbered because the run order is the subject: the quickstart is a
+      // sequence, and `01-directory` before `02-pairing` is what says so. A camel-case name
+      // would either lose the number or read as `01Directory`, which is worse than the rule
+      // it satisfies.
+      "unicorn/filename-case": "off",
+      // A false positive here. `innerText()` is a method of Playwright's `Locator`, which
+      // returns what the page renders; the rule is about the DOM property of the same name,
+      // and there is no `Locator.textContent` that does the same thing.
+      "unicorn/prefer-dom-node-text-content": "off",
+    },
+  },
+
+  {
     files: ["**/*.js", "**/*.config.{ts,js}"],
     ...tseslint.configs.disableTypeChecked,
     rules: {
