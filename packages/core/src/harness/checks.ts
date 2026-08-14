@@ -379,19 +379,76 @@ function redactValue(value: unknown): unknown {
   );
 }
 
-/** The members to redact, as an alternation for the textual fallback. */
+/** The members to redact, as an alternation for the textual pass. */
 const CREDENTIAL_MEMBER_PATTERN = CREDENTIAL_MEMBER_NAMES.join("|");
+
+/**
+ * A credential named and then given: `"client_secret": "x"`, `client_secret: x`,
+ * `client_secret=x`, `client_secret='x'`.
+ *
+ * One pattern rather than one per shape, because the shapes differ only in how the name and
+ * the value are quoted and which character separates them. The name is captured so that the
+ * replacement can put it back unchanged: what is redacted is the value, never the member that
+ * says which value it was. An unquoted value ends at the first character that could not be
+ * part of one - whitespace, a quote, or a separator from any of the syntaxes above - so a
+ * redaction does not swallow the rest of the body with the secret, and a body that was JSON
+ * on the way in is still JSON on the way out.
+ */
+const CREDENTIAL_ASSIGNMENT = new RegExp(
+  String.raw`(["']?)(${CREDENTIAL_MEMBER_PATTERN})\1(\s*[:=]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;&<>"')\]}]*)`,
+  "g",
+);
+
+/**
+ * A credential carried as the text of an XML or HTML element, namespace prefix and attributes
+ * included: `<client_secret>x</client_secret>`.
+ *
+ * The closing tag is matched by back-reference so that only an element that actually closes
+ * has its text replaced; a self-closing element has no text to leak.
+ */
+const CREDENTIAL_ELEMENT = new RegExp(
+  String.raw`(<\s*(?:[\w.-]+:)?(${CREDENTIAL_MEMBER_PATTERN})\b[^>]*>)[^<]*(<\s*/\s*(?:[\w.-]+:)?\2\s*>)`,
+  "g",
+);
+
+/** The quote a value was written with, or nothing when it was written bare. */
+function quotingOf(value: string): string {
+  const first = value.slice(0, 1);
+  return first === '"' || first === "'" ? first : "";
+}
+
+/** Replaces the credential values a body carries textually, whatever syntax wrote them. */
+function scrubText(body: string): string {
+  return body
+    .replaceAll(
+      CREDENTIAL_ASSIGNMENT,
+      (
+        _match,
+        quoting: string,
+        name: string,
+        separator: string,
+        value: string,
+      ) =>
+        `${quoting}${name}${quoting}${separator}${quotingOf(value)}${REDACTED}${quotingOf(value)}`,
+    )
+    .replaceAll(CREDENTIAL_ELEMENT, `$1${REDACTED}$3`);
+}
 
 /**
  * Replaces every credential in a response body with a marker.
  *
- * The JSON path is the one that matters, because RFC 7591 requires JSON. The textual fallback
- * exists because a server that answers something else has failed the profile and its answer is
- * still evidence - which must not be evidence carrying a live credential.
+ * Two passes, because a credential can be carried two ways. The structural pass parses the
+ * body as JSON - which is what RFC 7591 requires - and redacts the credential-bearing members
+ * however deeply they are nested, whatever type they hold. The textual pass then runs over the
+ * result, and over a body that did not parse at all, because a server answering XML, YAML,
+ * form encoding or a truncated fragment has failed the profile and its answer is still
+ * evidence - which must not be evidence carrying a live credential. It also reaches the
+ * credential a well-formed body wrote inside a string, where the structural pass sees prose.
  *
- * What survives is everything else: the identifier, the metadata, the error, the expiry. The
- * evidence FR-030 requires and the prohibition principle IV states hold at once because this
- * runs before anything is stored or answered with.
+ * What survives is everything else: the identifier, the metadata, the error, the expiry, and
+ * the syntax they were written in. The evidence FR-030 requires and the prohibition principle
+ * IV states hold at once because this runs before anything is stored or answered with - and
+ * the report it is stored for is public, which makes a leak here worse than a leak into a log.
  *
  * @param body - The response body as received.
  * @returns The body with credential values replaced by {@link REDACTED}.
@@ -402,20 +459,9 @@ const CREDENTIAL_MEMBER_PATTERN = CREDENTIAL_MEMBER_NAMES.join("|");
  */
 export function scrubCredentials(body: string): string {
   try {
-    return JSON.stringify(redactValue(JSON.parse(body)));
+    return scrubText(JSON.stringify(redactValue(JSON.parse(body))));
   } catch {
-    return body
-      .replaceAll(
-        new RegExp(
-          String.raw`("(?:${CREDENTIAL_MEMBER_PATTERN})"\s*:\s*)"(?:[^"\\]|\\.)*"`,
-          "g",
-        ),
-        `$1"${REDACTED}"`,
-      )
-      .replaceAll(
-        new RegExp(String.raw`\b(${CREDENTIAL_MEMBER_PATTERN})=[^&\s]*`, "g"),
-        `$1=${REDACTED}`,
-      );
+    return scrubText(body);
   }
 }
 

@@ -232,6 +232,119 @@ describe("scrubCredentials", () => {
     expect(scrubbed).toContain("stub-3");
   });
 
+  it("redacts a credential given as an unquoted member", () => {
+    // A server answering YAML, or a log-shaped body, quotes neither the member nor its
+    // value. The credential is no less live for it.
+    const scrubbed = scrubCredentials(
+      "client_id: stub-4\nclient_secret: leaked-value\nscope: launch",
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("stub-4");
+    expect(scrubbed).toContain("scope: launch");
+    expect(scrubbed).toContain(`client_secret: ${REDACTED}`);
+  });
+
+  it("redacts a credential whose value is unquoted in a malformed JSON body", () => {
+    const scrubbed = scrubCredentials(
+      '{"client_id": "stub-5", "client_secret": leaked-value, "scope": "launch"',
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("stub-5");
+  });
+
+  it("redacts a credential carried in an XML element", () => {
+    // A server answering XML has failed the profile, and its answer is still evidence.
+    const scrubbed = scrubCredentials(
+      "<registration><client_id>stub-6</client_id>" +
+        "<client_secret>leaked-value</client_secret></registration>",
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("stub-6");
+    // The element survives; only its text goes.
+    expect(scrubbed).toContain(`<client_secret>${REDACTED}</client_secret>`);
+  });
+
+  it("redacts a credential carried in a namespaced XML element", () => {
+    const scrubbed = scrubCredentials(
+      '<reg:response xmlns:reg="urn:example">' +
+        "<reg:registration_access_token>rat-value</reg:registration_access_token>" +
+        "</reg:response>",
+    );
+
+    expect(scrubbed).not.toContain("rat-value");
+    expect(scrubbed).toContain("urn:example");
+  });
+
+  it("redacts a credential carried in an XML attribute, leaving the markup readable", () => {
+    const scrubbed = scrubCredentials(
+      '<response client_id="stub-7" client_secret="leaked-value"/>',
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("stub-7");
+    expect(scrubbed).toContain(`client_secret="${REDACTED}"`);
+    // The redaction must not swallow the rest of the markup with the value.
+    expect(scrubbed).toEndWith("/>");
+  });
+
+  it("redacts a credential quoted the way a JavaScript literal quotes it", () => {
+    const scrubbed = scrubCredentials(
+      "{ 'client_id': 'stub-8', 'client_secret': 'leaked-value' }",
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("stub-8");
+  });
+
+  it("redacts a credential embedded in the text of a JSON member", () => {
+    // Well-formed JSON, but the credential is inside a string rather than a member of its
+    // own, which the structural pass cannot see.
+    const body = JSON.stringify({
+      error: "invalid_client_metadata",
+      error_description: "resend it with client_secret=leaked-value",
+    });
+
+    const scrubbed = scrubCredentials(body);
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(scrubbed).toContain("invalid_client_metadata");
+    // Redacting must not cost the reader the syntax: a JSON body stays JSON.
+    expect(JSON.parse(scrubbed)).toEqual({
+      error: "invalid_client_metadata",
+      error_description: `resend it with client_secret=${REDACTED}`,
+    });
+  });
+
+  it("redacts a body that is a bare JSON string carrying a credential", () => {
+    const scrubbed = scrubCredentials(
+      JSON.stringify("client_secret=leaked-value"),
+    );
+
+    expect(scrubbed).not.toContain("leaked-value");
+    expect(JSON.parse(scrubbed)).toBe(`client_secret=${REDACTED}`);
+  });
+
+  it("leaves a member whose name merely starts with a credential name alone", () => {
+    // `client_secret_expires_at` is metadata, not a credential, and a reader needs its value.
+    const scrubbed = scrubCredentials(
+      "client_id=stub-9&client_secret_expires_at=0&scope=launch",
+    );
+
+    expect(scrubbed).toContain("client_secret_expires_at=0");
+    expect(scrubbed).not.toContain(REDACTED);
+  });
+
+  it("leaves prose that names a credential member alone", () => {
+    // Naming a member is not carrying its value, and an error a vendor has to read must
+    // survive intact.
+    const body = "the client_secret member was missing from the response";
+
+    expect(scrubCredentials(body)).toBe(body);
+  });
+
   it("leaves a body with nothing to redact alone", () => {
     const body = JSON.stringify({ error: "invalid_software_statement" });
 
