@@ -41,6 +41,9 @@ import type { SoftwareStatementClaims } from "../statements/build.js";
 /** The moment every case is judged at. */
 const NOW = new Date("2026-09-02T14:31:00.000Z");
 
+/** A credential value distinctive enough that its survival anywhere is a leak. */
+const SECRET = "S3CR3T-leaked-value";
+
 /** The metadata Muster vouches for in these cases. */
 const VETTED: SoftwareStatementClaims = harnessStatementClaims({
   kind: "valid",
@@ -327,6 +330,40 @@ describe("scrubCredentials", () => {
     expect(JSON.parse(scrubbed)).toBe(`client_secret=${REDACTED}`);
   });
 
+  // A server that spells its members in some casing other than RFC 7591's snake_case has
+  // failed the profile, which is exactly the server whose answer becomes public evidence -
+  // and what it is spelling is still a live credential. The name a server chose must not
+  // decide whether the secret is redacted.
+  it.each([
+    ["an uppercase form-encoded member", `CLIENT_SECRET=${SECRET}`],
+    ["a title-cased unquoted member", `Client_Secret: ${SECRET}`],
+    ["an uppercase JSON member", JSON.stringify({ CLIENT_SECRET: SECRET })],
+    ["a camelCase JSON member", JSON.stringify({ clientSecret: SECRET })],
+    ["a camelCase form-encoded member", `clientSecret=${SECRET}`],
+    ["an uppercase XML element", `<CLIENT_SECRET>${SECRET}</CLIENT_SECRET>`],
+    ["a camelCase XML element", `<clientSecret>${SECRET}</clientSecret>`],
+    ["a mixed-case XML attribute", `<response ClientSecret="${SECRET}"/>`],
+    [
+      "an uppercase access token member",
+      JSON.stringify({ REGISTRATION_ACCESS_TOKEN: SECRET }),
+    ],
+    [
+      "a camelCase access token member",
+      JSON.stringify({ registrationAccessToken: SECRET }),
+    ],
+    [
+      "a camelCase access token in prose",
+      JSON.stringify({
+        error_description: `registrationAccessToken=${SECRET}`,
+      }),
+    ],
+  ])("redacts a credential carried by %s", (_label, body) => {
+    const scrubbed = scrubCredentials(body);
+
+    expect(scrubbed).not.toContain(SECRET);
+    expect(scrubbed).toContain(REDACTED);
+  });
+
   it("leaves a member whose name merely starts with a credential name alone", () => {
     // `client_secret_expires_at` is metadata, not a credential, and a reader needs its value.
     const scrubbed = scrubCredentials(
@@ -335,6 +372,31 @@ describe("scrubCredentials", () => {
 
     expect(scrubbed).toContain("client_secret_expires_at=0");
     expect(scrubbed).not.toContain(REDACTED);
+  });
+
+  it("leaves an auth method whose value names a credential member alone", () => {
+    // `client_secret_basic` is the method the harness's confidential client registers with.
+    // Redacting it would hide the very field the fidelity check compares.
+    const body = JSON.stringify({
+      token_endpoint_auth_method: "client_secret_basic",
+    });
+
+    expect(scrubCredentials(body)).toBe(body);
+  });
+
+  // Case-insensitive matching must not widen what counts as a credential: each of these
+  // names a member without giving its value, in a casing the fix newly reaches.
+  it.each([
+    ["an uppercase expiry member", "CLIENT_SECRET_EXPIRES_AT=0"],
+    [
+      "an uppercase auth method",
+      JSON.stringify({ TOKEN_ENDPOINT_AUTH_METHOD: "CLIENT_SECRET_BASIC" }),
+    ],
+    ["uppercase prose", "The CLIENT_SECRET member was missing"],
+    ["camelCase prose", "The clientSecret member was missing"],
+    ["a camelCase expiry member", "clientSecretExpiresAt=0"],
+  ])("leaves %s alone", (_label, body) => {
+    expect(scrubCredentials(body)).toBe(body);
   });
 
   it("leaves prose that names a credential member alone", () => {

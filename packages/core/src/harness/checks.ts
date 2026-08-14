@@ -204,10 +204,20 @@ export const HARNESS_SOFTWARE_ID = "muster-conformance-harness";
 /** What a redacted credential is replaced with. */
 export const REDACTED = "[redacted]";
 
-/** The response members that carry a credential (principle IV). */
+/**
+ * The response members that carry a credential (principle IV).
+ *
+ * RFC 7591 spells these in snake_case, and the camelCase aliases are here because a server
+ * that spells them otherwise has failed the profile - which is precisely the server whose
+ * answer becomes public evidence, and what it is spelling is still a live credential. Casing
+ * is not a distinction the scrubber draws: every use of this list matches case-insensitively,
+ * so only the separator style needs an entry of its own.
+ */
 export const CREDENTIAL_MEMBER_NAMES: readonly string[] = [
   "client_secret",
   "registration_access_token",
+  "clientSecret",
+  "registrationAccessToken",
 ];
 
 /** How long before now an expired statement was issued. */
@@ -363,6 +373,16 @@ export function tamperCompactJws(jws: string): string {
   return `${header}.${payload}.${first === "A" ? "B" : "A"}${signature.slice(1)}`;
 }
 
+/** The credential member names, folded for the case-insensitive membership test. */
+const CREDENTIAL_MEMBER_KEYS: ReadonlySet<string> = new Set(
+  CREDENTIAL_MEMBER_NAMES.map((name) => name.toLowerCase()),
+);
+
+/** Whether a member name is one that carries a credential, in any casing. */
+function namesCredential(name: string): boolean {
+  return CREDENTIAL_MEMBER_KEYS.has(name.toLowerCase());
+}
+
 /** Redacts the credential-bearing members of a parsed body, however deeply nested. */
 function redactValue(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -374,7 +394,7 @@ function redactValue(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([name, member]) => [
       name,
-      CREDENTIAL_MEMBER_NAMES.includes(name) ? REDACTED : redactValue(member),
+      namesCredential(name) ? REDACTED : redactValue(member),
     ]),
   );
 }
@@ -393,10 +413,14 @@ const CREDENTIAL_MEMBER_PATTERN = CREDENTIAL_MEMBER_NAMES.join("|");
  * part of one - whitespace, a quote, or a separator from any of the syntaxes above - so a
  * redaction does not swallow the rest of the body with the secret, and a body that was JSON
  * on the way in is still JSON on the way out.
+ *
+ * Matched case-insensitively, because the casing a nonconformant server chose is not a reason
+ * to publish its secret. The separator this pattern requires is what keeps that from widening
+ * the match: `CLIENT_SECRET_EXPIRES_AT=0` still keeps its value, because `_` is not `:` or `=`.
  */
 const CREDENTIAL_ASSIGNMENT = new RegExp(
   String.raw`(["']?)(${CREDENTIAL_MEMBER_PATTERN})\1(\s*[:=]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;&<>"')\]}]*)`,
-  "g",
+  "gi",
 );
 
 /**
@@ -405,10 +429,16 @@ const CREDENTIAL_ASSIGNMENT = new RegExp(
  *
  * The closing tag is matched by back-reference so that only an element that actually closes
  * has its text replaced; a self-closing element has no text to leak.
+ *
+ * Matched case-insensitively for the same reason as the assignment, and the `\b` after the
+ * name is what keeps it narrow: `<CLIENT_SECRET_EXPIRES_AT>` has no boundary after
+ * `CLIENT_SECRET`, so its text survives. The back-reference is case-insensitive too, which is
+ * a widening the far end has already earned - an element opened `<clientSecret>` and closed
+ * `</CLIENTSECRET>` is not well-formed XML, and its text is a credential either way.
  */
 const CREDENTIAL_ELEMENT = new RegExp(
   String.raw`(<\s*(?:[\w.-]+:)?(${CREDENTIAL_MEMBER_PATTERN})\b[^>]*>)[^<]*(<\s*/\s*(?:[\w.-]+:)?\2\s*>)`,
-  "g",
+  "gi",
 );
 
 /** The quote a value was written with, or nothing when it was written bare. */
@@ -449,6 +479,14 @@ function scrubText(body: string): string {
  * the syntax they were written in. The evidence FR-030 requires and the prohibition principle
  * IV states hold at once because this runs before anything is stored or answered with - and
  * the report it is stored for is public, which makes a leak here worse than a leak into a log.
+ *
+ * The textual pass is defence in depth over bodies that RFC 7591 requires to be JSON, not a
+ * guarantee for arbitrary formats, and two shapes are known to get past it. A YAML block or
+ * folded scalar (`client_secret: |` with the secret on the next line) has its `|` consumed as
+ * the value, leaving the following line untouched. An XML CDATA section
+ * (`<client_secret><![CDATA[x]]></client_secret>`) defeats the element pattern's `[^<]*` text
+ * match. Both are left alone deliberately: covering them would cost more pattern than the
+ * contrivance is worth, and the structural pass already covers every body the profile allows.
  *
  * @param body - The response body as received.
  * @returns The body with credential values replaced by {@link REDACTED}.
