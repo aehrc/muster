@@ -145,9 +145,22 @@ docker build -t muster:dev .
 
 The integration suites **skip themselves** when `MUSTER_TEST_DATABASE_URL` is
 unset, and a run that skipped them reports success having touched no database.
-`.env.test` sets it locally; CI sets it and fails the workflow on a non-zero
-skip count. Check for a skip count if a change to the data layer passes
-suspiciously easily.
+CI sets it and fails the workflow on a non-zero skip count. Check for a skip
+count if a change to the data layer passes suspiciously easily.
+
+Locally the variable comes from `.env.test`, which is git-ignored, so a fresh
+clone has to create it and the database it names:
+
+```sh
+docker run -d --name muster-test-pg \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=muster_test \
+  -p 55433:5432 postgres:18-alpine
+echo 'MUSTER_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/muster_test' > .env.test
+```
+
+`bun run test` then reports `0 skip`. Until you do this it reports a few
+hundred skips and still exits zero, which is the failure mode the skip count
+exists to catch.
 
 ### End to end
 
