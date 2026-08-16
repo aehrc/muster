@@ -10,17 +10,17 @@
  * canonical record on the source server, and a grid of personas against enrolled servers.
  * Two things the wireframe implies and this page states outright. A cell nothing has checked
  * says so rather than being blank, because a blank cell reads as a rendering failure. And
- * `unverifiable` is visibly not `missing` - different symbol, different word, different tone
- * - because FR-032 exists precisely so that "the server would not answer" is never read as
+ * `unverifiable` is visibly not `missing` - a different word and a different icon shape -
+ * because FR-032 exists precisely so that "the server would not answer" is never read as
  * "the patient is not there".
  *
  * The event is chosen by the `event` query parameter so a link to one is shareable, and
  * defaults to an open event, which is the one somebody at a connectathon is looking at.
  *
- * Every cell keeps the words `personaGrid.ts` gives it, symbol included, and gains an Octicon
- * beside them (FR-004). The symbol in the text and the icon say the same thing twice, which is
- * deliberate: the text is what the page has always said, and the icon is what makes the state
- * legible at a glance across a grid as wide as the event has servers.
+ * Every cell pairs the word `personaGrid.ts` gives it with an Octicon whose shape differs by
+ * state (FR-004), so the state survives both a colour-blind reader and a glance across a grid
+ * as wide as the event has servers. The word carries the claim and the shape carries it
+ * again; neither is decoration for the other.
  *
  * Author: John Grimes
  */
