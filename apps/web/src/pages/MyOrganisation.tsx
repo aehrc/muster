@@ -31,6 +31,7 @@ import {
   TextAreaField,
   TextField,
 } from "../components/fields.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   DetailRow,
   EmptyState,
@@ -41,6 +42,10 @@ import {
   Panel,
   Tag,
 } from "../components/layout.js";
+import {
+  ACCOUNT_STATUS_STATES,
+  EVENT_STATUS_STATES,
+} from "../components/statusStates.js";
 import {
   EMPTY_SYSTEM_FORM,
   systemForm,
@@ -71,22 +76,34 @@ export function MyOrganisation() {
   }
   if (account === null) {
     return (
-      <article className="page">
+      <article className="flex flex-col">
         <PageHeader title="My organisation" />
         <EmptyState>
-          <Link to={ROUTES.signIn}>Sign in</Link> to describe the systems your
-          organisation brings.
+          <Link className="link" to={ROUTES.signIn}>
+            Sign in
+          </Link>{" "}
+          to describe the systems your organisation brings.
         </EmptyState>
       </article>
     );
   }
   if (account.writeRefusal !== null) {
     return (
-      <article className="page">
-        <PageHeader title="My organisation" status={account.status} />
+      <article className="flex flex-col">
+        <PageHeader
+          title="My organisation"
+          status={
+            <StatusLabel state={ACCOUNT_STATUS_STATES[account.status]}>
+              {account.status}
+            </StatusLabel>
+          }
+        />
         <EmptyState>
           This account cannot create or edit entries yet.{" "}
-          <Link to={ROUTES.signIn}>See where it stands</Link>.
+          <Link className="link" to={ROUTES.signIn}>
+            See where it stands
+          </Link>
+          .
         </EmptyState>
       </article>
     );
@@ -97,7 +114,7 @@ export function MyOrganisation() {
   );
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="My organisation"
         subtitle={`${account.displayName} - ${account.email}`}
@@ -164,8 +181,8 @@ function OrganisationPanel({
   const [adding, setAdding] = useState(false);
 
   return (
-    <section className="organisation">
-      <h2>{organisation.name}</h2>
+    <section className="mb-8 flex flex-col">
+      <h2 className="mb-2 text-xl font-semibold">{organisation.name}</h2>
 
       <Panel title="Members">
         {organisation.members.length === 0 ? (
@@ -173,40 +190,44 @@ function OrganisationPanel({
             Nobody is left in this organisation. A track admin can reassign it.
           </EmptyState>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {organisation.members.map((member) => (
-                <tr key={member.accountId}>
-                  <td>{member.displayName}</td>
-                  <td className="wrap">{member.email}</td>
-                  <td>{member.joinedAt.slice(0, 10)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() => {
-                        action.mutate({
-                          kind: "leave",
-                          id: organisation.id,
-                          accountId: member.accountId,
-                        });
-                      }}
-                    >
-                      {member.accountId === accountId ? "Leave" : "Remove"}
-                    </button>
-                  </td>
+          // Contact details for the reader's own organisation, which they are a member of
+          // (constitution principle V). Its own scroller so the addresses never widen the page.
+          <div className="overflow-x-auto">
+            <table className="table table-zebra table-sm align-top">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {organisation.members.map((member) => (
+                  <tr key={member.accountId}>
+                    <td>{member.displayName}</td>
+                    <td className="wrap-anywhere">{member.email}</td>
+                    <td>{member.joinedAt.slice(0, 10)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => {
+                          action.mutate({
+                            kind: "leave",
+                            id: organisation.id,
+                            accountId: member.accountId,
+                          });
+                        }}
+                      >
+                        {member.accountId === accountId ? "Leave" : "Remove"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <form
@@ -254,15 +275,17 @@ function OrganisationPanel({
           }}
         />
       ) : (
-        <button
-          type="button"
-          className="button button-primary"
-          onClick={() => {
-            setAdding(true);
-          }}
-        >
-          Add system
-        </button>
+        <div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setAdding(true);
+            }}
+          >
+            Add system
+          </button>
+        </div>
       )}
     </section>
   );
@@ -286,7 +309,7 @@ function SystemCard({
       actions={
         <button
           type="button"
-          className="button"
+          className="btn btn-sm"
           onClick={() => {
             setEditing(!editing);
           }}
@@ -295,7 +318,7 @@ function SystemCard({
         </button>
       }
     >
-      <div className="chips">
+      <div className="flex flex-wrap gap-1">
         {system.kinds.map((kind) => (
           <Tag key={kind}>{kind === "server" ? "Server" : "Client"}</Tag>
         ))}
@@ -303,16 +326,20 @@ function SystemCard({
 
       {system.serverProfile === null ? null : (
         <DetailRow label="FHIR base URL">
-          <span className="wrap">{system.serverProfile.fhirBaseUrl}</span>
+          <span className="wrap-anywhere">
+            {system.serverProfile.fhirBaseUrl}
+          </span>
         </DetailRow>
       )}
       {system.clientProfile === null ? null : (
         <>
           <DetailRow label="Launch URL">
-            <span className="wrap">{system.clientProfile.launchUrl}</span>
+            <span className="wrap-anywhere">
+              {system.clientProfile.launchUrl}
+            </span>
           </DetailRow>
           <DetailRow label="Scopes">
-            <span className="wrap">
+            <span className="wrap-anywhere">
               {system.clientProfile.scopes.join(" ")}
             </span>
           </DetailRow>
@@ -351,22 +378,27 @@ function Enrolment({
   const action = useEnrolAction(slug);
 
   return (
-    <div className="enrolment">
+    <div className="mt-2 flex flex-col">
       {system.enrolments.length === 0 ? (
         <EmptyState>Not enrolled in any event.</EmptyState>
       ) : (
-        <ul className="plain-list">
+        <ul className="flex flex-col gap-1 text-sm">
           {system.enrolments.map((enrolment) => (
             <li key={enrolment.id}>
-              Enrolled in {enrolment.eventName} ({enrolment.eventStatus}) -
-              details confirmed {enrolment.confirmedAt.slice(0, 10)}
+              Enrolled in {enrolment.eventName} (
+              {/* The event's own state, with the shape that distinguishes it from the other
+                  two rather than only the word (FR-004). */}
+              <StatusLabel state={EVENT_STATUS_STATES[enrolment.eventStatus]}>
+                {enrolment.eventStatus}
+              </StatusLabel>
+              ) - details confirmed {enrolment.confirmedAt.slice(0, 10)}
               {enrolment.tags.length === 0
                 ? null
                 : ` - ${enrolment.tags.join(", ")}`}
               {system.serverProfile?.registrationMode === "trustedDcr" ? (
                 <>
                   {" - "}
-                  <Link to={harnessPath(enrolment.id)}>
+                  <Link className="link" to={harnessPath(enrolment.id)}>
                     conformance harness
                   </Link>
                 </>
@@ -377,7 +409,9 @@ function Enrolment({
       )}
 
       {openEvents.length === 0 ? (
-        <p className="note">No event is open for enrolment.</p>
+        <p className="text-base-content/70 text-sm">
+          No event is open for enrolment.
+        </p>
       ) : (
         <form
           onSubmit={(event) => {
@@ -406,7 +440,7 @@ function Enrolment({
             onChange={setTags}
             hint="From the event's own tags, separated by spaces or commas."
           />
-          <p className="note">
+          <p className="text-base-content/70 text-sm">
             Enrolling records that you have confirmed these details are current.
           </p>
           <SubmitButton pending={action.isPending}>

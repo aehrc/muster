@@ -14,10 +14,14 @@ import { ROUTES } from "../routes.js";
 /** The console's 404. */
 export function NotFound() {
   return (
-    <article className="page">
-      <h1>No page at this address</h1>
+    <article className="mx-auto flex w-full max-w-md flex-col gap-2">
+      <h1 className="text-2xl font-semibold">No page at this address</h1>
       <p>
-        The link may be out of date. <Link to={ROUTES.home}>Start again</Link>.
+        The link may be out of date.{" "}
+        <Link className="link" to={ROUTES.home}>
+          Start again
+        </Link>
+        .
       </p>
     </article>
   );

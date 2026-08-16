@@ -65,10 +65,10 @@ function PublishedKeys() {
     return <ErrorAlert message={describeError(jwks.error)} />;
   }
   return (
-    <ul className="plain-list">
+    <ul className="flex flex-col gap-1">
       {jwks.data.keys.map((key) => (
-        <li className="wrap" key={key.kid ?? ""}>
-          <code>{key.kid}</code> ({key.alg})
+        <li className="wrap-anywhere" key={key.kid ?? ""}>
+          <code className="font-mono">{key.kid}</code> ({key.alg})
         </li>
       ))}
     </ul>
@@ -78,13 +78,14 @@ function PublishedKeys() {
 /** Where the profiles are, and what this deployment's anchor identity is. */
 export function Docs() {
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Documentation"
         subtitle="Everything on this page is public: no account is needed to read it, and none is needed to implement against it."
       />
 
-      <div className="card-row">
+      {/* The two profiles side by side while there is room, stacked when there is not. */}
+      <div className="flex flex-wrap gap-4 [&>section]:flex-1 [&>section]:basis-80">
         <Panel
           title="Registration profile"
           description="What a server implements to accept Muster-vouched dynamic client registration."
@@ -96,10 +97,7 @@ export function Docs() {
             server caps the client&apos;s access at that.
           </p>
           <p>
-            <a
-              className="button button-primary"
-              href="/docs/registration-profile"
-            >
+            <a className="btn btn-primary" href="/docs/registration-profile">
               Read the registration profile
             </a>
           </p>
@@ -116,7 +114,7 @@ export function Docs() {
             unauthenticated presenter.
           </p>
           <p>
-            <a className="button button-primary" href="/docs/ticket-profile">
+            <a className="btn btn-primary" href="/docs/ticket-profile">
               Read the ticket profile
             </a>
           </p>
@@ -128,14 +126,16 @@ export function Docs() {
         description="The document a verifier fetches, and what is in it right now."
       >
         <DetailRow label="JWKS">
-          <span className="wrap">
-            <a href="/.well-known/jwks.json">/.well-known/jwks.json</a>
+          <span className="wrap-anywhere">
+            <a className="link" href="/.well-known/jwks.json">
+              /.well-known/jwks.json
+            </a>
           </span>
         </DetailRow>
         <DetailRow label="Key identifiers published">
           <PublishedKeys />
         </DetailRow>
-        <p className="note">
+        <p className="text-base-content/70 text-sm">
           Muster signs software statements and permission tickets with separate
           keys, and every artefact names the key it was signed with. A
           superseded key stays published until everything signed with it has
@@ -148,16 +148,22 @@ export function Docs() {
         title="Worked examples"
         description="The exchange as a server sees it."
       >
-        <h3>Presenting a statement</h3>
-        <pre className="code-block">{REGISTRATION_EXAMPLE}</pre>
-        <p className="quiet">
+        <h3 className="text-base font-semibold">Presenting a statement</h3>
+        <pre className="bg-base-200 border-base-300 overflow-x-auto rounded border p-3 font-mono text-xs">
+          {REGISTRATION_EXAMPLE}
+        </pre>
+        <p className="text-base-content/60 text-sm">
           The whole body is the statement. A server must ignore or reject client
           metadata asserted outside it - the anchor vouches for what is inside,
           so nothing outside may override it.
         </p>
-        <h3>What the server does with it</h3>
-        <pre className="code-block">{VERIFICATION_EXAMPLE}</pre>
-        <p className="quiet">
+        <h3 className="text-base font-semibold">
+          What the server does with it
+        </h3>
+        <pre className="bg-base-200 border-base-300 overflow-x-auto rounded border p-3 font-mono text-xs">
+          {VERIFICATION_EXAMPLE}
+        </pre>
+        <p className="text-base-content/60 text-sm">
           Muster&apos;s conformance harness checks each of these against a real
           endpoint, so a vendor can prove they hold before event day.
         </p>
