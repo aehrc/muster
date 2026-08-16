@@ -32,6 +32,8 @@ import {
   URLS,
 } from "../support/stack.js";
 
+import type { Page } from "@playwright/test";
+
 /**
  * The last instant a statement minted for this event may vouch until.
  *
@@ -39,6 +41,20 @@ import {
  * the cap not being applied.
  */
 const VOUCHING_CAP_SECONDS = Date.parse("2026-09-27T00:00:00Z") / 1000;
+
+/**
+ * The run's steps in one reported state.
+ *
+ * By the test identifier the page carries and the state it reports, rather than by the class
+ * that paints it: a restyle must not be able to change what this suite asserts (FR-008).
+ *
+ * @param page - The page showing the run.
+ * @param state - `done`, `failed`, `skipped`, `running` or `waiting`.
+ * @returns The matching steps.
+ */
+function stepsInState(page: Page, state: string) {
+  return page.locator(`[data-testid="dcr-step"][data-state="${state}"]`);
+}
 
 test("Scenario 3: trusted DCR against the stub registration server", async ({
   browser,
@@ -91,8 +107,9 @@ test("Scenario 3: trusted DCR against the stub registration server", async ({
     await expect(
       appOwner.getByText("Registered. The issued client identifier is"),
     ).toBeVisible();
-    await expect(appOwner.locator("li.step")).toHaveCount(3);
-    await expect(appOwner.locator("li.step-failed")).toHaveCount(0);
+    await expect(appOwner.getByTestId("dcr-step")).toHaveCount(3);
+    await expect(stepsInState(appOwner, "done")).toHaveCount(3);
+    await expect(stepsInState(appOwner, "failed")).toHaveCount(0);
   });
 
   await test.step("the client secret is shown once and is nowhere else", async () => {
@@ -116,7 +133,7 @@ test("Scenario 3: trusted DCR against the stub registration server", async ({
 
   await test.step("the statement is downloadable and vouches no further than the event's grace", async () => {
     const claims: unknown = JSON.parse(
-      await appOwner.locator("pre.code-block").first().innerText(),
+      await appOwner.getByTestId("statement-claims").innerText(),
     );
     const expiry = (claims as { exp?: number }).exp;
     expect(expiry).toBeDefined();

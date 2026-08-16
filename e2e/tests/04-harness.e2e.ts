@@ -19,11 +19,26 @@ import { setRegistrationStubMode } from "../support/compose.js";
 import { anonymousPage, openSystemPage, pageAs } from "../support/journeys.js";
 import { EVENT, SESSIONS, STUB_AUTH, URLS } from "../support/stack.js";
 
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 
 /** The row of one named check in the results table. */
 function checkRow(page: Page, check: string) {
   return page.locator("tr").filter({ hasText: check });
+}
+
+/**
+ * The check results in one outcome, anywhere on the page or within a row.
+ *
+ * By the test identifier the results table carries and the outcome it reports, rather than by
+ * the class that paints it: a restyle must not be able to change what this suite asserts
+ * (FR-008).
+ *
+ * @param scope - The page, or one row of it.
+ * @param outcome - `passed` or `failed`.
+ * @returns The matching result marks.
+ */
+function checkResults(scope: Page | Locator, outcome: "passed" | "failed") {
+  return scope.locator(`[data-testid="check-result"][data-state="${outcome}"]`);
 }
 
 /**
@@ -70,8 +85,8 @@ test("Scenario 4: the conformance harness and the DCR verified badge", async ({
     await expect(
       serverOwner.getByText("All checks passed - DCR verified badge applied"),
     ).toBeVisible({ timeout: 60_000 });
-    await expect(serverOwner.locator("span.check-ok")).toHaveCount(6);
-    await expect(serverOwner.locator("span.check-bad")).toHaveCount(0);
+    await expect(checkResults(serverOwner, "passed")).toHaveCount(6);
+    await expect(checkResults(serverOwner, "failed")).toHaveCount(0);
   });
 
   await test.step("the badge appears on the entry, for anyone", async () => {
@@ -94,16 +109,15 @@ test("Scenario 4: the conformance harness and the DCR verified badge", async ({
       serverOwner.getByText("checks failed - no badge is shown"),
     ).toBeVisible({ timeout: 60_000 });
     await expect(
-      checkRow(serverOwner, "Tampered signature rejected").locator(
-        "span.check-bad",
+      checkResults(
+        checkRow(serverOwner, "Tampered signature rejected"),
+        "failed",
       ),
     ).toBeVisible();
     // The rest of the profile is untouched, so the valid case still passes: the harness
     // names the rule that broke rather than reporting a blanket failure.
     await expect(
-      checkRow(serverOwner, "Valid statement accepted").locator(
-        "span.check-ok",
-      ),
+      checkResults(checkRow(serverOwner, "Valid statement accepted"), "passed"),
     ).toBeVisible();
   });
 

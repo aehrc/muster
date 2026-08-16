@@ -218,6 +218,10 @@ function StepList({
             className={
               reported?.outcome === "failed" ? "step step-failed" : "step"
             }
+            // The state is an attribute rather than only a class, so that the end-to-end
+            // suite reads what a step did without reading how it is painted (FR-008).
+            data-state={reported?.outcome ?? (pending ? "running" : "waiting")}
+            data-testid="dcr-step"
             key={step.name}
           >
             <div className="step-header">
@@ -365,7 +369,7 @@ function StatementPanel({
       <DetailRow label="Vouching expires">
         {fullTime(statement.expiresAt)}
       </DetailRow>
-      <pre className="code-block">
+      <pre className="code-block" data-testid="statement-claims">
         {JSON.stringify(statement.claims, null, 2)}
       </pre>
       <p>

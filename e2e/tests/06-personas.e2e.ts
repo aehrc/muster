@@ -27,6 +27,19 @@ import {
   URLS,
 } from "../support/stack.js";
 
+import type { Locator } from "@playwright/test";
+
+/**
+ * The grid's cells reporting one outcome.
+ *
+ * @param grid - The coverage panel.
+ * @param outcome - `found`, `missing`, `unverifiable` or `unchecked`.
+ * @returns The matching cells.
+ */
+function coverageCells(grid: Locator, outcome: string) {
+  return grid.locator(`[data-testid="coverage-cell"][data-state="${outcome}"]`);
+}
+
 test("Scenario 6: curating personas and reading the coverage grid", async ({
   browser,
   request,
@@ -103,11 +116,11 @@ test("Scenario 6: curating personas and reading the coverage grid", async ({
     ).toBeVisible();
     await expect(visitor.getByText(PERSONA.ihi).first()).toBeVisible();
 
-    const grid = visitor.locator("section.panel").filter({
-      has: visitor.getByRole("heading", { level: 2, name: "Coverage" }),
-    });
-    await expect(grid.locator("td.coverage-ok")).not.toHaveCount(0);
-    await expect(grid.locator("td.coverage-unknown")).not.toHaveCount(0);
+    // By the panel's accessible name and each cell's reported outcome, rather than by the
+    // classes that paint them: a restyle must not change what this asserts (FR-008).
+    const grid = visitor.getByRole("region", { name: "Coverage" });
+    await expect(coverageCells(grid, "found")).not.toHaveCount(0);
+    await expect(coverageCells(grid, "unverifiable")).not.toHaveCount(0);
     await expect(grid).toContainText("✓ found");
     await expect(grid).toContainText("? unverifiable");
     await visitor.context().close();

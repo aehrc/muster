@@ -14,6 +14,8 @@
  * Author: John Grimes
  */
 
+import { useId } from "react";
+
 import type { ReactNode } from "react";
 
 /** A page's heading, its subtitle and whatever acts on the whole page. */
@@ -59,10 +61,13 @@ export function Panel({
   readonly actions?: ReactNode;
   readonly children: ReactNode;
 }>) {
+  // Named by its own heading, which turns the section into a landmark a reader can jump to
+  // and gives the end-to-end suite a handle that is not a class name (FR-008).
+  const headingId = useId();
   return (
-    <section className="panel">
+    <section aria-labelledby={headingId} className="panel">
       <div className="panel-header">
-        <h2>{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         {actions === undefined ? null : <div>{actions}</div>}
       </div>
       {description === undefined ? null : (

@@ -186,6 +186,9 @@ function ResultsTable({
                 ) : (
                   <span
                     className={`check check-${reported.outcome === "passed" ? "ok" : "bad"}`}
+                    // What the check did, addressable without reading its styling (FR-008).
+                    data-state={reported.outcome}
+                    data-testid="check-result"
                   >
                     {reported.outcome === "passed" ? "PASS" : "FAIL"}
                   </span>

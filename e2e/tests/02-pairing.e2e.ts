@@ -28,12 +28,16 @@ import {
 
 import type { Page } from "@playwright/test";
 
-/** The timeline as one of the parties reads it. */
+/**
+ * The timeline as one of the parties reads it.
+ *
+ * By the panel's accessible name and the list's role rather than by either one's classes: the
+ * suite asserts what the page says, not how it is painted (FR-008).
+ */
 async function timelineText(page: Page): Promise<string> {
   return await page
-    .locator("section.panel")
-    .filter({ has: page.getByRole("heading", { level: 2, name: "Timeline" }) })
-    .locator("ul.plain-list")
+    .getByRole("region", { name: "Timeline" })
+    .getByRole("list")
     .innerText();
 }
 

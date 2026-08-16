@@ -305,9 +305,9 @@ export async function enrolSystem(
   tags: string,
 ): Promise<void> {
   await page.goto("/my-organisation");
-  const card = page
-    .locator("section.panel")
-    .filter({ has: page.getByRole("heading", { level: 2, name: systemName }) });
+  // The card is a region named by its own heading, which is how it is addressed here: a class
+  // name would be a styling coupling (FR-008).
+  const card = page.getByRole("region", { name: systemName });
   await card.getByLabel("Enrol in event").selectOption(eventSlug);
   await card.getByLabel("Capability tags").fill(tags);
   await card.getByRole("button", { name: "Enrol and confirm details" }).click();

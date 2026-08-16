@@ -90,7 +90,7 @@ test("Scenario 7: minting a permission ticket and exchanging it", async ({
     ticket = await member.locator("#permission-ticket").inputValue();
     expect(ticket.split(".")).toHaveLength(3);
     claims = JSON.parse(
-      await member.locator("pre.code-block").first().innerText(),
+      await member.getByTestId("ticket-claims").innerText(),
     ) as Record<string, unknown>;
   });
 

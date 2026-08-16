@@ -229,6 +229,10 @@ function CoverageCell({
   return (
     <td
       className={`coverage coverage-${described.tone}`}
+      // The outcome itself rather than the tone that paints it: `unverifiable` and `missing`
+      // are different claims (FR-032), and the suite asserts on the claim (FR-008).
+      data-state={cell?.outcome ?? "unchecked"}
+      data-testid="coverage-cell"
       title={described.detail ?? `${server.systemName}: ${described.text}`}
     >
       <span>{described.text}</span>

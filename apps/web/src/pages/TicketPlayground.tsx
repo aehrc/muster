@@ -356,7 +356,9 @@ function MintedPanel({
       <DetailRow label="Expires">{fullTime(minted.expiresAt)}</DetailRow>
 
       <p className="field-label">Decoded</p>
-      <pre className="code-block">{JSON.stringify(minted.claims, null, 2)}</pre>
+      <pre className="code-block" data-testid="ticket-claims">
+        {JSON.stringify(minted.claims, null, 2)}
+      </pre>
       <p className="quiet">
         The subject is bound by IHI system and value, not by an identifier local
         to any one server. Verify the signature against{" "}
