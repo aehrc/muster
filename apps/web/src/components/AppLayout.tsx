@@ -10,12 +10,17 @@
  * its state, and "which account am I acting as" is the state every other operation depends on -
  * particularly for a member whose account is pending, whose refusals otherwise look like faults.
  *
- * Desktop layout only: the nav is laid out horizontally at every width for now, and collapsing it
- * behind a menu control at narrow widths is its own piece of work.
+ * Below `lg` the seven destinations do not fit a 375 px row, so the nav collapses behind a menu
+ * button and drops onto its own full-width row when opened (FR-007, and the narrow shell
+ * wireframe). It is the same list in the same order either way - one `nav` element, moved by
+ * layout rather than duplicated - because a destination that exists only in one of two copies is
+ * a destination that will eventually exist in neither.
  *
  * Author: John Grimes
  */
 
+import { ThreeBarsIcon, XIcon } from "@primer/octicons-react";
+import { useId, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { useCredentialAction, useMe } from "../api/queries.js";
@@ -27,15 +32,37 @@ export function AppLayout() {
   const me = useMe();
   const action = useCredentialAction();
   const account = me.data?.account ?? null;
+  const navId = useId();
+  // The menu carries the path it was opened on, so that arriving somewhere closes the menu that
+  // was opened to reach it. Keyed on the path rather than on the click, so a destination reached
+  // any other way - a link in the page, the back button - leaves the shell in the same state as
+  // one reached from the menu. Adjusted while rendering rather than in an effect, which is
+  // React's own advice for state that has to follow something it is given.
+  const [menu, setMenu] = useState({ open: false, path: pathname });
+  if (menu.path !== pathname) {
+    setMenu({ open: false, path: pathname });
+  }
+  const menuOpen = menu.open;
 
   return (
     <div className="bg-base-100 text-base-content flex min-h-screen flex-col">
-      <header className="navbar border-base-300 bg-base-200 gap-2 border-b px-4">
-        <Link className="btn btn-ghost text-xl font-bold" to={ROUTES.home}>
+      <header className="navbar border-base-300 bg-base-200 flex-wrap gap-2 px-4">
+        <Link className="btn btn-ghost px-2 text-xl font-bold" to={ROUTES.home}>
           Muster
         </Link>
-        <nav aria-label="Main" className="flex-1">
-          <ul className="menu menu-horizontal flex-nowrap gap-1 p-0">
+
+        {/*
+          Below `lg` this sits on its own row, last, and is shown only while the menu is open;
+          from `lg` it is always shown and takes the space beside the brand.
+        */}
+        <nav
+          aria-label="Main"
+          className={`order-last w-full lg:order-none lg:block lg:w-auto lg:flex-1 ${
+            menuOpen ? "block" : "hidden"
+          }`}
+          id={navId}
+        >
+          <ul className="menu menu-sm lg:menu-horizontal w-full gap-1 p-0 lg:w-auto lg:flex-nowrap">
             {NAVIGATION.map((item) => {
               // `isActivePath` rather than NavLink's own `isActive`, because the rule for
               // nested pages is Muster's and is tested on its own.
@@ -58,32 +85,54 @@ export function AppLayout() {
           </ul>
         </nav>
 
-        {account === null ? (
-          <Link className="btn btn-sm btn-outline" to={ROUTES.signIn}>
-            Sign in
-          </Link>
-        ) : (
-          <div className="flex items-center gap-2 text-sm">
-            <Link className="link link-hover" to={ROUTES.signIn}>
-              {account.displayName}
-              {account.isAdmin ? " - track admin" : ""}
-              {account.status === "approved" ? "" : ` (${account.status})`}
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {account === null ? (
+            <Link className="btn btn-sm btn-outline" to={ROUTES.signIn}>
+              Sign in
             </Link>
-            <button
-              type="button"
-              className="btn btn-sm"
-              disabled={action.isPending}
-              onClick={() => {
-                action.mutate({ kind: "sign-out" });
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        )}
+          ) : (
+            <>
+              <Link
+                className="link link-hover min-w-0 text-sm break-words"
+                to={ROUTES.signIn}
+              >
+                {account.displayName}
+                {account.isAdmin ? " - track admin" : ""}
+                {account.status === "approved" ? "" : ` (${account.status})`}
+              </Link>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={action.isPending}
+                onClick={() => {
+                  action.mutate({ kind: "sign-out" });
+                }}
+              >
+                Sign out
+              </button>
+            </>
+          )}
+
+          {/*
+            Icon-only, so it carries its own name (FR-005); `aria-expanded` says whether the
+            list below it is showing, which is the one piece of state the button owns.
+          */}
+          <button
+            type="button"
+            aria-controls={navId}
+            aria-expanded={menuOpen}
+            aria-label="Main menu"
+            className="btn btn-sm btn-square btn-ghost lg:hidden"
+            onClick={() => {
+              setMenu((current) => ({ open: !current.open, path: pathname }));
+            }}
+          >
+            {menuOpen ? <XIcon aria-hidden /> : <ThreeBarsIcon aria-hidden />}
+          </button>
+        </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 p-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6">
         <Outlet />
       </main>
 
