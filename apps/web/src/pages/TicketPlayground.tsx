@@ -49,7 +49,7 @@ import {
   usePersonas,
 } from "../api/queries.js";
 import { EventPicker } from "../components/eventPicker.js";
-import { CheckField, TextField } from "../components/fields.js";
+import { CheckField, SelectField, TextField } from "../components/fields.js";
 import {
   DetailRow,
   EmptyState,
@@ -78,7 +78,7 @@ export function TicketPlayground(): ReactNode {
   const failure = events.error ?? personas.error ?? systems.error;
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Ticket playground"
         subtitle="Mint a SMART permission ticket for a shared persona, and present it to a data holder that accepts one. The subject is bound by IHI, never by an identifier local to one server."
@@ -168,40 +168,39 @@ function Playground({
 
   return (
     <>
-      <div className="card-row">
+      {/* The form and what it produced, side by side on a wide screen and stacked on a
+          narrow one: the decoded claims are read against the constraints that made them. */}
+      <div className="flex flex-wrap gap-4 [&>section]:flex-1 [&>section]:basis-96">
         <Panel
           title="Mint a permission ticket"
           description="Everything here is a constraint on what the ticket permits. The data holder grants the intersection of what is asked for and what this says."
         >
           <form onSubmit={handleMint}>
-            <label className="field">
-              <span className="field-label">Persona</span>
-              <select
-                value={persona?.id ?? ""}
-                onChange={(changed) => {
-                  setPersonaId(changed.target.value);
-                }}
-              >
-                {personas.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.display.name} - IHI {row.ihi}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Persona"
+              value={persona?.id ?? ""}
+              options={personas.map((row) => ({
+                value: row.id,
+                label: `${row.display.name} - IHI ${row.ihi}`,
+              }))}
+              onChange={setPersonaId}
+            />
 
-            <label className="field">
-              <span className="field-label">Ticket type</span>
-              <select disabled value={TICKET_TYPE}>
-                <option value={TICKET_TYPE}>Patient self-access</option>
-              </select>
-              <span className="field-hint">
-                The only ticket type currently defined.
-              </span>
-            </label>
+            <SelectField
+              label="Ticket type"
+              value={TICKET_TYPE}
+              options={[{ value: TICKET_TYPE, label: "Patient self-access" }]}
+              hint="The only ticket type currently defined."
+              disabled
+              onChange={() => {
+                // Settled: the only ticket type currently defined.
+              }}
+            />
 
-            <fieldset className="field">
-              <legend className="field-label">Scope constraints</legend>
+            <fieldset className="fieldset mb-4">
+              <legend className="fieldset-legend text-sm font-semibold">
+                Scope constraints
+              </legend>
               {SUGGESTED_SCOPES.map((scope) => (
                 <CheckField
                   key={scope}
@@ -225,22 +224,18 @@ function Playground({
               hint="Whitespace separated. Patient-compartment scopes only: the subject is permitting access to their own record."
             />
 
-            <label className="field">
-              <span className="field-label">Valid until</span>
-              <input
-                type="date"
-                value={validUntil}
-                {...(cap === undefined ? {} : { max: cap })}
-                onChange={(changed) => {
-                  setValidUntil(changed.target.value);
-                }}
-              />
-              <span className="field-hint">
-                {cap === undefined
+            <TextField
+              label="Valid until"
+              type="date"
+              value={validUntil}
+              onChange={setValidUntil}
+              hint={
+                cap === undefined
                   ? "Capped at the event's end plus its grace period."
-                  : `Capped at ${cap}: ${event.name} ends on ${event.endsOn} and allows ${String(event.graceDays)} days of grace. Leave it empty for the cap.`}
-              </span>
-            </label>
+                  : `Capped at ${cap}: ${event.name} ends on ${event.endsOn} and allows ${String(event.graceDays)} days of grace. Leave it empty for the cap.`
+              }
+              {...(cap === undefined ? {} : { max: cap })}
+            />
 
             {mint.error === null ? null : (
               <ErrorAlert message={describeError(mint.error)} />
@@ -248,13 +243,13 @@ function Playground({
 
             <button
               type="submit"
-              className="button button-primary"
+              className="btn btn-primary"
               disabled={mint.isPending || scopes.length === 0}
             >
               {mint.isPending ? "Minting…" : "Mint ticket"}
             </button>
             {scopes.length === 0 ? (
-              <p className="note">
+              <p className="text-base-content/70 mt-2 text-sm">
                 Choose at least one scope: a ticket that permits nothing is a
                 ticket a data holder must refuse.
               </p>
@@ -278,13 +273,17 @@ function Playground({
             present a ticket.
           </EmptyState>
         ) : null}
-        <ul className="plain-list">
+        <ul className="flex flex-col gap-2">
           {support.map((row) => (
             <li key={row.systemId}>
               <strong>{row.systemName}</strong>{" "}
-              <span className="quiet">{row.organisationName}</span>{" "}
+              <span className="text-base-content/60">
+                {row.organisationName}
+              </span>{" "}
               <Tag>{row.label}</Tag>
-              <div className="quiet wrap">{row.detail}</div>
+              <div className="text-base-content/60 wrap-anywhere text-sm">
+                {row.detail}
+              </div>
             </li>
           ))}
         </ul>
@@ -306,7 +305,7 @@ function MintedPanel({
   if (minted === null) {
     return (
       <Panel title="Minted ticket">
-        <p className="note">
+        <p className="text-base-content/70 text-sm">
           Nothing minted yet. The ticket will be a signed JWS carrying the
           persona&apos;s IHI as its subject, the scopes chosen here, and an
           expiry no later than the event&apos;s end plus its grace period.
@@ -328,18 +327,20 @@ function MintedPanel({
       title="Minted ticket"
       description="Shown once. Muster records that it was minted and does not store the ticket itself, so it cannot be shown again - copy it before you leave this page."
     >
-      <div className="secret-row">
-        <label className="field-label" htmlFor="permission-ticket">
+      {/* The same row the DCR run's one-time secret uses, minus the mask: a ticket about a
+          fabricated test patient is meant to be read and pasted. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm font-semibold" htmlFor="permission-ticket">
           Compact JWS
         </label>
         <input
-          className="secret-value"
+          className="input input-sm min-w-0 flex-1 basis-72 font-mono"
           id="permission-ticket"
           readOnly
           type="text"
           value={minted.jwt}
         />
-        <button type="button" className="button" onClick={handleCopy}>
+        <button type="button" className="btn btn-sm" onClick={handleCopy}>
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
@@ -350,19 +351,26 @@ function MintedPanel({
           : `${subject.display.name} - IHI ${subject.ihi}`}
       </DetailRow>
       <DetailRow label="Signed with">
-        <span className="wrap">{minted.keyId}</span>
+        <span className="wrap-anywhere">{minted.keyId}</span>
       </DetailRow>
       <DetailRow label="Minted">{fullTime(minted.mintedAt)}</DetailRow>
       <DetailRow label="Expires">{fullTime(minted.expiresAt)}</DetailRow>
 
-      <p className="field-label">Decoded</p>
-      <pre className="code-block" data-testid="ticket-claims">
+      <p className="text-sm font-semibold">Decoded</p>
+      {/* The claims scroll inside their own box rather than widening the page. */}
+      <pre
+        className="bg-base-200 border-base-300 overflow-x-auto rounded border p-3 font-mono text-xs"
+        data-testid="ticket-claims"
+      >
         {JSON.stringify(minted.claims, null, 2)}
       </pre>
-      <p className="quiet">
+      <p className="text-base-content/60 text-sm">
         The subject is bound by IHI system and value, not by an identifier local
         to any one server. Verify the signature against{" "}
-        <a href="/.well-known/jwks.json">/.well-known/jwks.json</a>.
+        <a className="link" href="/.well-known/jwks.json">
+          /.well-known/jwks.json
+        </a>
+        .
       </p>
     </Panel>
   );

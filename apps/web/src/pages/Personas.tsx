@@ -17,6 +17,11 @@
  * The event is chosen by the `event` query parameter so a link to one is shareable, and
  * defaults to an open event, which is the one somebody at a connectathon is looking at.
  *
+ * Every cell keeps the words `personaGrid.ts` gives it, symbol included, and gains an Octicon
+ * beside them (FR-004). The symbol in the text and the icon say the same thing twice, which is
+ * deliberate: the text is what the page has always said, and the icon is what makes the state
+ * legible at a glance across a grid as wide as the event has servers.
+ *
  * Author: John Grimes
  */
 
@@ -32,13 +37,19 @@ import {
 import { describeError } from "../api/errors.js";
 import { useEvents, usePersonas } from "../api/queries.js";
 import { EventPicker } from "../components/eventPicker.js";
+import { StatusLabel } from "../components/icons.js";
 import {
+  DetailRow,
   EmptyState,
   ErrorAlert,
   Loading,
   PageHeader,
   Panel,
 } from "../components/layout.js";
+import {
+  COVERAGE_STATES,
+  PERSONA_SOURCE_STATES,
+} from "../components/statusStates.js";
 import { fullTime } from "../formatting/times.js";
 
 import type {
@@ -61,7 +72,7 @@ export function Personas() {
   const failure = events.error ?? personas.error;
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Shared personas"
         subtitle="The shared test patients every participating server is asked to load. Public: this is test data by design."
@@ -106,7 +117,10 @@ function PersonaSet({
   }
   return (
     <>
-      <div className="card-row persona-cards">
+      {/* A card per persona, side by side while there is room and stacked when there is
+          not. `basis-72` rather than a column count: the number of personas is the event's
+          business, not the layout's. */}
+      <div className="flex flex-wrap gap-4 [&>section]:flex-1 [&>section]:basis-72">
         {personas.personas.map((persona) => (
           <PersonaCard key={persona.id} persona={persona} />
         ))}
@@ -121,39 +135,48 @@ function PersonaCard({ persona }: Readonly<{ readonly persona: PersonaView }>) {
   const source = describeSourceStatus(persona.sourceStatus);
   return (
     <Panel title={persona.display.name}>
-      <dl className="persona-facts">
-        <dt>Date of birth</dt>
-        <dd>{persona.display.birthDate ?? "not recorded"}</dd>
-        <dt>IHI</dt>
-        <dd>
-          <code>{persona.ihi}</code>
-          <div className="quiet wrap">{persona.ihiSystem}</div>
-        </dd>
-      </dl>
+      <DetailRow label="Date of birth">
+        {persona.display.birthDate ?? "not recorded"}
+      </DetailRow>
+      <DetailRow label="IHI">
+        <code className="font-mono">{persona.ihi}</code>
+        <div className="text-base-content/60 wrap-anywhere text-sm">
+          {persona.ihiSystem}
+        </div>
+      </DetailRow>
       {persona.canonicalUrl === null ? null : (
-        <p>
-          <a href={persona.canonicalUrl} rel="noreferrer" target="_blank">
+        <p className="text-sm">
+          <a
+            className="link"
+            href={persona.canonicalUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
             Canonical record
           </a>
-          <span className="quiet">
+          <span className="text-base-content/60">
             {" "}
             - this persona&apos;s Patient resource on the source server.
           </span>
         </p>
       )}
       {source.flagged ? (
-        <p className="state state-error" role="status">
-          {source.text}
-          {persona.sourceCheckedAt === null
-            ? ""
-            : ` when the source was last read, ${fullTime(persona.sourceCheckedAt)}.`}
+        <p className="text-sm" role="status">
+          <StatusLabel state={PERSONA_SOURCE_STATES[persona.sourceStatus]}>
+            {source.text}
+            {persona.sourceCheckedAt === null
+              ? ""
+              : ` when the source was last read, ${fullTime(persona.sourceCheckedAt)}.`}
+          </StatusLabel>
         </p>
       ) : (
-        <p className="quiet">
-          {source.text}
-          {persona.sourceCheckedAt === null
-            ? " (not re-checked yet)"
-            : `, checked ${fullTime(persona.sourceCheckedAt)}`}
+        <p className="text-base-content/60 text-sm">
+          <StatusLabel state={PERSONA_SOURCE_STATES[persona.sourceStatus]}>
+            {source.text}
+            {persona.sourceCheckedAt === null
+              ? " (not re-checked yet)"
+              : `, checked ${fullTime(persona.sourceCheckedAt)}`}
+          </StatusLabel>
         </p>
       )}
     </Panel>
@@ -176,15 +199,19 @@ function CoverageGrid({
           search.
         </EmptyState>
       ) : (
-        <div className="table-scroll">
-          <table className="table">
+        // One column per enrolled server, so the grid widens with the event: it scrolls
+        // inside the card rather than dragging the page sideways with it.
+        <div className="overflow-x-auto">
+          <table className="table table-zebra table-sm align-top">
             <thead>
               <tr>
                 <th>Persona</th>
                 {personas.servers.map((server) => (
                   <th key={server.enrolmentId}>
                     {server.systemName}
-                    <div className="quiet">{server.organisation.name}</div>
+                    <div className="text-base-content/60 font-normal">
+                      {server.organisation.name}
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -194,8 +221,8 @@ function CoverageGrid({
                 <tr key={persona.id}>
                   <th scope="row">
                     {persona.display.name}
-                    <div className="quiet">
-                      <code>{persona.ihi}</code>
+                    <div className="text-base-content/60 font-normal">
+                      <code className="font-mono">{persona.ihi}</code>
                     </div>
                   </th>
                   {personas.servers.map((server) => (
@@ -228,19 +255,24 @@ function CoverageCell({
   const described = describeCoverage(cell);
   return (
     <td
-      className={`coverage coverage-${described.tone}`}
       // The outcome itself rather than the tone that paints it: `unverifiable` and `missing`
       // are different claims (FR-032), and the suite asserts on the claim (FR-008).
       data-state={cell?.outcome ?? "unchecked"}
       data-testid="coverage-cell"
       title={described.detail ?? `${server.systemName}: ${described.text}`}
     >
-      <span>{described.text}</span>
+      <StatusLabel state={COVERAGE_STATES[cell?.outcome ?? "unchecked"]}>
+        {described.text}
+      </StatusLabel>
       {cell === undefined ? null : (
-        <div className="quiet">{fullTime(cell.checkedAt)}</div>
+        <div className="text-base-content/60 text-xs">
+          {fullTime(cell.checkedAt)}
+        </div>
       )}
       {described.detail === null ? null : (
-        <div className="quiet wrap">{described.detail}</div>
+        <div className="text-base-content/60 wrap-anywhere text-xs">
+          {described.detail}
+        </div>
       )}
     </td>
   );

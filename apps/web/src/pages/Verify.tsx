@@ -38,7 +38,7 @@ export function Verify() {
 
   if (verified) {
     return (
-      <article className="page">
+      <article className="flex flex-col">
         <PageHeader
           title="Address verified"
           subtitle="Your account is now awaiting approval by a track admin."
@@ -46,9 +46,15 @@ export function Verify() {
         <Panel title="What happens next">
           <p>
             You will be emailed when a track admin approves the account. Until
-            then, everything on the <Link to={ROUTES.events}>event pages</Link>{" "}
-            is readable, and <Link to={ROUTES.signIn}>signing in</Link> will
-            show where you stand.
+            then, everything on the{" "}
+            <Link className="link" to={ROUTES.events}>
+              event pages
+            </Link>{" "}
+            is readable, and{" "}
+            <Link className="link" to={ROUTES.signIn}>
+              signing in
+            </Link>{" "}
+            will show where you stand.
           </p>
         </Panel>
       </article>
@@ -56,7 +62,7 @@ export function Verify() {
   }
 
   return (
-    <article className="page">
+    <article className="flex flex-col">
       <PageHeader
         title="Verify your address"
         subtitle="Confirming this address finishes creating your Muster account."

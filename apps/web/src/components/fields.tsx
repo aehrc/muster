@@ -53,6 +53,7 @@ export function TextField({
   hint,
   required,
   autoComplete,
+  max,
 }: Readonly<{
   readonly label: string;
   readonly value: string;
@@ -62,6 +63,14 @@ export function TextField({
   readonly hint?: string;
   readonly required?: boolean;
   readonly autoComplete?: string;
+  /**
+   * The largest value the control will accept.
+   *
+   * Here for the ticket playground's expiry, which is capped at the event's end plus its
+   * grace: the cap belongs on the control rather than only in the words beside it, so a
+   * date beyond it cannot be picked in the first place.
+   */
+  readonly max?: string;
 }>) {
   return (
     <FieldFrame label={label} {...(hint === undefined ? {} : { hint })}>
@@ -74,6 +83,7 @@ export function TextField({
           required={required ?? false}
           {...(placeholder === undefined ? {} : { placeholder })}
           {...(autoComplete === undefined ? {} : { autoComplete })}
+          {...(max === undefined ? {} : { max })}
           onChange={(event) => {
             onChange(event.currentTarget.value);
           }}
@@ -121,6 +131,7 @@ export function SelectField({
   options,
   onChange,
   hint,
+  disabled,
 }: Readonly<{
   readonly label: string;
   readonly value: string;
@@ -130,6 +141,14 @@ export function SelectField({
   }[];
   readonly onChange: (value: string) => void;
   readonly hint?: string;
+  /**
+   * Shown but not choosable.
+   *
+   * For a choice that exists in the model and has exactly one member today - the ticket
+   * playground's ticket type. Rendering it disabled says the choice is real and currently
+   * settled; omitting it would say there was no choice at all.
+   */
+  readonly disabled?: boolean;
 }>) {
   return (
     <FieldFrame label={label} {...(hint === undefined ? {} : { hint })}>
@@ -137,6 +156,7 @@ export function SelectField({
         <select
           id={id}
           className="select w-full"
+          disabled={disabled ?? false}
           value={value}
           onChange={(event) => {
             onChange(event.currentTarget.value);
