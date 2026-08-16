@@ -13,6 +13,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { StatusIcon, StatusLabel } from "./icons.js";
 import {
   ACCOUNT_STATUS_STATES,
   CHECK_TONE_STATES,
@@ -24,12 +25,10 @@ import {
   PAIRING_STATE_STATES,
   PERSONA_SOURCE_STATES,
   STATUS_STATES,
-  StatusIcon,
-  StatusLabel,
   VERDICT_TONE_STATES,
-} from "./icons.js";
+} from "./statusStates.js";
 
-import type { StatusState } from "./icons.js";
+import type { StatusState } from "./statusStates.js";
 
 /** The Octicon a state draws, taken from the class the package stamps on the SVG. */
 function shapeOf(state: StatusState): string {
