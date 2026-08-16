@@ -92,8 +92,10 @@ export function SystemDetail({
         </p>
       )}
 
-      {/* The wireframe's two columns: the facts on the left, what to do about them on the
-          right. They stack below the breakpoint rather than squeezing. */}
+      {/* The wireframe's two columns: what this entry is and what it has been observed doing
+          on the left, what a reader can do about it on the right. The verification report is
+          on the left because it is the widest thing on the page - a column of advertised
+          endpoints - and they stack below the breakpoint rather than squeezing. */}
       <div className="flex flex-col gap-x-4 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-col lg:flex-2">
           {system.serverProfile === null ? null : (
@@ -101,16 +103,6 @@ export function SystemDetail({
           )}
           {system.clientProfile === null ? null : (
             <ClientDetails profile={system.clientProfile} />
-          )}
-        </div>
-
-        <div className="flex min-w-0 flex-col lg:flex-1">
-          {system.serverProfile === null ? null : (
-            <RequestPairing event={event} signedIn={signedIn} system={system} />
-          )}
-
-          {system.serverProfile === null ? null : (
-            <ConformancePanel system={system} />
           )}
 
           {system.serverProfile === null ? (
@@ -129,6 +121,16 @@ export function SystemDetail({
               history={system.checkHistory}
               confirmedAt={system.confirmedAt}
             />
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-col lg:flex-1">
+          {system.serverProfile === null ? null : (
+            <RequestPairing event={event} signedIn={signedIn} system={system} />
+          )}
+
+          {system.serverProfile === null ? null : (
+            <ConformancePanel system={system} />
           )}
 
           <Panel title="Contacts">

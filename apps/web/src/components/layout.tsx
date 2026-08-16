@@ -81,7 +81,10 @@ export function Panel({
       aria-labelledby={headingId}
       className="card bg-base-100 border-base-300 mb-4 border shadow-sm"
     >
-      <div className="card-body gap-3 p-4 sm:p-6">
+      {/* A query container, so that what is inside can lay itself out against the width it
+          actually has. A panel in a narrow sidebar and the same panel across a whole page are
+          the same component and must not read the viewport to tell them apart. */}
+      <div className="card-body @container gap-3 p-4 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <h2 className="card-title text-lg" id={headingId}>
             {title}
@@ -192,8 +195,13 @@ export function DetailRow({
   children,
 }: Readonly<{ readonly label: string; readonly children: ReactNode }>) {
   return (
-    <div className="border-base-300 flex flex-col gap-1 border-b py-2 text-sm last:border-b-0 sm:flex-row sm:gap-4">
-      <span className="text-base-content/60 sm:w-52 sm:shrink-0">{label}</span>
+    // Side by side once the panel around it is wide enough, stacked when it is not - measured
+    // against the panel rather than the window, so a row in a sidebar does not squeeze a URL
+    // into a column two words wide just because the screen is large.
+    <div className="border-base-300 @md:flex-row @md:gap-4 flex flex-col gap-1 border-b py-2 text-sm last:border-b-0">
+      <span className="text-base-content/60 @md:w-52 @md:shrink-0">
+        {label}
+      </span>
       <div className="min-w-0 break-words">{children}</div>
     </div>
   );
