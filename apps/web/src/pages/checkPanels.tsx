@@ -13,7 +13,9 @@
  */
 
 import { describeCheckStatus, describeDriftField } from "./eventFilters.js";
+import { StatusIcon, StatusLabel } from "../components/icons.js";
 import { DetailRow, EmptyState, Panel, Tag } from "../components/layout.js";
+import { CHECK_TONE_STATES } from "../components/statusStates.js";
 import { fullTime, shortTime } from "../formatting/times.js";
 
 import type {
@@ -31,9 +33,11 @@ export function CheckStatusCell({
   const status = describeCheckStatus(check, shortTime);
   return (
     <>
-      <span className={`check check-${status.tone}`}>{status.text}</span>
+      <StatusLabel state={CHECK_TONE_STATES[status.tone]}>
+        {status.text}
+      </StatusLabel>
       {check === null || check.driftFlags.length === 0 ? null : (
-        <div>
+        <div className="mt-1">
           <Tag>
             {check.driftFlags.length === 1
               ? "1 drift flag"
@@ -45,7 +49,7 @@ export function CheckStatusCell({
       check.permissionTicketTypesSupported.length === 0 ? null : (
         // FR-034 and scenario 3: which enrolled servers accept a permission ticket, said on
         // the event view itself and taken from what the check watched the server advertise.
-        <div>
+        <div className="mt-1">
           <Tag>
             Permission tickets:{" "}
             {check.permissionTicketTypesSupported.join(", ")}
@@ -64,12 +68,16 @@ export function CheckStatusCell({
  */
 export function DriftNotice({ flag }: Readonly<{ readonly flag: DriftFlag }>) {
   return (
-    <div className="state state-error">
-      <strong>
-        Drift: declared {describeDriftField(flag.field)} differs from advertised
-      </strong>
-      <div className="wrap">Declared: {flag.declared}</div>
-      <div className="wrap">Advertised: {flag.advertised}</div>
+    <div className="alert alert-warning alert-soft mt-2 items-start">
+      <StatusIcon state="warning" />
+      <div className="min-w-0">
+        <strong>
+          Drift: declared {describeDriftField(flag.field)} differs from
+          advertised
+        </strong>
+        <div className="wrap-anywhere">Declared: {flag.declared}</div>
+        <div className="wrap-anywhere">Advertised: {flag.advertised}</div>
+      </div>
     </div>
   );
 }
@@ -81,7 +89,7 @@ function AdvertisedRow({
 }: Readonly<{ readonly label: string; readonly value: string | null }>) {
   return value === null ? null : (
     <DetailRow label={label}>
-      <span className="wrap">{value}</span>
+      <span className="wrap-anywhere">{value}</span>
     </DetailRow>
   );
 }
@@ -109,7 +117,9 @@ export function VerificationPanel({
       description="Muster fetches this server's SMART configuration and CapabilityStatement on a schedule and reports what it finds."
     >
       <DetailRow label="Last check">
-        <span className={`check check-${status.tone}`}>{status.text}</span>
+        <StatusLabel state={CHECK_TONE_STATES[status.tone]}>
+          {status.text}
+        </StatusLabel>
       </DetailRow>
 
       {check === null ? (
@@ -121,7 +131,7 @@ export function VerificationPanel({
         <>
           {check.detail === null ? null : (
             <DetailRow label="What happened">
-              <span className="wrap">{check.detail}</span>
+              <span className="wrap-anywhere">{check.detail}</span>
             </DetailRow>
           )}
           <AdvertisedRow
@@ -175,10 +185,11 @@ export function VerificationPanel({
 
       {history.length === 0 ? null : (
         <DetailRow label="Check history">
-          <ul className="plain-list">
+          <ul className="flex flex-col gap-1">
             {history.map((row) => (
               <li key={row.checkedAt}>
-                <span className="wrap">{fullTime(row.checkedAt)}</span> -{" "}
+                <span className="wrap-anywhere">{fullTime(row.checkedAt)}</span>{" "}
+                -{" "}
                 {row.reachable
                   ? "reachable"
                   : (row.failureMode ?? "unreachable")}

@@ -31,6 +31,7 @@ import { Link } from "react-router";
 import { usePairingEntry } from "./pairingEntry.js";
 import { describeError } from "../api/errors.js";
 import { statementDownloadPath, useDcrRun } from "../api/queries.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   DetailRow,
   ErrorAlert,
@@ -38,6 +39,10 @@ import {
   PageHeader,
   Panel,
 } from "../components/layout.js";
+import {
+  DCR_RUN_OUTCOME_STATES,
+  DCR_STEP_STATES,
+} from "../components/statusStates.js";
 import { fullTime } from "../formatting/times.js";
 import { pairingPath } from "../routes.js";
 
@@ -119,6 +124,19 @@ function stepState(step: DcrRunStep | undefined, pending: boolean): string {
   return step.outcome === "done" ? "Done" : "Failed";
 }
 
+/**
+ * Which of the step vocabulary's states a step is in.
+ *
+ * The same value the `data-state` attribute carries, so the shape the reader sees and the
+ * state the end-to-end suite asserts on cannot disagree.
+ */
+function stepStateKey(
+  step: DcrRunStep | undefined,
+  pending: boolean,
+): keyof typeof DCR_STEP_STATES {
+  return step?.outcome ?? (pending ? "running" : "waiting");
+}
+
 /** Mints a statement, presents it and shows what came back. */
 export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
   const entry = usePairingEntry(id);
@@ -142,16 +160,26 @@ export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
   }
 
   return (
-    <article className="page-wide">
-      <p className="back">
-        <Link to={pairingPath(id)}>&larr; Back to pairing</Link>
+    <article className="flex flex-col">
+      <p className="mb-2 text-sm">
+        <Link className="link" to={pairingPath(id)}>
+          &larr; Back to pairing
+        </Link>
       </p>
 
       <PageHeader
         title={`Trusted DCR run: ${pairing.client.name} → ${pairing.server.name}`}
         {...(run.data === undefined
           ? {}
-          : { status: OUTCOME_LABEL[run.data.run.outcome] })}
+          : {
+              status: (
+                <StatusLabel
+                  state={DCR_RUN_OUTCOME_STATES[run.data.run.outcome]}
+                >
+                  {OUTCOME_LABEL[run.data.run.outcome]}
+                </StatusLabel>
+              ),
+            })}
         subtitle={`${pairing.event.name} - Muster vouches for the metadata and the server registers it with no human on the server side.`}
       />
 
@@ -173,7 +201,7 @@ export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
               actions: (
                 <button
                   type="button"
-                  className="button button-primary"
+                  className="btn btn-primary"
                   disabled={run.isPending}
                   onClick={handleRun}
                 >
@@ -188,7 +216,9 @@ export function DcrRun({ id }: Readonly<{ readonly id: string }>) {
           // Only when there is nothing else to explain the absence of the button. After a run
           // the steps above say what happened, and repeating "this cannot be registered" beside
           // a successful one would read as a contradiction.
-          <p className="note">{unavailableReason(pairing)}</p>
+          <p className="text-base-content/70 text-sm">
+            {unavailableReason(pairing)}
+          </p>
         )}
       </Panel>
 
@@ -209,27 +239,32 @@ function StepList({
   pending,
 }: Readonly<{ readonly run: Run | undefined; readonly pending: boolean }>) {
   return (
-    <ol className="steps">
+    <ol className="flex flex-col gap-3">
       {STEP_LABELS.map((step, index) => {
         const reported = run?.steps.find((entry) => entry.name === step.name);
-        const state = stepState(reported, pending);
+        const stateKey = stepStateKey(reported, pending);
         return (
           <li
-            className={
-              reported?.outcome === "failed" ? "step step-failed" : "step"
-            }
+            className={`border-base-300 rounded-box border p-3 ${
+              reported?.outcome === "failed" ? "border-error" : ""
+            }`.trim()}
             // The state is an attribute rather than only a class, so that the end-to-end
             // suite reads what a step did without reading how it is painted (FR-008).
-            data-state={reported?.outcome ?? (pending ? "running" : "waiting")}
+            data-state={stateKey}
             data-testid="dcr-step"
             key={step.name}
           >
-            <div className="step-header">
-              <span className="step-index">{index + 1}</span>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="badge badge-sm badge-neutral">{index + 1}</span>
               <strong>{step.label}</strong>
-              <span className="tag">{state}</span>
+              {/* The step's own state, as a shape and the words for it (FR-004). */}
+              <StatusLabel state={DCR_STEP_STATES[stateKey]}>
+                {stepState(reported, pending)}
+              </StatusLabel>
             </div>
-            <p className="quiet">{reported?.detail ?? step.waiting}</p>
+            <p className="text-base-content/60 text-sm">
+              {reported?.detail ?? step.waiting}
+            </p>
           </li>
         );
       })}
@@ -253,7 +288,7 @@ function ResultPanel({
       description="The server's own answer, kept as evidence against the pairing."
     >
       <DetailRow label="Presented to">
-        <span className="wrap">{run.registrationEndpoint}</span>
+        <span className="wrap-anywhere">{run.registrationEndpoint}</span>
       </DetailRow>
       <DetailRow label="Response">
         {run.answer === null
@@ -263,21 +298,23 @@ function ResultPanel({
       {run.answer?.errorDescription === null ||
       run.answer?.errorDescription === undefined ? null : (
         <DetailRow label="The server says">
-          <span className="wrap">{run.answer.errorDescription}</span>
+          <span className="wrap-anywhere">{run.answer.errorDescription}</span>
         </DetailRow>
       )}
       {run.clientId === null ? null : (
         <DetailRow label="client_id">
-          <strong className="wrap">{run.clientId}</strong>
+          <strong className="wrap-anywhere">{run.clientId}</strong>
         </DetailRow>
       )}
       <DetailRow label="Counterparty notified">
         {notified ? "Yes, by email" : "No - tell them another way"}
       </DetailRow>
-      <p className="quiet">
+      <p className="text-base-content/60 text-sm">
         The whole exchange is on the{" "}
-        <Link to={pairingPath(id)}>pairing&apos;s timeline</Link>, which both
-        organisations read.
+        <Link className="link" to={pairingPath(id)}>
+          pairing&apos;s timeline
+        </Link>
+        , which both organisations read.
       </p>
     </Panel>
   );
@@ -299,12 +336,12 @@ function SecretPanel({ secret }: Readonly<{ readonly secret: string }>) {
       title="One-time client secret"
       description="Shown once. Muster does not store it and cannot show it again - copy it before you leave this page."
     >
-      <div className="secret-row">
-        <label className="field-label" htmlFor="client-secret">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm font-semibold" htmlFor="client-secret">
           client_secret
         </label>
         <input
-          className="secret-value"
+          className="input input-sm min-w-0 flex-1 basis-72 font-mono"
           id="client-secret"
           readOnly
           type={revealed ? "text" : "password"}
@@ -312,18 +349,18 @@ function SecretPanel({ secret }: Readonly<{ readonly secret: string }>) {
         />
         <button
           type="button"
-          className="button"
+          className="btn btn-sm"
           onClick={() => {
             setRevealed(!revealed);
           }}
         >
           {revealed ? "Hide" : "Show"}
         </button>
-        <button type="button" className="button" onClick={handleCopy}>
+        <button type="button" className="btn btn-sm" onClick={handleCopy}>
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="note">
+      <p className="text-base-content/70 text-sm">
         Store it wherever your app keeps its credentials. It is not in
         Muster&apos;s database, not in the pairing, and not in any log.
       </p>
@@ -344,7 +381,7 @@ function StatementPanel({
   if (statement === null) {
     return (
       <Panel title="Software statement">
-        <p className="note">
+        <p className="text-base-content/70 text-sm">
           Nothing has been minted for this pairing yet. The statement will carry{" "}
           {pairing.registrationFields.clientName}&apos;s vetted metadata, the
           event, and an expiry no later than the event&apos;s end plus its grace
@@ -360,24 +397,28 @@ function StatementPanel({
       description="The decoded claims, for review. The statement itself is a signed JWS."
     >
       <DetailRow label="Signed with">
-        <span className="wrap">{statement.keyId}</span>
+        <span className="wrap-anywhere">{statement.keyId}</span>
       </DetailRow>
       <DetailRow label="Statement id">
-        <span className="wrap">{statement.jti}</span>
+        <span className="wrap-anywhere">{statement.jti}</span>
       </DetailRow>
       <DetailRow label="Minted">{fullTime(statement.mintedAt)}</DetailRow>
       <DetailRow label="Vouching expires">
         {fullTime(statement.expiresAt)}
       </DetailRow>
-      <pre className="code-block" data-testid="statement-claims">
+      {/* The claims scroll inside their own box rather than widening the page. */}
+      <pre
+        className="bg-base-200 border-base-300 overflow-x-auto rounded border p-3 font-mono text-xs"
+        data-testid="statement-claims"
+      >
         {JSON.stringify(statement.claims, null, 2)}
       </pre>
       <p>
-        <a className="button" href={statementDownloadPath(id)} download>
+        <a className="btn" href={statementDownloadPath(id)} download>
           Download software statement
         </a>
       </p>
-      <p className="quiet">
+      <p className="text-base-content/60 text-sm">
         The same artefact Muster presents itself, for registering out of band.
       </p>
     </Panel>

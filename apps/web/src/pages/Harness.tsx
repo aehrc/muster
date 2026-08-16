@@ -37,6 +37,7 @@ import {
 } from "./harnessReport.js";
 import { describeError } from "../api/errors.js";
 import { useHarnessRun, useHarnessRuns } from "../api/queries.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   DetailRow,
   EmptyState,
@@ -44,8 +45,11 @@ import {
   Loading,
   PageHeader,
   Panel,
-  Tag,
 } from "../components/layout.js";
+import {
+  HARNESS_OUTCOME_STATES,
+  VERDICT_TONE_STATES,
+} from "../components/statusStates.js";
 import { fullTime } from "../formatting/times.js";
 import { eventPath } from "../routes.js";
 
@@ -86,9 +90,9 @@ export function Harness({
   const unavailable = describeHarnessRefusal(target.refusal);
 
   return (
-    <article className="page-wide">
-      <p className="back">
-        <Link to={eventPath(target.eventSlug)}>
+    <article className="flex flex-col">
+      <p className="mb-2 text-sm">
+        <Link className="link" to={eventPath(target.eventSlug)}>
           &larr; Back to {target.eventName}
         </Link>
       </p>
@@ -98,7 +102,13 @@ export function Harness({
         subtitle={`${target.organisationName} - Muster presents the registration profile's cases to this server and reports what it did with each of them.`}
         {...(latest === undefined
           ? {}
-          : { status: latest.verdict === "passed" ? "passed" : "failed" })}
+          : {
+              status: (
+                <StatusLabel state={HARNESS_OUTCOME_STATES[latest.verdict]}>
+                  {latest.verdict === "passed" ? "passed" : "failed"}
+                </StatusLabel>
+              ),
+            })}
       />
 
       {started.error === null ? null : (
@@ -113,7 +123,7 @@ export function Harness({
               actions: (
                 <button
                   type="button"
-                  className="button button-primary"
+                  className="btn btn-primary"
                   disabled={started.isPending}
                   onClick={() => {
                     started.mutate();
@@ -126,21 +136,23 @@ export function Harness({
           : {})}
       >
         <DetailRow label="Registration endpoint">
-          <span className="wrap">
+          <span className="wrap-anywhere">
             {target.registrationEndpoint ?? "None declared"}
           </span>
         </DetailRow>
         <DetailRow label="Event">{target.eventName}</DetailRow>
-        {unavailable === null ? null : <p className="note">{unavailable}</p>}
+        {unavailable === null ? null : (
+          <p className="text-base-content/70 text-sm">{unavailable}</p>
+        )}
       </Panel>
 
       <Panel title="Verdict">
-        <p
-          className={`state state-${verdict.tone === "fail" ? "error" : "pending"}`}
-        >
-          {verdict.text}
+        <p>
+          <StatusLabel state={VERDICT_TONE_STATES[verdict.tone]}>
+            {verdict.text}
+          </StatusLabel>
         </p>
-        <p className="quiet">
+        <p className="text-base-content/60 text-sm">
           Any failing run removes the badge: it is driven by the latest run, not
           by the best one.
         </p>
@@ -152,7 +164,9 @@ export function Harness({
       >
         <ResultsTable checks={latest?.checks ?? []} />
         {latest === undefined ? null : (
-          <p className="note">Cleanup: {latest.cleanup}</p>
+          <p className="text-base-content/70 text-sm">
+            Cleanup: {latest.cleanup}
+          </p>
         )}
       </Panel>
 
@@ -166,46 +180,72 @@ function ResultsTable({
   checks,
 }: Readonly<{ readonly checks: readonly HarnessCheckView[] }>) {
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Check</th>
-          <th>Result</th>
-          <th>Evidence</th>
-        </tr>
-      </thead>
-      <tbody>
-        {HARNESS_CHECK_LABELS.map((label) => {
-          const reported = checks.find((check) => check.name === label.name);
-          return (
-            <tr key={label.name}>
-              <td>{label.label}</td>
-              <td>
-                {reported === undefined ? (
-                  <span className="quiet">not run</span>
-                ) : (
-                  <span
-                    className={`check check-${reported.outcome === "passed" ? "ok" : "bad"}`}
-                    // What the check did, addressable without reading its styling (FR-008).
-                    data-state={reported.outcome}
-                    data-testid="check-result"
-                  >
-                    {reported.outcome === "passed" ? "PASS" : "FAIL"}
-                  </span>
-                )}
-              </td>
-              <td>
-                {reported === undefined ? (
-                  <span className="quiet">Expects {label.expectation}</span>
-                ) : (
-                  <CheckEvidence check={reported} />
-                )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    // The evidence column holds request and response bodies, so the table scrolls inside the
+    // card rather than widening the page.
+    <div className="overflow-x-auto">
+      <table className="table table-zebra table-sm align-top">
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Result</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {HARNESS_CHECK_LABELS.map((label) => {
+            const reported = checks.find((check) => check.name === label.name);
+            return (
+              <tr key={label.name}>
+                <td className="font-semibold">{label.label}</td>
+                <td>
+                  {reported === undefined ? (
+                    <StatusLabel state="none">not run</StatusLabel>
+                  ) : (
+                    <span
+                      // What the check did, addressable without reading its styling (FR-008).
+                      data-state={reported.outcome}
+                      data-testid="check-result"
+                    >
+                      <StatusLabel
+                        state={HARNESS_OUTCOME_STATES[reported.outcome]}
+                      >
+                        {reported.outcome === "passed" ? "PASS" : "FAIL"}
+                      </StatusLabel>
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {reported === undefined ? (
+                    <span className="text-base-content/60 text-sm">
+                      Expects {label.expectation}
+                    </span>
+                  ) : (
+                    <CheckEvidence check={reported} />
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * One half of an exchange, as it came off the wire.
+ *
+ * Wraps rather than scrolling. A server's response body arrives as one long line, and a block
+ * that scrolled would widen the table cell it sits in until the page went with it - which is
+ * the failure the `overflow-x-auto` around the table exists to prevent.
+ */
+function EvidenceBlock({
+  children,
+}: Readonly<{ readonly children: ReactNode }>) {
+  return (
+    <pre className="bg-base-200 border-base-300 mt-2 max-w-prose rounded border p-2 font-mono text-xs break-words whitespace-pre-wrap">
+      {children}
+    </pre>
   );
 }
 
@@ -215,24 +255,26 @@ function CheckEvidence({
 }: Readonly<{ readonly check: HarnessCheckView }>): ReactNode {
   return (
     <>
-      <span className="wrap">{summariseEvidence(check)}</span>
+      <span className="wrap-anywhere">{summariseEvidence(check)}</span>
       {check.advisories.map((advisory) => (
-        <p className="note" key={advisory}>
+        <p className="text-base-content/70 text-sm" key={advisory}>
           Advisory: {advisory}
         </p>
       ))}
-      <details>
-        <summary>view request/response</summary>
-        <pre className="code-block code-wrap">
+      <details className="mt-1">
+        <summary className="link cursor-pointer text-sm">
+          view request/response
+        </summary>
+        <EvidenceBlock>
           {check.request.method} {check.request.url}
           {"\n"}
           {formatEvidenceBody(check.request.body)}
-        </pre>
-        <pre className="code-block code-wrap">
+        </EvidenceBlock>
+        <EvidenceBlock>
           {check.response === null
             ? (check.failure ?? "No response.")
             : `HTTP ${String(check.response.status)}\n${formatEvidenceBody(check.response.body)}`}
-        </pre>
+        </EvidenceBlock>
       </details>
     </>
   );
@@ -253,11 +295,13 @@ function PreviousRuns({
           is an absence rather than a failure.
         </EmptyState>
       ) : (
-        <ul className="plain-list">
+        <ul className="flex flex-col gap-1 text-sm">
           {runs.map((recorded) => (
             <li key={recorded.id}>
-              <span className="wrap">{fullTime(recorded.ranAt)}</span>{" "}
-              <Tag>{recorded.verdict}</Tag>{" "}
+              <span className="wrap-anywhere">{fullTime(recorded.ranAt)}</span>{" "}
+              <StatusLabel state={HARNESS_OUTCOME_STATES[recorded.verdict]}>
+                {recorded.verdict}
+              </StatusLabel>{" "}
               {describeBadge(
                 recorded.verdict === "passed"
                   ? { verifiedAt: recorded.ranAt, runId: recorded.id }
