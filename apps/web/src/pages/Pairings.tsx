@@ -26,6 +26,7 @@ import {
 } from "./pairingFilters.js";
 import { describeError, isUnauthenticated } from "../api/errors.js";
 import { useMe, usePairings } from "../api/queries.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   EmptyState,
   ErrorAlert,
@@ -33,9 +34,9 @@ import {
   Loading,
   PageHeader,
   Panel,
-  Tag,
   TagToggle,
 } from "../components/layout.js";
+import { PAIRING_STATE_STATES } from "../components/statusStates.js";
 import { pairingPath, ROUTES } from "../routes.js";
 
 import type { PairingFilter } from "./pairingFilters.js";
@@ -49,11 +50,14 @@ export function Pairings() {
 
   if (me.data?.account == null) {
     return (
-      <article className="page">
+      <article className="flex max-w-3xl flex-col">
         <PageHeader title="Pairings" />
         <EmptyState>
           Pairings are visible to the organisations party to them.{" "}
-          <Link to={ROUTES.signIn}>Sign in</Link> to see yours.
+          <Link className="link" to={ROUTES.signIn}>
+            Sign in
+          </Link>{" "}
+          to see yours.
         </EmptyState>
       </article>
     );
@@ -81,14 +85,16 @@ export function Pairings() {
   const waiting = outstandingCount(pairings);
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Pairings"
         subtitle="Every registration your organisations are party to, in both directions."
       />
 
       {waiting === 0 ? (
-        <p className="note">Nothing is waiting on you.</p>
+        <p className="text-base-content/70 mb-2 text-sm">
+          Nothing is waiting on you.
+        </p>
       ) : (
         <InfoAlert>
           {waiting === 1
@@ -101,7 +107,7 @@ export function Pairings() {
         title="Filter"
         description="Chips filter the table in place; the counts move as pairings change state."
       >
-        <div className="chips">
+        <div className="flex flex-wrap items-center gap-2">
           {PAIRING_STATE_CHIPS.map((state) => (
             <TagToggle
               key={state}
@@ -117,8 +123,8 @@ export function Pairings() {
             />
           ))}
         </div>
-        <div className="chips">
-          <span className="quiet">Direction</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base-content/60 text-sm">Direction</span>
           {(
             [
               ["all", "Either side"],
@@ -146,22 +152,26 @@ export function Pairings() {
               : "No pairing matches the filter."}
           </EmptyState>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>Server</th>
-                <th>Event</th>
-                <th>State</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((pairing) => (
-                <PairingRow key={pairing.id} pairing={pairing} />
-              ))}
-            </tbody>
-          </table>
+          // Five columns, two of them names of organisations: the table scrolls inside the
+          // card rather than widening the page.
+          <div className="overflow-x-auto">
+            <table className="table table-zebra table-sm align-top">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Server</th>
+                  <th>Event</th>
+                  <th>State</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((pairing) => (
+                  <PairingRow key={pairing.id} pairing={pairing} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Panel>
     </article>
@@ -175,31 +185,41 @@ function PairingRow({
   return (
     <tr>
       <td>
-        <Link to={pairingPath(pairing.id)}>{pairing.client.name}</Link>
-        <div className="quiet">{pairing.client.organisation.name}</div>
+        <Link className="link" to={pairingPath(pairing.id)}>
+          {pairing.client.name}
+        </Link>
+        <div className="text-base-content/60 text-sm">
+          {pairing.client.organisation.name}
+        </div>
       </td>
       <td>
         {pairing.server.name}
-        <div className="quiet">{pairing.server.organisation.name}</div>
+        <div className="text-base-content/60 text-sm">
+          {pairing.server.organisation.name}
+        </div>
       </td>
       <td>{pairing.event.name}</td>
       <td>
-        <Tag>{describePairingState(pairing.state)}</Tag>
+        <StatusLabel state={PAIRING_STATE_STATES[pairing.state]}>
+          {describePairingState(pairing.state)}
+        </StatusLabel>
         {pairing.clientId === null ? null : (
-          <div className="wrap">client_id {pairing.clientId}</div>
+          <div className="wrap-anywhere">client_id {pairing.clientId}</div>
         )}
         {pairing.declineReason === null ? null : (
-          <div className="quiet">{pairing.declineReason}</div>
+          <div className="text-base-content/60 text-sm">
+            {pairing.declineReason}
+          </div>
         )}
         {pairing.actions.length === 0 ? null : (
-          <div>
-            <Link className="button" to={pairingPath(pairing.id)}>
+          <div className="mt-2">
+            <Link className="btn btn-sm" to={pairingPath(pairing.id)}>
               Respond
             </Link>
           </div>
         )}
       </td>
-      <td className="wrap">{pairing.updatedAt}</td>
+      <td className="wrap-anywhere">{pairing.updatedAt}</td>
     </tr>
   );
 }

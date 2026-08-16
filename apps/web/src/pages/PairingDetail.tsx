@@ -28,6 +28,7 @@ import { describePairingState } from "./pairingFilters.js";
 import { describeError } from "../api/errors.js";
 import { usePairingAnswer } from "../api/queries.js";
 import { SubmitButton, TextField } from "../components/fields.js";
+import { StatusIcon, StatusLabel } from "../components/icons.js";
 import {
   DetailRow,
   EmptyState,
@@ -36,6 +37,7 @@ import {
   PageHeader,
   Panel,
 } from "../components/layout.js";
+import { PAIRING_STATE_STATES } from "../components/statusStates.js";
 import { fullTime } from "../formatting/times.js";
 import { dcrRunPath, ROUTES } from "../routes.js";
 
@@ -51,14 +53,20 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
   const { pairing } = entry;
 
   return (
-    <article className="page-wide">
-      <p className="back">
-        <Link to={ROUTES.pairings}>&larr; Back to pairings</Link>
+    <article className="flex flex-col">
+      <p className="mb-2 text-sm">
+        <Link className="link" to={ROUTES.pairings}>
+          &larr; Back to pairings
+        </Link>
       </p>
 
       <PageHeader
         title={`${pairing.client.name} → ${pairing.server.name}`}
-        status={describePairingState(pairing.state)}
+        status={
+          <StatusLabel state={PAIRING_STATE_STATES[pairing.state]}>
+            {describePairingState(pairing.state)}
+          </StatusLabel>
+        }
         subtitle={`${pairing.event.name} - ${pairing.client.organisation.name} to ${pairing.server.organisation.name}`}
       />
 
@@ -72,22 +80,24 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
         <ErrorAlert message={`Declined: ${pairing.declineReason}`} />
       )}
       {pairing.statement === null ? null : (
-        <p className="note">
+        <p className="text-base-content/70 mb-2 text-sm">
           A software statement was minted for this pairing on{" "}
           {fullTime(pairing.statement.mintedAt)}, signed with{" "}
-          <code>{pairing.statement.keyId}</code>, and vouches until{" "}
-          {fullTime(pairing.statement.expiresAt)}.
+          <code className="wrap-anywhere">{pairing.statement.keyId}</code>, and
+          vouches until {fullTime(pairing.statement.expiresAt)}.
         </p>
       )}
       {pairing.state === "lapsed" ? (
-        <p className="note">
+        <p className="text-base-content/70 mb-2 text-sm">
           This pairing was still waiting for an answer when the event closed, so
           it lapsed. Its record stays readable.
         </p>
       ) : null}
 
-      <div className="detail-columns">
-        <div className="detail-main">
+      {/* The wireframe's two columns: what was asked for on the left, where it has got to
+          and what to do about it on the right. They stack below the breakpoint. */}
+      <div className="flex flex-col gap-x-4 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-col lg:flex-2">
           <Panel
             title="Registration details"
             description="The field set as submitted. A snapshot: editing the client's own entry afterwards does not change what was asked for here."
@@ -96,21 +106,21 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
               {pairing.registrationFields.clientName}
             </DetailRow>
             <DetailRow label="Launch URL">
-              <span className="wrap">
+              <span className="wrap-anywhere">
                 {pairing.registrationFields.launchUrl}
               </span>
             </DetailRow>
             <DetailRow label="Redirect URIs">
-              <ul className="plain-list">
+              <ul className="flex flex-col gap-1">
                 {pairing.registrationFields.redirectUris.map((uri) => (
-                  <li className="wrap" key={uri}>
+                  <li className="wrap-anywhere" key={uri}>
                     {uri}
                   </li>
                 ))}
               </ul>
             </DetailRow>
             <DetailRow label="Scopes">
-              <span className="wrap">
+              <span className="wrap-anywhere">
                 {pairing.registrationFields.scopes.join(" ")}
               </span>
             </DetailRow>
@@ -135,7 +145,7 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
           </Panel>
         </div>
 
-        <div className="detail-side">
+        <div className="flex min-w-0 flex-col lg:flex-1">
           <Panel
             title="Timeline"
             description="The same history for both organisations. Every transition emails the counterparty."
@@ -153,7 +163,7 @@ export function PairingDetail({ id }: Readonly<{ readonly id: string }>) {
                     .join(" and ")}
             </DetailRow>
             <DetailRow label="Requested">
-              <span className="wrap">{pairing.requestedAt}</span>
+              <span className="wrap-anywhere">{pairing.requestedAt}</span>
             </DetailRow>
           </Panel>
         </div>
@@ -181,17 +191,20 @@ function ScopeWarningNotice({
   warning,
 }: Readonly<{ readonly warning: ScopeWarning }>) {
   return (
-    <div className="state state-error">
-      <strong>
-        Scope warning:{" "}
-        {warning.unsupportedScopes.length === 1
-          ? `${warning.unsupportedScopes[0] ?? ""} is not among`
-          : `${warning.unsupportedScopes.join(", ")} are not among`}{" "}
-        the server&apos;s advertised scopes.
-      </strong>
-      <div className="quiet">
-        Observed when the server was last checked, {fullTime(warning.checkedAt)}
-        .
+    <div className="alert alert-warning alert-soft mt-2 items-start">
+      <StatusIcon state="warning" />
+      <div className="min-w-0">
+        <strong>
+          Scope warning:{" "}
+          {warning.unsupportedScopes.length === 1
+            ? `${warning.unsupportedScopes[0] ?? ""} is not among`
+            : `${warning.unsupportedScopes.join(", ")} are not among`}{" "}
+          the server&apos;s advertised scopes.
+        </strong>
+        <div className="text-sm opacity-70">
+          Observed when the server was last checked,{" "}
+          {fullTime(warning.checkedAt)}.
+        </div>
       </div>
     </div>
   );
@@ -200,23 +213,23 @@ function ScopeWarningNotice({
 /** Every recorded transition, oldest first, with who did it and for whom. */
 function Timeline({ pairing }: Readonly<{ readonly pairing: Pairing }>) {
   return (
-    <ul className="plain-list">
+    <ul className="flex flex-col gap-2 text-sm">
       {pairing.timeline.map((entry) => (
         <li key={entry.id}>
-          <span className="wrap">{entry.at}</span> -{" "}
+          <span className="wrap-anywhere">{entry.at}</span> -{" "}
           {entry.fromState === null
             ? "Requested"
             : describePairingState(entry.toState)}{" "}
           by {entry.actorDisplayName ?? "Muster"}
           {entry.actingFor === null ? "" : ` (${entry.actingFor.name})`}
           {entry.clientId === null ? null : (
-            <div className="wrap">client_id {entry.clientId}</div>
+            <div className="wrap-anywhere">client_id {entry.clientId}</div>
           )}
           {entry.reason === null ? null : (
-            <div className="quiet">{entry.reason}</div>
+            <div className="text-base-content/60">{entry.reason}</div>
           )}
           {entry.notifies.length === 0 ? null : (
-            <div className="quiet">
+            <div className="text-base-content/60">
               {entry.notifies
                 .map((side) =>
                   side === "client"
@@ -230,7 +243,7 @@ function Timeline({ pairing }: Readonly<{ readonly pairing: Pairing }>) {
         </li>
       ))}
       {pairing.state === "requested" ? (
-        <li className="quiet">
+        <li className="text-base-content/60">
           Pending - awaiting a response from {pairing.server.organisation.name}
         </li>
       ) : null}
@@ -261,7 +274,7 @@ function RegisterPanel({
         its grace period.
       </p>
       <p>
-        <Link className="button button-primary" to={dcrRunPath(id)}>
+        <Link className="btn btn-primary" to={dcrRunPath(id)}>
           Open the registration run
         </Link>
       </p>
@@ -285,7 +298,7 @@ function RespondPanel({
   const [reason, setReason] = useState("");
 
   return (
-    <section className="card-row">
+    <section className="flex flex-wrap gap-4 [&>section]:flex-1 [&>section]:basis-64">
       {pairing.actions.includes("fulfil") ? (
         <Panel
           title="Fulfil"

@@ -25,6 +25,7 @@ import {
   TextAreaField,
   TextField,
 } from "../components/fields.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   EmptyState,
   ErrorAlert,
@@ -75,8 +76,10 @@ export function RequestPairing({
     return (
       <Panel title="Pairing">
         <EmptyState>
-          <Link to={ROUTES.signIn}>Sign in</Link> as an approved member to
-          request a pairing for one of your clients.
+          <Link className="link" to={ROUTES.signIn}>
+            Sign in
+          </Link>{" "}
+          as an approved member to request a pairing for one of your clients.
         </EmptyState>
       </Panel>
     );
@@ -98,8 +101,10 @@ export function RequestPairing({
       <Panel title="Pairing">
         <EmptyState>
           None of your clients is enrolled in this event yet. Enrol one from{" "}
-          <Link to={ROUTES.myOrganisation}>your organisation</Link>, then come
-          back.
+          <Link className="link" to={ROUTES.myOrganisation}>
+            your organisation
+          </Link>
+          , then come back.
         </EmptyState>
       </Panel>
     );
@@ -135,7 +140,7 @@ export function RequestPairing({
       {request.data === undefined ? null : (
         <InfoAlert>
           Requested.{" "}
-          <Link to={pairingPath(request.data.pairing.id)}>
+          <Link className="link" to={pairingPath(request.data.pairing.id)}>
             Watch it on the pairing&apos;s page
           </Link>
           .{" "}
@@ -148,8 +153,8 @@ export function RequestPairing({
         <ErrorAlert message={describeError(request.error)} />
       )}
       {existing === undefined ? null : (
-        <p className="note">
-          <Link to={pairingPath(existing)}>
+        <p className="text-sm">
+          <Link className="link" to={pairingPath(existing)}>
             Open the pairing you already have
           </Link>
           .
@@ -239,7 +244,13 @@ export function RequestPairing({
           }}
         />
 
-        {problem === undefined ? null : <p className="note">{problem}</p>}
+        {/* The wireframe's inline validation: an icon beside the message rather than a
+            colour on its own (FR-004). */}
+        {problem === undefined ? null : (
+          <p className="mb-3 text-sm">
+            <StatusLabel state="warning">{problem}</StatusLabel>
+          </p>
+        )}
         <SubmitButton pending={request.isPending}>
           Request the pairing
         </SubmitButton>
