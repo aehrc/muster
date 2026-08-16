@@ -105,8 +105,9 @@ describe("describeCoverage", () => {
   it("marks a server that holds the patient", () => {
     const described = describeCoverage(cell("found"));
 
-    expect(described.tone).toBe("ok");
-    expect(described.text).toContain("found");
+    // The plain word, with nothing else in it: the cell's mark is the icon `Personas.tsx`
+    // puts beside this, and a symbol here as well would render a tick next to a tick.
+    expect(described.text).toBe("found");
   });
 
   it("marks a server that does not", () => {
@@ -114,8 +115,7 @@ describe("describeCoverage", () => {
       cell("missing", "The server holds no patient"),
     );
 
-    expect(described.tone).toBe("bad");
-    expect(described.text).toContain("missing");
+    expect(described.text).toBe("missing");
   });
 
   it("marks a server that could not be asked, distinctly from one that said no", () => {
@@ -128,9 +128,8 @@ describe("describeCoverage", () => {
       ),
     );
 
-    expect(unverifiable.tone).toBe("unknown");
-    expect(unverifiable.text).toContain("unverifiable");
-    expect(unverifiable.tone).not.toBe(describeCoverage(cell("missing")).tone);
+    expect(unverifiable.text).toBe("unverifiable");
+    expect(unverifiable.text).not.toBe(describeCoverage(cell("missing")).text);
   });
 
   it("carries the server's own reason, for the cell's title", () => {
@@ -147,8 +146,7 @@ describe("describeCoverage", () => {
   it("says nothing has been checked rather than showing a blank cell", () => {
     const described = describeCoverage(undefined);
 
-    expect(described.tone).toBe("none");
-    expect(described.text.length).toBeGreaterThan(0);
+    expect(described.text).toBe("not checked yet");
   });
 });
 

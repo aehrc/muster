@@ -121,8 +121,8 @@ test("Scenario 6: curating personas and reading the coverage grid", async ({
     const grid = visitor.getByRole("region", { name: "Coverage" });
     await expect(coverageCells(grid, "found")).not.toHaveCount(0);
     await expect(coverageCells(grid, "unverifiable")).not.toHaveCount(0);
-    await expect(grid).toContainText("✓ found");
-    await expect(grid).toContainText("? unverifiable");
+    await expect(grid).toContainText("found");
+    await expect(grid).toContainText("unverifiable");
     await visitor.context().close();
   });
 

@@ -8,8 +8,13 @@
  * The distinction these functions exist to preserve is FR-032's. A cell that says the patient
  * is absent and a cell that says nothing could be established are different claims, and a
  * reader has to be able to tell them apart without reading the tooltip - so they get
- * different symbols, different words and different tones. A pair nothing has checked is a
- * fourth thing again, and saying so beats a blank cell that reads as a rendering failure.
+ * different words, and `Personas.tsx` pairs each word with an Octicon of its own shape. A
+ * pair nothing has checked is a fourth thing again, and saying so beats a blank cell that
+ * reads as a rendering failure.
+ *
+ * The words are the whole of what these functions decide. The symbol used to be baked into
+ * the text here, back when a glyph was the only mark a cell had; the icon is that mark now,
+ * and a cell carrying both showed a tick beside a tick.
  *
  * Author: John Grimes
  */
@@ -23,9 +28,7 @@ import type {
 
 /** How one cell of the grid reads. */
 export interface CoverageDescription {
-  /** Which of the four states this is, for the cell's class. */
-  readonly tone: "ok" | "bad" | "unknown" | "none";
-  /** The cell's text, symbol included, as the wireframe's grid shows it. */
+  /** The cell's text: the claim in one word, beside the icon the page pairs with it. */
   readonly text: string;
   /** The server's own reason, for the cell's title. Null when there is nothing to add. */
   readonly detail: string | null;
@@ -37,17 +40,13 @@ export interface SourceDescription {
   readonly text: string;
 }
 
-/** What each outcome looks like in the grid. */
-const OUTCOMES: Readonly<
-  Record<
-    PersonaCoverageOutcome,
-    { tone: CoverageDescription["tone"]; text: string }
-  >
-> = {
-  found: { tone: "ok", text: "✓ found" },
-  missing: { tone: "bad", text: "✗ missing" },
-  // Deliberately not a cross. "We could not tell" is not "it is not there".
-  unverifiable: { tone: "unknown", text: "? unverifiable" },
+/** What each outcome reads as in the grid. */
+const OUTCOMES: Readonly<Record<PersonaCoverageOutcome, string>> = {
+  found: "found",
+  missing: "missing",
+  // Deliberately its own word rather than a shade of "missing". "We could not tell" is not
+  // "it is not there".
+  unverifiable: "unverifiable",
 };
 
 /**
@@ -113,7 +112,7 @@ export function coverageIndex(
  * What one cell says (FR-032, scenario 3).
  *
  * @param cell - The latest outcome for the pair, or `undefined` when nothing has checked it.
- * @returns The tone, the text and the server's own reason.
+ * @returns The text and the server's own reason.
  * @example
  * ```ts
  * const described = describeCoverage(index.get(coverageKey(persona.id, server.enrolmentId)));
@@ -123,13 +122,9 @@ export function describeCoverage(
   cell: PersonaCoverageCell | undefined,
 ): CoverageDescription {
   if (cell === undefined) {
-    return {
-      tone: "none",
-      text: "not checked yet",
-      detail: null,
-    };
+    return { text: "not checked yet", detail: null };
   }
-  return { ...OUTCOMES[cell.outcome], detail: cell.detail };
+  return { text: OUTCOMES[cell.outcome], detail: cell.detail };
 }
 
 /**
