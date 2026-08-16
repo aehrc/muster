@@ -17,10 +17,13 @@ import { ROUTES } from "../../routes.js";
 /** The stand-in an admin page renders when the caller is not a track admin. */
 export function AdminOnly({ title }: Readonly<{ readonly title: string }>) {
   return (
-    <article className="page">
+    <article className="flex flex-col">
       <PageHeader title={title} />
       <EmptyState>
-        This page is for track admins. <Link to={ROUTES.signIn}>Sign in</Link>{" "}
+        This page is for track admins.{" "}
+        <Link className="link" to={ROUTES.signIn}>
+          Sign in
+        </Link>{" "}
         as one to use it.
       </EmptyState>
     </article>

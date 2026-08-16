@@ -44,7 +44,7 @@ export function AdminMembers() {
   }
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Members"
         subtitle="Approval is standing: it carries across events and can be revoked."
@@ -127,56 +127,60 @@ function AccountTable({
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Organisations</th>
-          <th>{decision === "approve" ? "Signed up" : "Approved"}</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {accounts.map((account) => (
-          <tr key={account.id}>
-            <td>
-              {account.displayName}
-              {account.isAdmin ? <Tag>admin</Tag> : null}
-            </td>
-            <td className="wrap">{account.email}</td>
-            <td>
-              {account.organisations.length === 0 ? (
-                <span className="quiet">none</span>
-              ) : (
-                account.organisations.map((organisation) => (
-                  <Tag key={organisation.id}>{organisation.name}</Tag>
-                ))
-              )}
-            </td>
-            <td>
-              {(decision === "approve"
-                ? account.createdAt
-                : (account.approvedAt ?? account.createdAt)
-              ).slice(0, 10)}
-            </td>
-            <td>
-              <button
-                type="button"
-                className={
-                  decision === "approve" ? "button button-primary" : "button"
-                }
-                disabled={mutation.isPending}
-                onClick={() => {
-                  mutation.mutate({ accountId: account.id, decision });
-                }}
-              >
-                {actionLabel}
-              </button>
-            </td>
+    // Members' addresses, readable only by a track admin: its own scroller so five columns
+    // never widen the page.
+    <div className="overflow-x-auto">
+      <table className="table table-zebra table-sm align-top">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Organisations</th>
+            <th>{decision === "approve" ? "Signed up" : "Approved"}</th>
+            <th>Actions</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {accounts.map((account) => (
+            <tr key={account.id}>
+              <td>
+                {account.displayName}
+                {account.isAdmin ? <Tag>admin</Tag> : null}
+              </td>
+              <td className="wrap-anywhere">{account.email}</td>
+              <td>
+                {account.organisations.length === 0 ? (
+                  <span className="text-base-content/60">none</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {account.organisations.map((organisation) => (
+                      <Tag key={organisation.id}>{organisation.name}</Tag>
+                    ))}
+                  </div>
+                )}
+              </td>
+              <td>
+                {(decision === "approve"
+                  ? account.createdAt
+                  : (account.approvedAt ?? account.createdAt)
+                ).slice(0, 10)}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${decision === "approve" ? "btn-primary" : ""}`}
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    mutation.mutate({ accountId: account.id, decision });
+                  }}
+                >
+                  {actionLabel}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
