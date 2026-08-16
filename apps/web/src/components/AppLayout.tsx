@@ -114,20 +114,21 @@ export function AppLayout() {
           )}
 
           {/*
-            Icon-only, so it carries its own name (FR-005); `aria-expanded` says whether the
-            list below it is showing, which is the one piece of state the button owns.
+            The icon sits beside the word rather than replacing it (FR-005, and the mobile
+            shell wireframe); `aria-expanded` says whether the list below it is showing,
+            which is the one piece of state the button owns.
           */}
           <button
             type="button"
             aria-controls={navId}
             aria-expanded={menuOpen}
-            aria-label="Main menu"
-            className="btn btn-sm btn-square btn-ghost lg:hidden"
+            className="btn btn-sm btn-ghost lg:hidden"
             onClick={() => {
               setMenu((current) => ({ open: !current.open, path: pathname }));
             }}
           >
             {menuOpen ? <XIcon aria-hidden /> : <ThreeBarsIcon aria-hidden />}
+            Menu
           </button>
         </div>
       </header>
