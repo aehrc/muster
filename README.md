@@ -45,7 +45,7 @@ the two vendor-facing contracts are in `contracts/`.
 
 ```
 apps/server     the HTTP server: routes, scheduler, keys, mail, outbound guard
-apps/web        the console (Vite, React, TypeScript)
+apps/web        the console (Vite, React, TypeScript, Tailwind, daisyUI)
 packages/core   the pure domain: state machines, claims, check and coverage rules
 packages/contracts  the wire shapes, as Zod schemas
 packages/db     schema, migrations, repositories, the two-identity bootstrap
@@ -57,6 +57,44 @@ e2e/            the Playwright suite: quickstart scenarios 1 to 7
 direct reads of the clock or of randomness. That is what makes the
 security-critical decisions (what goes into a signed statement, what a
 conformance verdict means) auditable without standing up infrastructure.
+
+## Styling
+
+The console is Tailwind CSS 4 with daisyUI, configured entirely from
+`apps/web/src/styles.css`: there is no `tailwind.config.js` and no PostCSS step,
+because both are configured from CSS in these versions. Tailwind is compiled by
+the Vite plugin at console build time and nowhere else, so the server gains no
+styling toolchain and keeps its single-file bundle.
+
+Two themes, and no way to pick between them:
+
+```css
+@plugin "daisyui" {
+  themes:
+    corporate --default,
+    business --prefersdark;
+}
+```
+
+`--default` is what a browser reporting a light preference - or no preference at
+all - gets, and `--prefersdark` is what a dark preference gets. daisyUI compiles
+those flags to `prefers-color-scheme` media queries, so the browser applies the
+right theme on load and switches live when the operating system's appearance
+changes. Nothing sets `data-theme`, there is no toggle, and no preference is
+stored anywhere.
+
+Everything else comes from the framework's own vocabulary. Icons are Octicons,
+imported per icon from `@primer/octicons-react` and mapped from domain states in
+`apps/web/src/components/icons.tsx`; a status is always an icon shape plus a
+text label, never colour alone. One hand-written rule survives in `styles.css` -
+a focus ring for menu items, which daisyUI marks with a background wash too faint
+to see and omits entirely on the active item.
+
+The two server-rendered profile pages under `/docs/` are deliberately outside all
+of this. They carry their own inline copy of the two palettes, taken from the
+compiled themes and recorded with the source beside each value, so a deployment
+whose console assets are missing still serves them fully styled. They reference
+nothing external: no stylesheet, no script, no font.
 
 ## Getting started
 
