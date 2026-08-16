@@ -31,8 +31,13 @@ export function PageHeader({
 }: Readonly<{
   readonly title: string;
   readonly subtitle?: ReactNode;
-  /** A short label beside the title: an event's status, an account's standing. */
-  readonly status?: string;
+  /**
+   * A short label beside the title: an event's status, an account's standing.
+   *
+   * A node rather than a string, so a page can hand over a `StatusLabel` - which is what
+   * FR-004 asks for, every one of these being a state somebody has to read.
+   */
+  readonly status?: ReactNode;
   readonly actions?: ReactNode;
 }>) {
   return (

@@ -27,6 +27,7 @@ import { describeBadge } from "./harnessReport.js";
 import { RequestPairing } from "./RequestPairing.js";
 import { describeError } from "../api/errors.js";
 import { useContacts, useEventSystem, useMe } from "../api/queries.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   DetailRow,
   EmptyState,
@@ -67,14 +68,16 @@ export function SystemDetail({
   const { event, system } = entry.data;
 
   return (
-    <article className="page-wide">
-      <p className="back">
-        <Link to={eventPath(slug)}>&larr; Back to {event.name}</Link>
+    <article className="flex flex-col">
+      <p className="mb-2 text-sm">
+        <Link className="link" to={eventPath(slug)}>
+          &larr; Back to {event.name}
+        </Link>
       </p>
 
       <PageHeader title={system.name} subtitle={system.organisation.name} />
 
-      <div className="chips">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {system.kinds.map((kind) => (
           <Tag key={kind}>{kind === "server" ? "Server" : "Client"}</Tag>
         ))}
@@ -84,11 +87,15 @@ export function SystemDetail({
       </div>
 
       {system.description.length === 0 ? null : (
-        <p className="lede">{system.description}</p>
+        <p className="text-base-content/70 mb-4 text-lg">
+          {system.description}
+        </p>
       )}
 
-      <div className="detail-columns">
-        <div className="detail-main">
+      {/* The wireframe's two columns: the facts on the left, what to do about them on the
+          right. They stack below the breakpoint rather than squeezing. */}
+      <div className="flex flex-col gap-x-4 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-col lg:flex-2">
           {system.serverProfile === null ? null : (
             <ServerDetails profile={system.serverProfile} />
           )}
@@ -97,7 +104,7 @@ export function SystemDetail({
           )}
         </div>
 
-        <div className="detail-side">
+        <div className="flex min-w-0 flex-col lg:flex-1">
           {system.serverProfile === null ? null : (
             <RequestPairing event={event} signedIn={signedIn} system={system} />
           )}
@@ -133,8 +140,11 @@ export function SystemDetail({
               />
             ) : (
               <EmptyState>
-                Locked. <Link to={ROUTES.signIn}>Sign in</Link> as an approved
-                member to see who to talk to about this system.
+                Locked.{" "}
+                <Link className="link" to={ROUTES.signIn}>
+                  Sign in
+                </Link>{" "}
+                as an approved member to see who to talk to about this system.
               </EmptyState>
             )}
           </Panel>
@@ -166,15 +176,17 @@ function ConformancePanel({
         <>
           <DetailRow label="Badge">
             {badge === null ? (
-              <span className="quiet">
+              <StatusLabel state="none">
                 Not verified: no fully passing run stands.
-              </span>
+              </StatusLabel>
             ) : (
-              <Tag>&#10003; {badge}</Tag>
+              <Tag>
+                <StatusLabel state="ok">{badge}</StatusLabel>
+              </Tag>
             )}
           </DetailRow>
           <p>
-            <Link to={harnessPath(system.enrolmentId)}>
+            <Link className="link" to={harnessPath(system.enrolmentId)}>
               Conformance harness and its evidence
             </Link>
           </p>
@@ -199,7 +211,7 @@ function ServerDetails({
   return (
     <Panel title="Server details">
       <DetailRow label="FHIR base URL">
-        <span className="wrap">{profile.fhirBaseUrl}</span>
+        <span className="wrap-anywhere">{profile.fhirBaseUrl}</span>
       </DetailRow>
       <DetailRow label="Authorization">
         {profile.authorizationMode === "smart"
@@ -211,7 +223,7 @@ function ServerDetails({
       </DetailRow>
       {profile.registrationEndpoint === null ? null : (
         <DetailRow label="Registration endpoint">
-          <span className="wrap">{profile.registrationEndpoint}</span>
+          <span className="wrap-anywhere">{profile.registrationEndpoint}</span>
         </DetailRow>
       )}
       {profile.notes.length === 0 ? null : (
@@ -228,19 +240,19 @@ function ClientDetails({
   return (
     <Panel title="Client details">
       <DetailRow label="Launch URL">
-        <span className="wrap">{profile.launchUrl}</span>
+        <span className="wrap-anywhere">{profile.launchUrl}</span>
       </DetailRow>
       <DetailRow label="Redirect URIs">
-        <ul className="plain-list">
+        <ul className="flex flex-col gap-1">
           {profile.redirectUris.map((uri) => (
-            <li className="wrap" key={uri}>
+            <li className="wrap-anywhere" key={uri}>
               {uri}
             </li>
           ))}
         </ul>
       </DetailRow>
       <DetailRow label="Scopes">
-        <span className="wrap">{profile.scopes.join(" ")}</span>
+        <span className="wrap-anywhere">{profile.scopes.join(" ")}</span>
       </DetailRow>
       <DetailRow label="Confidentiality">
         {profile.confidentiality === "confidential" ? "Confidential" : "Public"}
@@ -286,10 +298,11 @@ function ContactList({
     );
   }
   return (
-    <ul className="plain-list">
+    <ul className="flex flex-col gap-1">
       {members.map((member) => (
         <li key={member.accountId}>
-          {member.displayName} - <span className="wrap">{member.email}</span>
+          {member.displayName} -{" "}
+          <span className="wrap-anywhere">{member.email}</span>
         </li>
       ))}
     </ul>

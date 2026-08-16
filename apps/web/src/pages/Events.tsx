@@ -11,13 +11,14 @@ import { Link } from "react-router";
 
 import { describeError } from "../api/errors.js";
 import { useEvents } from "../api/queries.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   EmptyState,
   ErrorAlert,
   Loading,
   PageHeader,
-  Tag,
 } from "../components/layout.js";
+import { EVENT_STATUS_STATES } from "../components/statusStates.js";
 
 /** Every event, the one starting soonest first. */
 export function Events() {
@@ -31,7 +32,7 @@ export function Events() {
   }
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title="Events"
         subtitle="Every connectathon Muster holds a directory for. Open one to see the systems enrolled in it."
@@ -42,30 +43,37 @@ export function Events() {
           No events yet. A track admin creates the first one.
         </EmptyState>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Dates</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.data.events.map((event) => (
-              <tr key={event.slug}>
-                <td>
-                  <Link to={`/events/${event.slug}`}>{event.name}</Link>
-                </td>
-                <td>
-                  {event.startsOn} to {event.endsOn}
-                </td>
-                <td>
-                  <Tag>{event.status}</Tag>
-                </td>
+        // Its own scroller, so three columns of dates never widen the page itself.
+        <div className="overflow-x-auto">
+          <table className="table table-zebra">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Dates</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {events.data.events.map((event) => (
+                <tr key={event.slug}>
+                  <td>
+                    <Link className="link" to={`/events/${event.slug}`}>
+                      {event.name}
+                    </Link>
+                  </td>
+                  <td>
+                    {event.startsOn} to {event.endsOn}
+                  </td>
+                  <td>
+                    <StatusLabel state={EVENT_STATUS_STATES[event.status]}>
+                      {event.status}
+                    </StatusLabel>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </article>
   );

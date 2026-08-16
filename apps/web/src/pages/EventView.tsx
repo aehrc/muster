@@ -39,6 +39,7 @@ import { describeBadge } from "./harnessReport.js";
 import { describeError } from "../api/errors.js";
 import { useEventSystems, useMe } from "../api/queries.js";
 import { SelectField, TextField } from "../components/fields.js";
+import { StatusLabel } from "../components/icons.js";
 import {
   EmptyState,
   ErrorAlert,
@@ -49,6 +50,7 @@ import {
   Tag,
   TagToggle,
 } from "../components/layout.js";
+import { EVENT_STATUS_STATES } from "../components/statusStates.js";
 import { harnessPath, ROUTES, systemPath } from "../routes.js";
 
 import type { EventFilter } from "./eventFilters.js";
@@ -77,10 +79,14 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
   const signedIn = me.data?.account !== null && me.data?.account !== undefined;
 
   return (
-    <article className="page-wide">
+    <article className="flex flex-col">
       <PageHeader
         title={event.name}
-        status={event.status}
+        status={
+          <StatusLabel state={EVENT_STATUS_STATES[event.status]}>
+            {event.status}
+          </StatusLabel>
+        }
         subtitle={`${event.startsOn} to ${event.endsOn}`}
       />
 
@@ -90,10 +96,13 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
           shown on each system.
         </InfoAlert>
       ) : (
-        <p className="note">
+        <p className="text-base-content/70 mb-2 text-sm">
           Everything here is public. Contact details are visible to signed-in
-          approved members only - <Link to={ROUTES.signIn}>sign in</Link> to see
-          them.
+          approved members only -{" "}
+          <Link className="link" to={ROUTES.signIn}>
+            sign in
+          </Link>{" "}
+          to see them.
         </p>
       )}
 
@@ -101,7 +110,7 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
         title="Filter"
         description="Narrows both tables as you type. Tag chips combine, so two chips means a system carrying both."
       >
-        <div className="filter-bar">
+        <div className="flex flex-wrap items-start gap-4 [&>*]:flex-1 [&>*]:basis-48">
           <SelectField
             label="Kind"
             value={filter.kind}
@@ -123,7 +132,7 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
             }}
           />
         </div>
-        <div className="chips">
+        <div className="flex flex-wrap items-center gap-2">
           {event.capabilityTags.length === 0 ? (
             <EmptyState>This event defines no capability tags.</EmptyState>
           ) : (
@@ -156,7 +165,9 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
         renderCells={(system) => (
           <>
             <SystemCells slug={slug} system={system} />
-            <td className="wrap">{system.serverProfile?.fhirBaseUrl}</td>
+            <td className="wrap-anywhere">
+              {system.serverProfile?.fhirBaseUrl}
+            </td>
             <td>
               {describeRegistrationMode(
                 system.serverProfile?.registrationMode ?? "manual",
@@ -187,8 +198,8 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
         renderCells={(system) => (
           <>
             <SystemCells slug={slug} system={system} />
-            <td className="wrap">{system.clientProfile?.launchUrl}</td>
-            <td className="wrap">
+            <td className="wrap-anywhere">{system.clientProfile?.launchUrl}</td>
+            <td className="wrap-anywhere">
               {summariseScopes(system.clientProfile?.scopes ?? [])}
             </td>
             <td>
@@ -198,7 +209,7 @@ export function EventView({ slug }: Readonly<{ readonly slug: string }>) {
         )}
       />
 
-      <div className="card-row">
+      <div className="flex flex-wrap gap-4 [&>section]:flex-1 [&>section]:basis-64">
         <Panel title="Shared personas">
           <p>
             The event&apos;s shared test patients and which servers hold them.
@@ -241,22 +252,26 @@ function SystemsPanel({
       {systems.length === 0 ? (
         <EmptyState>{emptyMessage}</EmptyState>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th key={header}>{header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {systems.map((system) => (
-              <tr key={`${title}-${system.enrolmentId}`}>
-                {renderCells(system)}
+        // Six columns of URLs and tags: the table scrolls inside the card rather than
+        // dragging the page sideways with it.
+        <div className="overflow-x-auto">
+          <table className="table table-zebra table-sm align-top">
+            <thead>
+              <tr>
+                {headers.map((header) => (
+                  <th key={header}>{header}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {systems.map((system) => (
+                <tr key={`${title}-${system.enrolmentId}`}>
+                  {renderCells(system)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Panel>
   );
@@ -270,7 +285,9 @@ function SystemCells({
   return (
     <>
       <td>
-        <Link to={systemPath(slug, system.systemId)}>{system.name}</Link>
+        <Link className="link" to={systemPath(slug, system.systemId)}>
+          {system.name}
+        </Link>
       </td>
       <td>{system.organisation.name}</td>
     </>
@@ -289,9 +306,11 @@ function VerifiedBadge({
 }: Readonly<{ readonly system: EnrolledSystem }>): ReactNode {
   const badge = describeBadge(system.dcrVerified);
   return badge === null ? null : (
-    <div>
+    <div className="mt-1">
       <Link to={harnessPath(system.enrolmentId)}>
-        <Tag>&#10003; {badge}</Tag>
+        <Tag>
+          <StatusLabel state="ok">{badge}</StatusLabel>
+        </Tag>
       </Link>
     </div>
   );
@@ -302,8 +321,12 @@ function TagList({
   tags,
 }: Readonly<{ readonly tags: readonly string[] }>): ReactNode {
   return tags.length === 0 ? (
-    <span className="quiet">none</span>
+    <span className="text-base-content/60 text-sm">none</span>
   ) : (
-    tags.map((tag) => <Tag key={tag}>{tag}</Tag>)
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <Tag key={tag}>{tag}</Tag>
+      ))}
+    </div>
   );
 }
