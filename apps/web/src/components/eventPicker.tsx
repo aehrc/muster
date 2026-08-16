@@ -7,11 +7,17 @@
  * curating personas and a participant reading them are looking at the same list and a
  * disagreement about which event is "the" event would be invisible and confusing.
  *
+ * Built from {@link SelectField} rather than from its own markup, so that the picker is
+ * labelled, spaced and themed exactly as every other choice in the console is: a control that
+ * looked like a page's own would be the first hint that the console has two vocabularies.
+ *
  * Renders nothing when there are no events. A `select` with no options is a control that
  * looks broken.
  *
  * Author: John Grimes
  */
+
+import { SelectField } from "./fields.js";
 
 import type { EventSummary } from "@muster/contracts";
 import type { ReactNode } from "react";
@@ -38,20 +44,14 @@ export function EventPicker({
     return null;
   }
   return (
-    <label className="field">
-      <span className="field-label">Event</span>
-      <select
-        value={chosen}
-        onChange={(changed) => {
-          onChoose(changed.target.value);
-        }}
-      >
-        {events.map((event) => (
-          <option key={event.slug} value={event.slug}>
-            {event.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField
+      label="Event"
+      value={chosen}
+      options={events.map((event) => ({
+        value: event.slug,
+        label: event.name,
+      }))}
+      onChange={onChoose}
+    />
   );
 }
