@@ -183,6 +183,43 @@ describe.skipIf(!hasTestDatabase())("the anchor's public surface", () => {
       }
     });
 
+    it("carries both theme palettes, switched by the colour-scheme query (FR-009)", async () => {
+      const html = await (
+        await apiRequest(stack, "GET", "/docs/registration-profile")
+      ).text();
+
+      // The page approximates the console's two daisyUI themes with copied values, so these
+      // are the compiled themes' own numbers: corporate's base-100 and base-content by
+      // default, business's under the dark query. A palette that stopped matching would be
+      // two products rather than one.
+      expect(html).toContain("oklch(100% 0 0)");
+      expect(html).toContain("oklch(22.389% 0.031 278.072)");
+      const dark = html.slice(
+        html.indexOf("@media (prefers-color-scheme: dark)"),
+      );
+      expect(dark).toContain("oklch(24.353% 0 0)");
+      expect(dark).toContain("oklch(84.87% 0 0)");
+    });
+
+    it("depends on nothing outside itself (FR-009, SC-006)", async () => {
+      const html = await (
+        await apiRequest(stack, "GET", "/docs/registration-profile")
+      ).text();
+
+      // The page must render fully styled in a deployment whose console `dist/` is absent,
+      // which it can only do if it fetches nothing: no stylesheet link, no script, no
+      // `@import`, no font or image URL.
+      expect(html).not.toContain("<link");
+      expect(html).not.toContain("<script");
+      expect(html).not.toContain("@import");
+      const style = html.slice(
+        html.indexOf("<style>"),
+        html.indexOf("</style>"),
+      );
+      expect(style).not.toContain("url(");
+      expect(style).not.toContain("//");
+    });
+
     it("answers 404 for a page it does not have", async () => {
       const response = await apiRequest(stack, "GET", "/docs/nonsense-profile");
 

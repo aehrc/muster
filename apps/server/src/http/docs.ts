@@ -85,42 +85,99 @@ function escapeHtml(value: string): string {
  *
  * Inline, because a documentation page a vendor reads must not depend on the console's build
  * being present, and because a stylesheet is one more request for something that is one
- * screen of CSS.
+ * screen of CSS. Nothing here references anything outside this string: no `@import`, no
+ * `<link>`, no font URL, no script - a deployment whose console `dist/` is missing still
+ * serves this page fully styled (FR-009).
+ *
+ * The palettes are the console's two daisyUI themes, `corporate` by default and `business`
+ * under the dark colour-scheme query, so the two surfaces look like one product. They are
+ * copied values rather than a consumed stylesheet: the alternative couples the server's
+ * output to the console's toolchain, which the module header rules out.
+ *
+ * Each value below is quoted verbatim from the compiled theme, in daisyUI's own `oklch()`
+ * form, so that a reviewer can diff it against the source rather than trust a conversion.
+ * Sources, which agree with each other:
+ *   - `apps/web/node_modules/daisyui/themes.css` (daisyUI 5.7.17), the
+ *     `[data-theme=corporate]` and `[data-theme=business]` blocks;
+ *   - the console's own built asset, `apps/web/dist/assets/index-*.css`.
+ * The sRGB equivalent is noted beside each one for reading only.
+ *
+ * Two places deliberately do not take the theme's value:
+ *
+ * **Links are `currentColor`.** daisyUI's own `.link` is `text-decoration: underline` on the
+ * inherited colour, and it has to be: `business`'s primary is `oklch(41.703% .099 251.473)`
+ * (#1c4e80) against its `base-100` of #202020, which is 1.90:1 - unreadable. Underlined
+ * body-coloured links carry 10.26:1 in dark and 17.21:1 in light, and match the console.
+ *
+ * **Print forces the light palette.** Printing with a dark system preference would otherwise
+ * put #cdcdcd text on a background the printer drops, so the print query restates the
+ * corporate values (spec edge case: documentation stays legible on paper).
  */
 const STYLE = `
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --page: oklch(100% 0 0);                        /* corporate base-100    #ffffff */
+    --raised: oklch(93% 0 0);                       /* corporate base-200    #e8e8e8 */
+    --edge: oklch(86% 0 0);                         /* corporate base-300    #d1d1d1 */
+    --ink: oklch(22.389% 0.031 278.072);            /* corporate base-content #181a2a */
+    --ink-quiet: oklch(22.389% 0.031 278.072 / 0.6); /* the console's text-base-content/60 */
+    --radius: 0.25rem;                              /* both themes' radius-box and radius-field */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: oklch(24.353% 0 0);                     /* business base-100    #202020 */
+      --raised: oklch(22.648% 0 0);                   /* business base-200    #1c1c1c */
+      --edge: oklch(20.944% 0 0);                     /* business base-300    #181818 */
+      --ink: oklch(84.87% 0 0);                       /* business base-content #cdcdcd */
+      --ink-quiet: oklch(84.87% 0 0 / 0.6);           /* the console's text-base-content/60 */
+    }
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
-    color: #222;
-    background: #fff;
+    color: var(--ink);
+    background: var(--page);
   }
   main { max-width: 52rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
   h1 { font-size: 1.6rem; line-height: 1.25; }
   h2 { font-size: 1.2rem; margin-top: 2rem; }
   h3 { font-size: 1rem; margin-top: 1.5rem; }
+  a { color: inherit; text-decoration: underline; }
+  :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875rem; }
-  code { background: #f2f2f2; padding: 0.1rem 0.25rem; border-radius: 3px; }
-  pre { background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; padding: 0.75rem; overflow-x: auto; }
+  code { background: var(--raised); padding: 0.1rem 0.25rem; border-radius: var(--radius); }
+  pre {
+    background: var(--raised);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    overflow-x: auto;
+  }
   pre code { background: none; padding: 0; }
   table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
-  th, td { border: 1px solid #ddd; padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
-  th { background: #f2f2f2; }
-  .anchor { border: 1px solid #ccc; border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 2rem; background: #fafafa; }
+  th, td { border: 1px solid var(--edge); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+  th { background: var(--raised); }
+  .anchor {
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 2rem;
+    background: var(--raised);
+  }
   .anchor dt { font-weight: 600; margin-top: 0.5rem; }
   .anchor dd { margin: 0 0 0 0; }
-  .quiet { color: #666; font-size: 0.875rem; }
+  .quiet { color: var(--ink-quiet); font-size: 0.875rem; }
   nav { margin-bottom: 1.5rem; font-size: 0.875rem; }
-  @media (prefers-color-scheme: dark) {
-    body { color: #e6e6e6; background: #111; }
-    code { background: #222; }
-    pre { background: #1a1a1a; border-color: #333; }
-    th { background: #1d1d1d; }
-    th, td { border-color: #333; }
-    .anchor { background: #171717; border-color: #333; }
-    .quiet { color: #999; }
+  @media print {
+    :root {
+      --page: oklch(100% 0 0);
+      --raised: oklch(93% 0 0);
+      --edge: oklch(86% 0 0);
+      --ink: oklch(22.389% 0.031 278.072);
+      --ink-quiet: oklch(22.389% 0.031 278.072 / 0.6);
+    }
   }
 `;
 
