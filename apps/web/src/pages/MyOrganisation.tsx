@@ -378,7 +378,7 @@ function Enrolment({
   const action = useEnrolAction(slug);
 
   return (
-    <div className="mt-2 flex flex-col">
+    <div className="mt-2 flex flex-col gap-2">
       {system.enrolments.length === 0 ? (
         <EmptyState>Not enrolled in any event.</EmptyState>
       ) : (

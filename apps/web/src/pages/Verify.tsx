@@ -76,6 +76,7 @@ export function Verify() {
           </p>
         ) : (
           <form
+            className="flex flex-col items-start gap-3"
             onSubmit={(event) => {
               event.preventDefault();
               action.mutate({ kind: "verify", token });

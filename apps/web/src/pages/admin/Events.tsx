@@ -281,7 +281,7 @@ function EventFormPanel() {
               ))
             )}
           </div>
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end gap-4 [&>div]:flex-1 [&>div]:basis-64">
             <TextField
               label="Add a capability tag"
               value={candidate}

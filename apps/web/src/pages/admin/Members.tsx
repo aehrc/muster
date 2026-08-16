@@ -144,8 +144,10 @@ function AccountTable({
           {accounts.map((account) => (
             <tr key={account.id}>
               <td>
-                {account.displayName}
-                {account.isAdmin ? <Tag>admin</Tag> : null}
+                <span className="flex flex-wrap items-center gap-2">
+                  {account.displayName}
+                  {account.isAdmin ? <Tag>admin</Tag> : null}
+                </span>
               </td>
               <td className="wrap-anywhere">{account.email}</td>
               <td>
