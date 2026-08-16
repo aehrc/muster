@@ -26,9 +26,41 @@
 /*
  * Anything the framework's vocabulary cannot say.
  *
- * Empty on purpose: a rule here is a rule that has to be maintained, themed and kept
- * honest by hand, which is what replacing the old stylesheet was meant to stop. Add one
- * only when no Tailwind utility or daisyUI component expresses it.
+ * Nearly empty on purpose: a rule here is a rule that has to be maintained, themed and
+ * kept honest by hand, which is what replacing the old stylesheet was meant to stop. Add
+ * one only when no Tailwind utility or daisyUI component expresses it.
  */
 @layer components {
+}
+
+/*
+ * Keyboard focus inside a menu (FR-010).
+ *
+ * daisyUI marks a focused menu item with a 10% wash of `base-content` and explicitly
+ * removes the outline. Measured against the navbar that wash is 1.22:1 in corporate and
+ * 1.25:1 in business - far short of the 3:1 a focus indicator needs - and it fades in over
+ * 200 ms, so tabbing at speed shows almost nothing. Worse, the rule excludes
+ * `.menu-active`: the destination you are already on, focused, renders identically to
+ * itself unfocused, which is no indicator at all rather than a weak one. The seven primary
+ * destinations are the console's main keyboard path, so this is the one place the defaults
+ * do not carry FR-010.
+ *
+ * The outline is put back at the 2px width and 2px offset daisyUI already gives every
+ * button, link, tab and field, so the console has one focus ring. Its colour is
+ * `base-content` rather than `currentColor`, which is the one place this departs from
+ * daisyUI's own rings: at 2px offset the ring is drawn on the navbar, and the active item's
+ * own colour is the inverted `neutral-content` - a white ring on a #e8e8e8 navbar, 1.16:1,
+ * invisible. `base-content` is the colour of text on that surface by definition: 14.0:1 in
+ * corporate and 10.7:1 in business.
+ *
+ * Unlayered rather than in the layer above, and that is not a stylistic choice: daisyUI
+ * emits its component rules into sub-layers of `utilities`, which is declared after
+ * `components`, so *any* rule in `@layer components` loses to them whatever its
+ * specificity. Measured: with this rule in that layer the focused item resolved to
+ * `outline-width: 2px` with `outline-style: none` - half of one rule and half of the
+ * other. An unlayered rule beats every layer, which is the cascade working as specified.
+ */
+.menu :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--color-base-content);
+  outline-offset: 2px;
 }
