@@ -2,11 +2,14 @@
  * Author: John Grimes
  */
 
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react()],
+  // Tailwind runs here and nowhere else: the console's stylesheet is compiled at build time,
+  // so the server keeps its single-file bundle and gains no styling toolchain of its own.
+  plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
     // Everything the console reads is under `/api`, so the dev server proxies that
