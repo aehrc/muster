@@ -76,6 +76,9 @@
     "packages/core": {
       "name": "@muster/core",
       "version": "0.0.0",
+      "dependencies": {
+        "@muster/contracts": "workspace:*",
+      },
     },
     "packages/db": {
       "name": "@muster/db",

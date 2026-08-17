@@ -8,5 +8,8 @@
       "types": "./.tsbuild/src/index.d.ts",
       "default": "./src/index.ts"
     }
+  },
+  "dependencies": {
+    "@muster/contracts": "workspace:*"
   }
 }

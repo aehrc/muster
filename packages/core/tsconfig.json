@@ -5,5 +5,6 @@
     "outDir": ".tsbuild",
     "types": ["bun"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../contracts" }]
 }
