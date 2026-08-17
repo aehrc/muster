@@ -9,4 +9,4 @@
  * @author John Grimes
  */
 
-export {};
+export * from "./directory.ts";

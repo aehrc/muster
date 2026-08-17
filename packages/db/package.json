@@ -14,9 +14,10 @@
     }
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate && bun scripts/unqualifyMigrations.ts"
   },
   "dependencies": {
+    "@muster/contracts": "workspace:*",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {

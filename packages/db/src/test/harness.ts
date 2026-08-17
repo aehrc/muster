@@ -1,6 +1,8 @@
 import { SQL } from "bun";
 import { afterAll, beforeAll, describe, test } from "bun:test";
+import { join } from "node:path";
 
+import { runMigrations } from "../migrations.ts";
 import { quoteIdentifier } from "../quoting.ts";
 
 /**
@@ -140,4 +142,76 @@ export const dropScratchSchema = async (
   schema: string,
 ): Promise<void> => {
   await sql.unsafe(`drop schema if exists ${quoteIdentifier(schema)} cascade`);
+};
+
+/**
+ * Where the generated migrations live.
+ *
+ * Resolved from this module's own location, which is right for a suite and
+ * wrong for the bundled server: the server is told its migration directory by
+ * configuration, because the bundle is one file beside a copied directory.
+ */
+export const migrationsDirectory = join(
+  import.meta.dir,
+  "..",
+  "..",
+  "migrations",
+);
+
+/** A scratch schema with every migration applied, and a connection into it. */
+export type MigratedSchema = {
+  /** a connection whose search path is the scratch schema */
+  readonly sql: SQL;
+  /** the scratch schema's name */
+  readonly schema: string;
+  /** drops the schema and closes the connections */
+  readonly close: () => Promise<void>;
+};
+
+/**
+ * Creates a scratch schema, applies every migration to it, and connects.
+ *
+ * The connection carries the scratch schema as its startup `search_path`, so
+ * unqualified statements land in it however the pool reconnects. That is what
+ * keeps concurrent suites - and repeat runs against a developer's own database
+ * - from seeing each other's rows.
+ *
+ * @param prefix - a lower-case prefix identifying the suite
+ * @returns the connection, the schema name, and the teardown
+ * @throws {Error} when `MUSTER_TEST_DATABASE_URL` is not set
+ * @example
+ * ```ts
+ * const database = await createMigratedSchema("directory");
+ * try {
+ *   await insertAccount(database.sql, { ... });
+ * } finally {
+ *   await database.close();
+ * }
+ * ```
+ */
+export const createMigratedSchema = async (
+  prefix: string,
+): Promise<MigratedSchema> => {
+  const url = testDatabaseUrl();
+  if (url === undefined) {
+    throw new Error(
+      "MUSTER_TEST_DATABASE_URL must be set to create a migrated scratch schema",
+    );
+  }
+  const schema = uniqueName(prefix);
+
+  const owner = new SQL(url, { max: 1 });
+  await createScratchSchema(owner, schema);
+  await runMigrations({ sql: owner, directory: migrationsDirectory, schema });
+
+  const sql = new SQL(url, { connection: { search_path: schema } });
+  return {
+    sql,
+    schema,
+    close: async () => {
+      await sql.end();
+      await dropScratchSchema(owner, schema);
+      await owner.end();
+    },
+  };
 };
