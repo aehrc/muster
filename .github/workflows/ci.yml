@@ -84,9 +84,17 @@ jobs:
       - name: Build image
         run: docker build -t muster:ci .
 
+      # Configuration is deny by default, so the container needs a complete
+      # environment to start at all. Nothing here reaches a database: the smoke
+      # test only proves the bundle boots and answers on /healthz.
       - name: Smoke test the image
         run: |
-          docker run -d --name muster-smoke -p 8080:8080 muster:ci
+          docker run -d --name muster-smoke -p 8080:8080 \
+            -e MUSTER_PUBLIC_URL=http://localhost:8080 \
+            -e MUSTER_MASTER_KEY=smoke-test-master-key-not-a-secret \
+            -e MUSTER_DATABASE_URL=postgresql://muster@127.0.0.1:5432/muster \
+            -e MUSTER_MIGRATION_DATABASE_URL=postgresql://muster@127.0.0.1:5432/muster \
+            muster:ci
           for _ in $(seq 1 30); do
             if curl -fsS http://localhost:8080/healthz; then
               echo
