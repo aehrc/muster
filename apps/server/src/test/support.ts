@@ -1,4 +1,5 @@
 import { createMigratedSchema } from "@muster/db/test/harness";
+import { z } from "zod";
 
 import { createApp } from "../app.ts";
 import { loadConfig } from "../config.ts";
@@ -108,6 +109,8 @@ type RequestOptions = {
   readonly body?: unknown;
   /** the cookie header value to send it with */
   readonly cookie?: string;
+  /** the client address to present, for the rate-limited routes */
+  readonly address?: string;
 };
 
 /**
@@ -116,7 +119,7 @@ type RequestOptions = {
  * @param server - the running application
  * @param method - the HTTP method
  * @param path - the path, from the root
- * @param options - the body to send and the cookie to send it with
+ * @param options - the body, the cookie and the client address to send with
  * @returns the response
  */
 export const request = async (
@@ -135,8 +138,54 @@ export const request = async (
         ? {}
         : { "content-type": "application/json" }),
       ...(options.cookie === undefined ? {} : { cookie: options.cookie }),
+      ...(options.address === undefined
+        ? {}
+        : { "x-forwarded-for": options.address }),
     },
   });
+
+/**
+ * Builds an address unique to one test participant.
+ *
+ * The credential routes are rate limited by client address, and separate
+ * participants come from separate addresses, so a suite that signs up a dozen
+ * accounts presents a dozen addresses rather than exhausting one allowance.
+ *
+ * @returns a documentation-range address
+ */
+export const uniqueAddress = (): string =>
+  `198.51.100.${String(Math.floor(Math.random() * 254) + 1)}:${String(Math.floor(Math.random() * 60_000) + 1024)}`;
+
+/**
+ * Reads a response body against the contract schema for it.
+ *
+ * Parsing rather than casting is the point: a suite that reads a field the
+ * contract does not define fails here, so server and console cannot drift apart
+ * without a test saying so.
+ *
+ * @param response - the response to read
+ * @param schema - the shape the body must satisfy
+ * @returns the parsed body
+ * @throws {Error} when the body does not satisfy the schema
+ * @example
+ * ```ts
+ * const { contacts } = await readJson(response, contactsResponseSchema);
+ * ```
+ */
+export const readJson = async <Schema extends z.ZodType>(
+  response: Response,
+  schema: Schema,
+): Promise<z.output<Schema>> => {
+  const body: unknown = await response.json();
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error(
+      `Response did not match its contract: ${JSON.stringify(body)}`,
+      { cause: parsed.error },
+    );
+  }
+  return parsed.data;
+};
 
 /**
  * Reads the session cookie out of a response.
@@ -174,7 +223,8 @@ export const verificationToken = (server: TestServer): string => {
  * Signs an account up, verifies it, and signs it in.
  *
  * Approval is a separate step, because half of what these suites test is what
- * an unapproved account cannot do.
+ * an unapproved account cannot do. Each participant presents its own client
+ * address, since the credential routes are rate limited by address.
  *
  * @param server - the running application
  * @param email - the address to sign up with
@@ -185,20 +235,24 @@ export const signUpAndSignIn = async (
   server: TestServer,
   email: string,
 ): Promise<SignedIn> => {
+  const address = uniqueAddress();
   const signedUp = await request(server, "POST", "/api/auth/sign-up", {
     body: { email, displayName: email, password: testPassword },
+    address,
   });
   if (signedUp.status !== 201) {
     throw new Error(`Sign-up failed: ${await signedUp.text()}`);
   }
   const verified = await request(server, "POST", "/api/auth/verify", {
     body: { token: verificationToken(server) },
+    address,
   });
   if (verified.status !== 200) {
     throw new Error(`Verification failed: ${await verified.text()}`);
   }
   const signedIn = await request(server, "POST", "/api/auth/sign-in", {
     body: { email, password: testPassword },
+    address,
   });
   if (signedIn.status !== 200) {
     throw new Error(`Sign-in failed: ${await signedIn.text()}`);

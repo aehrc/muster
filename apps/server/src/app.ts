@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
+import { createDirectoryRoutes } from "./admin/directory.routes.ts";
+import { createMembersRoutes } from "./admin/members.routes.ts";
 import { createAuthRoutes } from "./auth/routes.ts";
 
 import type { MusterConfig } from "./config.ts";
@@ -95,6 +97,8 @@ export const createApp = (
   // Mounted in order of how open they are: the credential routes, then the
   // routes a member drives, then the public read API.
   app.route("/api/auth", createAuthRoutes());
+  app.route("/api", createMembersRoutes());
+  app.route("/api", createDirectoryRoutes());
 
   app.notFound((context) =>
     context.json(

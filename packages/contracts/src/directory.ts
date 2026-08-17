@@ -347,6 +347,49 @@ export const eventSystemsSchema = z.object({
 /** `GET /api/events/{slug}/systems`. */
 export type EventSystems = z.infer<typeof eventSystemsSchema>;
 
+/** `GET /api/events/{slug}/systems/{id}`. */
+export const eventSystemSchema = z.object({
+  event: eventDetailSchema,
+  system: enrolledSystemSchema,
+});
+
+/** `GET /api/events/{slug}/systems/{id}`. */
+export type EventSystem = z.infer<typeof eventSystemSchema>;
+
+/** `GET /api/events`. */
+export const eventsResponseSchema = z.object({
+  events: z.array(eventSummarySchema),
+});
+
+/** `GET /api/events/{slug}`, and every event mutation. */
+export const eventResponseSchema = z.object({ event: eventDetailSchema });
+
+/** Every account mutation, and `POST /api/auth/sign-up`. */
+export const accountResponseSchema = z.object({ account: accountViewSchema });
+
+/** `GET /api/admin/accounts`. */
+export const accountsResponseSchema = z.object({
+  accounts: z.array(accountViewSchema),
+});
+
+/** `POST /api/organisations`. */
+export const organisationResponseSchema = z.object({
+  organisation: organisationSummarySchema,
+});
+
+/** Every membership change, and `GET /api/organisations/{id}/contacts`. */
+export const contactsResponseSchema = z.object({
+  contacts: z.array(contactSchema),
+});
+
+/** Every system mutation. */
+export const systemResponseSchema = z.object({ system: systemRecordSchema });
+
+/** `POST /api/events/{slug}/enrolments`. */
+export const enrolmentResponseSchema = z.object({
+  enrolment: enrolmentViewSchema,
+});
+
 /** The profiles a stored system carries. */
 type SystemProfiles = {
   /** the server profile, or null */
