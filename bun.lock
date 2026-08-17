@@ -26,11 +26,17 @@
     "apps/server": {
       "name": "@muster/server",
       "version": "0.0.0",
+      "dependencies": {
+        "@muster/contracts": "workspace:*",
+        "@muster/core": "workspace:*",
+        "@muster/db": "workspace:*",
+      },
     },
     "apps/web": {
       "name": "@muster/web",
       "version": "0.0.0",
       "dependencies": {
+        "@muster/contracts": "workspace:*",
         "@primer/octicons-react": "^19.33.0",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",

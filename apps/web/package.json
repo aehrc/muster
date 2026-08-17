@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@muster/contracts": "workspace:*",
     "@primer/octicons-react": "^19.33.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

@@ -5,5 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts"
+  },
+  "dependencies": {
+    "@muster/contracts": "workspace:*",
+    "@muster/core": "workspace:*",
+    "@muster/db": "workspace:*"
   }
 }
