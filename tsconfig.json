@@ -1,11 +1,26 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/contracts" },
-    { "path": "./packages/db" },
-    { "path": "./apps/server" },
-    { "path": "./apps/web" },
-    { "path": "./e2e" }
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./packages/db"
+    },
+    {
+      "path": "./apps/server"
+    },
+    {
+      "path": "./apps/web"
+    },
+    {
+      "path": "./e2e"
+    },
+    {
+      "path": "./scripts"
+    }
   ]
 }
