@@ -1,0 +1,10 @@
+node_modules
+dist
+.tsbuild
+coverage
+playwright-report
+test-results
+blob-report
+bun.lock
+.claude
+.local
