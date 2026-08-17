@@ -102,6 +102,14 @@ export const startTestServer = async (prefix: string): Promise<TestServer> => {
   };
 };
 
+/** What a request may carry beyond its method and path. */
+type RequestOptions = {
+  /** the body to send as JSON */
+  readonly body?: unknown;
+  /** the cookie header value to send it with */
+  readonly cookie?: string;
+};
+
 /**
  * Sends a JSON request.
  *
@@ -115,7 +123,7 @@ export const request = async (
   server: TestServer,
   method: string,
   path: string,
-  options: { readonly body?: unknown; readonly cookie?: string } = {},
+  options: RequestOptions = {},
 ): Promise<Response> =>
   server.app.request(path, {
     method,

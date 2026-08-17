@@ -347,6 +347,14 @@ export const eventSystemsSchema = z.object({
 /** `GET /api/events/{slug}/systems`. */
 export type EventSystems = z.infer<typeof eventSystemsSchema>;
 
+/** The profiles a stored system carries. */
+type SystemProfiles = {
+  /** the server profile, or null */
+  readonly serverProfile: unknown;
+  /** the client profile, or null */
+  readonly clientProfile: unknown;
+};
+
 /**
  * Reads the kinds a stored system has, from the profiles it carries.
  *
@@ -357,10 +365,7 @@ export type EventSystems = z.infer<typeof eventSystemsSchema>;
  * systemKinds({ serverProfile: profile, clientProfile: null }); // ["server"]
  * ```
  */
-export const systemKinds = (system: {
-  readonly serverProfile: unknown;
-  readonly clientProfile: unknown;
-}): SystemKind[] => [
+export const systemKinds = (system: SystemProfiles): SystemKind[] => [
   ...(system.serverProfile == null ? [] : (["server"] as const)),
   ...(system.clientProfile == null ? [] : (["client"] as const)),
 ];

@@ -3,8 +3,8 @@ import {
   markAccountVerified,
   updateAccountStatus,
 } from "@muster/db";
-import { afterAll, beforeAll, expect, test } from "bun:test";
 import { describeDatabase, uniqueName } from "@muster/db/test/harness";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 
 import { authRateLimitPolicy } from "./routes.ts";
 import { sessionCookieName } from "./sessions.ts";
