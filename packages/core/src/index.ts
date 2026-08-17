@@ -8,4 +8,12 @@
  * @author John Grimes
  */
 
-export {};
+export {
+  consume,
+  emptyWindow,
+  pruneWindow,
+  type ConsumeOptions,
+  type RateLimitDecision,
+  type RateLimitPolicy,
+  type SlidingWindow,
+} from "./limits/slidingWindow.ts";
