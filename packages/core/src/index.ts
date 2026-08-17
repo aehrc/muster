@@ -9,6 +9,22 @@
  */
 
 export {
+  applyStatusChange,
+  authoriseAdmin,
+  authoriseEventOpen,
+  authoriseMembership,
+  authoriseToken,
+  authoriseWrite,
+  verificationTokenLifetimeMs,
+  type AccountFacts,
+  type AuthorisationDecision,
+  type Refusal,
+  type RefusalReason,
+  type StatusAction,
+  type StatusChangeResult,
+  type TokenFacts,
+} from "./accounts/rules.ts";
+export {
   consume,
   emptyWindow,
   pruneWindow,
