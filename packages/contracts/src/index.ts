@@ -3,9 +3,33 @@
  *
  * The HTTP contract in `contracts/http-api.md` is expressed here so that one
  * definition validates requests on the server and types responses in the
- * browser. Populated by the foundational phase onwards.
+ * browser.
  *
  * @author John Grimes
  */
 
-export {};
+export {
+  accountStatusSchema,
+  authorizationModeSchema,
+  checkFailureModeSchema,
+  coverageOutcomeSchema,
+  errorEnvelopeSchema,
+  eventStatusSchema,
+  harnessCheckOutcomeSchema,
+  harnessVerdictSchema,
+  pageSchema,
+  paginationSchema,
+  pairingStateSchema,
+  registrationModeSchema,
+  type AccountStatus,
+  type AuthorizationMode,
+  type CheckFailureMode,
+  type CoverageOutcome,
+  type ErrorEnvelope,
+  type EventStatus,
+  type HarnessCheckOutcome,
+  type HarnessVerdict,
+  type Pagination,
+  type PairingState,
+  type RegistrationMode,
+} from "./common.ts";
