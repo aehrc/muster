@@ -1,3 +1,6 @@
+import { bootstrapServerRole, runMigrations } from "@muster/db";
+import { SQL } from "bun";
+
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createMailTransport } from "./mail/transport.ts";
@@ -12,6 +15,10 @@ import type { MusterConfig } from "./config.ts";
  * stated in the log, because an operator should not have to infer from
  * behaviour whether mail is being sent or written to the log.
  *
+ * Start-up applies the migrations and bootstraps the serving role with the
+ * owning role's connection, then drops that connection and serves with the
+ * non-owning one: the running server has data rights and no DDL rights.
+ *
  * @author John Grimes
  */
 
@@ -23,6 +30,33 @@ try {
   process.exit(1);
 }
 
+const owner = new SQL(config.migrationDatabaseUrl);
+try {
+  const applied = await runMigrations({
+    sql: owner,
+    directory: config.migrationsDirectory,
+  });
+  await bootstrapServerRole(owner, {
+    role: config.serverDatabaseRole,
+    ...(config.serverDatabasePassword === undefined
+      ? {}
+      : { password: config.serverDatabasePassword }),
+  });
+  console.log(
+    `Database ready: applied ${String(applied.applied.length)} migration(s), ` +
+      `${String(applied.alreadyApplied.length)} already present, ` +
+      `serving role ${config.serverDatabaseRole}`,
+  );
+} catch (cause) {
+  console.error(
+    `Database preparation failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+  );
+  process.exit(1);
+} finally {
+  await owner.end();
+}
+
+const sql = new SQL(config.databaseUrl);
 const mail = createMailTransport({
   from: config.mailFrom,
   delivery: config.mail,
@@ -30,7 +64,7 @@ const mail = createMailTransport({
 
 const server = Bun.serve({
   port: config.port,
-  fetch: createApp({ config, mail }).fetch,
+  fetch: createApp({ config, mail, sql }).fetch,
 });
 
 console.log(

@@ -46,6 +46,12 @@ export type MusterConfig = {
   readonly databaseUrl: string;
   /** connection URL for the owning role, which applies migrations */
   readonly migrationDatabaseUrl: string;
+  /**
+   * directory holding the `.sql` migrations, applied at start-up. The bundled
+   * server is one file beside a copied directory, so this is relative to the
+   * working directory rather than to the module.
+   */
+  readonly migrationsDirectory: string;
   /** the serving role bootstrapped by the owning role */
   readonly serverDatabaseRole: string;
   /** password to set on the serving role, when the deployment sets one */
@@ -66,6 +72,9 @@ const defaultPort = 8080;
 
 /** Serving database role when unconfigured. */
 const defaultServerDatabaseRole = "muster_server";
+
+/** Migration directory when unconfigured, which is where the image holds it. */
+const defaultMigrationsDirectory = "migrations";
 
 /** Shortest master key accepted; anything shorter is not a secret. */
 const minimumMasterKeyLength = 16;
@@ -130,6 +139,7 @@ const environmentSchema = z.object({
     )
     .optional(),
   MUSTER_MAIL_FROM: z.string().optional(),
+  MUSTER_MIGRATIONS_DIRECTORY: z.string().optional(),
   MUSTER_SERVER_DATABASE_ROLE: z.string().optional(),
   MUSTER_SERVER_DATABASE_PASSWORD: z.string().optional(),
   MUSTER_OUTBOUND_TIMEOUT_MS: wholeNumber
@@ -209,6 +219,8 @@ export const loadConfig = (
     masterKey: values.MUSTER_MASTER_KEY,
     databaseUrl: values.MUSTER_DATABASE_URL,
     migrationDatabaseUrl: values.MUSTER_MIGRATION_DATABASE_URL,
+    migrationsDirectory:
+      values.MUSTER_MIGRATIONS_DIRECTORY ?? defaultMigrationsDirectory,
     serverDatabaseRole:
       values.MUSTER_SERVER_DATABASE_ROLE ?? defaultServerDatabaseRole,
     serverDatabasePassword: values.MUSTER_SERVER_DATABASE_PASSWORD,

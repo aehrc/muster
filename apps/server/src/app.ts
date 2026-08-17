@@ -1,9 +1,12 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
+import { createAuthRoutes } from "./auth/routes.ts";
+
 import type { MusterConfig } from "./config.ts";
 import type { MailTransport } from "./mail/transport.ts";
 import type { ErrorEnvelope } from "@muster/contracts";
+import type { SQL } from "bun";
 
 /**
  * The application factory.
@@ -27,6 +30,8 @@ export type AppDependencies = {
   readonly config: MusterConfig;
   /** the mail transport notifications go through */
   readonly mail: MailTransport;
+  /** the connection held by the serving database role */
+  readonly sql: SQL;
 };
 
 /** The Hono environment every Muster route is written against. */
@@ -37,6 +42,8 @@ export type AppEnvironment = {
     config: MusterConfig;
     /** the mail transport notifications go through */
     mail: MailTransport;
+    /** the connection held by the serving database role */
+    sql: SQL;
   };
 };
 
@@ -76,6 +83,7 @@ export const createApp = (
   app.use("*", async (context, next) => {
     context.set("config", dependencies.config);
     context.set("mail", dependencies.mail);
+    context.set("sql", dependencies.sql);
     await next();
   });
 
@@ -83,6 +91,10 @@ export const createApp = (
   // any deeper sense. The container smoke test and the compose healthcheck both
   // poll it, so it must need no configuration and touch nothing.
   app.get("/healthz", (context) => context.json({ status: "ok" }));
+
+  // Mounted in order of how open they are: the credential routes, then the
+  // routes a member drives, then the public read API.
+  app.route("/api/auth", createAuthRoutes());
 
   app.notFound((context) =>
     context.json(

@@ -1,0 +1,209 @@
+import { createMigratedSchema } from "@muster/db/test/harness";
+
+import { createApp } from "../app.ts";
+import { loadConfig } from "../config.ts";
+import { createMailTransport } from "../mail/transport.ts";
+
+import type { AppEnvironment } from "../app.ts";
+import type { MusterConfig } from "../config.ts";
+import type { MigratedSchema } from "@muster/db/test/harness";
+import type { Hono } from "hono";
+
+/**
+ * What the route suites need in order to drive the real application.
+ *
+ * The suites run against a real PostgreSQL in a scratch schema and a console
+ * mail transport that keeps what it was handed, so nothing is faked between the
+ * request and the row: an assertion about a verification link is an assertion
+ * about the message a participant would receive.
+ *
+ * @author John Grimes
+ */
+
+/** A running application with its database and its mail. */
+export type TestServer = {
+  /** the application, driven with `app.request(...)` */
+  readonly app: Hono<AppEnvironment>;
+  /** every message the console transport has rendered */
+  readonly sentMail: string[];
+  /** the scratch schema and its connection */
+  readonly database: MigratedSchema;
+  /** the configuration the application was built with */
+  readonly config: MusterConfig;
+  /** drops the schema and closes the connections */
+  readonly close: () => Promise<void>;
+};
+
+/** A signed-in account, with the cookie to act as it. */
+export type SignedIn = {
+  /** the account's identifier */
+  readonly id: string;
+  /** the account's address */
+  readonly email: string;
+  /** the cookie header value that carries the session */
+  readonly cookie: string;
+};
+
+/** The password every test account is created with. */
+export const testPassword = "correct horse battery staple";
+
+/**
+ * Builds the configuration the suites run against.
+ *
+ * @param databaseUrl - the scratch schema's connection URL
+ * @returns the configuration
+ */
+const testConfig = (databaseUrl: string): MusterConfig =>
+  loadConfig({
+    MUSTER_PUBLIC_URL: "https://muster.example.org",
+    MUSTER_MASTER_KEY: "0123456789abcdef0123456789abcdef",
+    MUSTER_DATABASE_URL: databaseUrl,
+    MUSTER_MIGRATION_DATABASE_URL: databaseUrl,
+    MUSTER_MAIL_FROM: "muster@example.org",
+  });
+
+/**
+ * Starts an application over a scratch schema.
+ *
+ * Each call builds a new application, which is what keeps the in-process rate
+ * limiter in one test from refusing requests in another.
+ *
+ * @param prefix - a lower-case prefix identifying the suite
+ * @returns the application, its mail, its database and the teardown
+ * @throws {Error} when `MUSTER_TEST_DATABASE_URL` is not set
+ * @example
+ * ```ts
+ * const server = await startTestServer("auth");
+ * const response = await post(server, "/api/auth/sign-up", { ... });
+ * await server.close();
+ * ```
+ */
+export const startTestServer = async (prefix: string): Promise<TestServer> => {
+  const database = await createMigratedSchema(prefix);
+  const config = testConfig(
+    process.env["MUSTER_TEST_DATABASE_URL"] ?? "postgresql://unset/unset",
+  );
+  const sentMail: string[] = [];
+  const app = createApp({
+    config,
+    sql: database.sql,
+    mail: createMailTransport({
+      from: config.mailFrom,
+      delivery: { kind: "console" },
+      log: (line) => sentMail.push(line),
+    }),
+  });
+  return {
+    app,
+    sentMail,
+    database,
+    config,
+    close: () => database.close(),
+  };
+};
+
+/**
+ * Sends a JSON request.
+ *
+ * @param server - the running application
+ * @param method - the HTTP method
+ * @param path - the path, from the root
+ * @param options - the body to send and the cookie to send it with
+ * @returns the response
+ */
+export const request = async (
+  server: TestServer,
+  method: string,
+  path: string,
+  options: { readonly body?: unknown; readonly cookie?: string } = {},
+): Promise<Response> =>
+  server.app.request(path, {
+    method,
+    ...(options.body === undefined
+      ? {}
+      : { body: JSON.stringify(options.body) }),
+    headers: {
+      ...(options.body === undefined
+        ? {}
+        : { "content-type": "application/json" }),
+      ...(options.cookie === undefined ? {} : { cookie: options.cookie }),
+    },
+  });
+
+/**
+ * Reads the session cookie out of a response.
+ *
+ * @param response - the response to a sign-in
+ * @returns the cookie header value to send on later requests
+ * @throws {Error} when the response set no cookie
+ */
+export const sessionCookie = (response: Response): string => {
+  const header = response.headers.get("set-cookie");
+  if (header === null) {
+    throw new Error("The response set no cookie");
+  }
+  return header.split(";")[0] ?? "";
+};
+
+/**
+ * Reads the newest verification token out of the mail log.
+ *
+ * @param server - the running application
+ * @returns the token from the most recent verification link
+ * @throws {Error} when no message carries one
+ */
+export const verificationToken = (server: TestServer): string => {
+  for (const message of [...server.sentMail].reverse()) {
+    const found = /\/verify\?token=([\w-]+)/.exec(message);
+    if (found?.[1] !== undefined) {
+      return found[1];
+    }
+  }
+  throw new Error("No message carried a verification link");
+};
+
+/**
+ * Signs an account up, verifies it, and signs it in.
+ *
+ * Approval is a separate step, because half of what these suites test is what
+ * an unapproved account cannot do.
+ *
+ * @param server - the running application
+ * @param email - the address to sign up with
+ * @returns the account and the cookie that carries its session
+ * @throws {Error} when any step is refused
+ */
+export const signUpAndSignIn = async (
+  server: TestServer,
+  email: string,
+): Promise<SignedIn> => {
+  const signedUp = await request(server, "POST", "/api/auth/sign-up", {
+    body: { email, displayName: email, password: testPassword },
+  });
+  if (signedUp.status !== 201) {
+    throw new Error(`Sign-up failed: ${await signedUp.text()}`);
+  }
+  const verified = await request(server, "POST", "/api/auth/verify", {
+    body: { token: verificationToken(server) },
+  });
+  if (verified.status !== 200) {
+    throw new Error(`Verification failed: ${await verified.text()}`);
+  }
+  const signedIn = await request(server, "POST", "/api/auth/sign-in", {
+    body: { email, password: testPassword },
+  });
+  if (signedIn.status !== 200) {
+    throw new Error(`Sign-in failed: ${await signedIn.text()}`);
+  }
+  const body: unknown = await signedIn.json();
+  const id =
+    typeof body === "object" &&
+    body !== null &&
+    "account" in body &&
+    typeof body.account === "object" &&
+    body.account !== null &&
+    "id" in body.account
+      ? String(body.account.id)
+      : "";
+  return { id, email, cookie: sessionCookie(signedIn) };
+};

@@ -1,4 +1,5 @@
 import { errorEnvelopeSchema } from "@muster/contracts";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 import { HTTPException } from "hono/http-exception";
 
@@ -22,10 +23,15 @@ const config = loadConfig({
 // A transport that keeps what it was given, so no test sends mail anywhere.
 const sentMail: string[] = [];
 
+// None of these tests reach the database, and the driver connects lazily, so
+// this connection is never opened.
+const sql = new SQL(config.databaseUrl);
+
 // Builds the application with test dependencies.
 const testApp = () =>
   createApp({
     config,
+    sql,
     mail: createMailTransport({
       from: config.mailFrom,
       delivery: { kind: "console" },
