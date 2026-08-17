@@ -1,0 +1,164 @@
+# Continuous integration for Muster.
+#
+# Author: John Grimes
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: 1.3.14
+
+jobs:
+  checks:
+    name: Static analysis and tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: muster
+          POSTGRES_PASSWORD: muster
+          POSTGRES_DB: muster_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U muster -d muster_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Supplied so the integration suites run. MUSTER_REQUIRE_DATABASE_TESTS
+      # turns an absent URL into a failure, so they cannot silently skip.
+      MUSTER_TEST_DATABASE_URL: postgresql://muster:muster@localhost:5432/muster_test
+      MUSTER_REQUIRE_DATABASE_TESTS: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Check duplication
+        run: bun run lint:duplication
+
+      - name: Test with coverage
+        run: bun run test:coverage
+
+      - name: Build
+        run: bun run build
+
+      - name: Check bundle
+        run: bun run check:bundle
+
+  docker:
+    name: Docker build and smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image build runs scripts/checkBundle.mjs, so a dependency that
+      # cannot be bundled fails here.
+      - name: Build image
+        run: docker build -t muster:ci .
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name muster-smoke -p 8080:8080 muster:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz; then
+              echo
+              echo "Smoke test: the server answered on /healthz"
+              docker rm -f muster-smoke
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Smoke test: the server never answered on /healthz"
+          docker logs muster-smoke
+          docker rm -f muster-smoke
+          exit 1
+
+  helm:
+    name: Helm lint and render
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      # The chart arrives with the polish phase; until then this job states
+      # plainly that there is nothing to lint rather than pretending to pass.
+      - name: Lint and render the chart
+        run: |
+          if [ -d deploy/helm/muster ]; then
+            helm lint deploy/helm/muster
+            helm template muster deploy/helm/muster \
+              --set config.publicUrl=https://muster.example.org
+          else
+            echo "No chart at deploy/helm/muster yet (task T070); nothing to lint."
+          fi
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: Start the stack
+        run: docker compose -f deploy/docker-compose.yml up -d --build --wait
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      # The suite itself arrives with the polish phase; the job is wired now so
+      # that it starts covering scenarios the moment tests appear.
+      - name: Run the suite
+        run: bun run test:e2e
+        env:
+          MUSTER_E2E_BASE_URL: http://localhost:8080
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
