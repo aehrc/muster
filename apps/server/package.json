@@ -9,6 +9,12 @@
   "dependencies": {
     "@muster/contracts": "workspace:*",
     "@muster/core": "workspace:*",
-    "@muster/db": "workspace:*"
+    "@muster/db": "workspace:*",
+    "hono": "^4.13.2",
+    "nodemailer": "^9.0.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1"
   }
 }

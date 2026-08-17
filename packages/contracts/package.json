@@ -8,5 +8,8 @@
       "types": "./.tsbuild/src/index.d.ts",
       "default": "./src/index.ts"
     }
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   }
 }
