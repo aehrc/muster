@@ -33,13 +33,14 @@ import {
   requireAccount,
   startSession,
 } from "./sessions.ts";
+import { accountView } from "../http/views.ts";
 import {
   awaitingApprovalMessage,
   verificationMessage,
 } from "../mail/messages.ts";
 
 import type { AppEnvironment } from "../app.ts";
-import type { AccountView, SessionView } from "@muster/contracts";
+import type { SessionView } from "@muster/contracts";
 import type { RateLimitPolicy, SlidingWindow } from "@muster/core";
 import type { AccountRow } from "@muster/db";
 import type { SQL } from "bun";
@@ -100,21 +101,6 @@ const clientAddress = (context: Context<AppEnvironment>): string => {
     return "unknown";
   }
 };
-
-/**
- * Renders an account for the console.
- *
- * @param account - the account as stored
- * @returns the account view, which never carries the password hash
- */
-const accountView = (account: AccountRow): AccountView => ({
-  id: account.id,
-  email: account.email,
-  displayName: account.displayName,
-  status: account.status,
-  emailVerified: account.emailVerifiedAt !== null,
-  isAdmin: account.isAdmin,
-});
 
 /**
  * Reads the caller's account and memberships.

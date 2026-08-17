@@ -234,7 +234,7 @@ describeDatabase("the directory routes", () => {
 
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({
-      detail: expect.stringContaining("approved"),
+      detail: expect.stringContaining("cannot be given rights"),
     });
   });
 

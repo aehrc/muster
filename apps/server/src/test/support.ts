@@ -1,6 +1,5 @@
 import { createMigratedSchema } from "@muster/db/test/harness";
 
-
 import { createApp } from "../app.ts";
 import { loadConfig } from "../config.ts";
 import { createMailTransport } from "../mail/transport.ts";

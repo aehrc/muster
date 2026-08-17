@@ -5,6 +5,7 @@ import {
 } from "@muster/core";
 import {
   deleteSession,
+  findAccountByEmail,
   findAccountBySessionToken,
   insertSession,
   listMembershipsForAccount,
@@ -93,8 +94,9 @@ export const factsFor = (account: AccountRow): AccountFacts => ({
  * Turns a refusal into the HTTP answer for it.
  *
  * Every refusal is a 403 except the two that are about a token rather than an
- * account, which are unprocessable input, and a closed event, which is a
- * conflict with the state of the world rather than with the caller's rights.
+ * account, which are unprocessable input, and the two that are about the state
+ * of the world rather than the caller's rights - a closed event and a
+ * transition that has already happened - which are conflicts.
  *
  * @param refusal - the refusal the rules produced
  * @returns the exception to throw
@@ -110,7 +112,10 @@ export const refusalError = (refusal: Refusal): HTTPException => {
   if (refusal.reason === "token_used" || refusal.reason === "token_expired") {
     return new HTTPException(422, { message: refusal.detail });
   }
-  if (refusal.reason === "event_not_open") {
+  if (
+    refusal.reason === "event_not_open" ||
+    refusal.reason === "illegal_transition"
+  ) {
     return new HTTPException(409, { message: refusal.detail });
   }
   return new HTTPException(403, { message: refusal.detail });
@@ -291,4 +296,40 @@ export const requireMember = async (
     throw refusalError(decision.refusal);
   }
   return { account, memberships };
+};
+
+/**
+ * Finds an account that may be given rights, by its address.
+ *
+ * Used where one person names another - inviting a member, reassigning an
+ * orphaned organisation - so it refuses an account that could not have acted for
+ * itself: rights cannot be handed to an unapproved or revoked account (FR-005).
+ *
+ * @param context - the request being answered
+ * @param email - the address named
+ * @returns the account
+ * @throws {HTTPException} 422 when there is no such account, or it is not
+ *   approved with a verified address
+ * @example
+ * ```ts
+ * const invited = await requireGrantableAccount(context, body.email);
+ * ```
+ */
+export const requireGrantableAccount = async (
+  context: Context<AppEnvironment>,
+  email: string,
+): Promise<AccountRow> => {
+  const account = await findAccountByEmail(context.get("sql"), email);
+  if (account === undefined) {
+    throw new HTTPException(422, {
+      message: "No Muster account holds that address.",
+    });
+  }
+  const decision = authoriseWrite(factsFor(account));
+  if (!decision.ok) {
+    throw new HTTPException(422, {
+      message: `That account cannot be given rights: ${decision.refusal.detail}`,
+    });
+  }
+  return account;
 };
