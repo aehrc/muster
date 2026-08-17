@@ -9,8 +9,8 @@ import {
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
-import { currentAccount, factsFor } from "../auth/sessions.ts";
 import { enrolledSystem, eventDetail, eventSummary } from "./views.ts";
+import { currentAccount, factsFor } from "../auth/sessions.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolledSystem } from "@muster/contracts";
