@@ -47,9 +47,38 @@ export const accountTokenPurpose = pgEnum("account_token_purpose", [
 /** Event lifecycle, per the data model. */
 export const eventStatus = pgEnum("event_status", ["draft", "open", "closed"]);
 
+/**
+ * The surrogate key every table carries.
+ *
+ * A function rather than a shared value: each table needs its own builder.
+ *
+ * @returns the primary key column
+ */
+const surrogateKey = () => uuid().primaryKey().defaultRandom();
+
+/**
+ * The timestamps every table carries.
+ *
+ * @returns the created and updated columns
+ */
+const auditColumns = () => ({
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A required reference to an account, dropped with it.
+ *
+ * @returns the foreign key column
+ */
+const accountReference = () =>
+  uuid()
+    .notNull()
+    .references(() => account.id, { onDelete: "cascade" });
+
 /** A person. */
 export const account = pgTable("account", {
-  id: uuid().primaryKey().defaultRandom(),
+  id: surrogateKey(),
   // Case-folded on the way in, so the unique constraint is the whole rule.
   email: text().notNull().unique(),
   displayName: text().notNull(),
@@ -60,58 +89,47 @@ export const account = pgTable("account", {
   isAdmin: boolean().notNull().default(false),
   approvedBy: uuid(),
   approvedAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ...auditColumns(),
 });
 
 /** A single-use token: email verification today, password reset later. */
 export const accountToken = pgTable("account_token", {
-  id: uuid().primaryKey().defaultRandom(),
-  accountId: uuid()
-    .notNull()
-    .references(() => account.id, { onDelete: "cascade" }),
+  id: surrogateKey(),
+  accountId: accountReference(),
   // The token itself is never stored; this is its SHA-256 digest.
   tokenHash: text().notNull().unique(),
   purpose: accountTokenPurpose().notNull(),
   expiresAt: timestamp({ withTimezone: true }).notNull(),
   usedAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ...auditColumns(),
 });
 
 /** A signed-in browser. The opaque token is held only as a digest. */
 export const session = pgTable("session", {
-  id: uuid().primaryKey().defaultRandom(),
-  accountId: uuid()
-    .notNull()
-    .references(() => account.id, { onDelete: "cascade" }),
+  id: surrogateKey(),
+  accountId: accountReference(),
   tokenHash: text().notNull().unique(),
   expiresAt: timestamp({ withTimezone: true }).notNull(),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ...auditColumns(),
 });
 
 /** A participating vendor or team. Names are not unique: identity is the row. */
 export const organisation = pgTable("organisation", {
-  id: uuid().primaryKey().defaultRandom(),
+  id: surrogateKey(),
   name: text().notNull(),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ...auditColumns(),
 });
 
 /** Who belongs to an organisation. Every member has the same rights. */
 export const organisationMember = pgTable(
   "organisation_member",
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: surrogateKey(),
     organisationId: uuid()
       .notNull()
       .references(() => organisation.id, { onDelete: "cascade" }),
-    accountId: uuid()
-      .notNull()
-      .references(() => account.id, { onDelete: "cascade" }),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    accountId: accountReference(),
+    ...auditColumns(),
   },
   (table) => [unique().on(table.organisationId, table.accountId)],
 );
@@ -120,7 +138,7 @@ export const organisationMember = pgTable(
 export const system = pgTable(
   "system",
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: surrogateKey(),
     organisationId: uuid()
       .notNull()
       .references(() => organisation.id),
@@ -129,8 +147,7 @@ export const system = pgTable(
     // Validated against the contracts schemas before it is written.
     serverProfile: jsonb(),
     clientProfile: jsonb(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    ...auditColumns(),
   },
   (table) => [
     check(
@@ -142,7 +159,7 @@ export const system = pgTable(
 
 /** A connectathon. Capability tags are defined per event, not in the schema. */
 export const event = pgTable("event", {
-  id: uuid().primaryKey().defaultRandom(),
+  id: surrogateKey(),
   slug: text().notNull().unique(),
   name: text().notNull(),
   startsOn: date().notNull(),
@@ -151,15 +168,14 @@ export const event = pgTable("event", {
   capabilityTags: text().array().notNull().default([]),
   personaSourceUrl: text(),
   graceDays: integer().notNull().default(7),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  ...auditColumns(),
 });
 
 /** A system's participation in one event, with its details confirmed current. */
 export const enrolment = pgTable(
   "enrolment",
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: surrogateKey(),
     eventId: uuid()
       .notNull()
       .references(() => event.id),
@@ -171,8 +187,7 @@ export const enrolment = pgTable(
     confirmedBy: uuid()
       .notNull()
       .references(() => account.id),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    ...auditColumns(),
   },
   (table) => [unique().on(table.eventId, table.systemId)],
 );

@@ -84,6 +84,7 @@
       "name": "@muster/db",
       "version": "0.0.0",
       "dependencies": {
+        "@muster/contracts": "workspace:*",
         "drizzle-orm": "^0.45.2",
       },
       "devDependencies": {

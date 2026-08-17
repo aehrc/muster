@@ -2,12 +2,6 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 
 import { isCheckViolation, isUniqueViolation } from "../errors.ts";
 import {
-  createMigratedSchema,
-  describeDatabase,
-  uniqueName,
-} from "../test/harness.ts";
-
-import {
   deleteOrganisationMember,
   deleteSession,
   findAccountByEmail,
@@ -25,7 +19,7 @@ import {
   insertSession,
   insertSystem,
   listAccountsByStatus,
-  listAdminAccounts,
+  listNotifiableAdmins,
   listEnrolledSystems,
   listEvents,
   listMembershipsForAccount,
@@ -37,6 +31,11 @@ import {
   updateEvent,
   updateSystem,
 } from "./directory.ts";
+import {
+  createMigratedSchema,
+  describeDatabase,
+  uniqueName,
+} from "../test/harness.ts";
 
 import type { MigratedSchema } from "../test/harness.ts";
 
@@ -188,8 +187,10 @@ describeDatabase("the directory schema and repositories", () => {
   });
 
   // The approval queue and the admin notification list are both queries the
-  // admin routes depend on.
-  test("lists the approval queue and the admins", async () => {
+  // admin routes depend on. The notification list holds only the admins who
+  // could act on what they are told about: an admin whose own account is still
+  // pending cannot approve anyone, so telling them would be noise.
+  test("lists the approval queue and the admins worth notifying", async () => {
     const pending = await arrangeAccount();
     const admin = await insertAccount(database.sql, {
       email: `${uniqueName("admin")}@example.org`,
@@ -197,12 +198,28 @@ describeDatabase("the directory schema and repositories", () => {
       passwordHash: "argon2id$stub",
       isAdmin: true,
     });
+    const unusableAdmin = await insertAccount(database.sql, {
+      email: `${uniqueName("unusable")}@example.org`,
+      displayName: "Pending Admin",
+      passwordHash: "argon2id$stub",
+      isAdmin: true,
+    });
+    await markAccountVerified(database.sql, admin.id, new Date());
+    await updateAccountStatus(database.sql, {
+      accountId: admin.id,
+      status: "approved",
+      decidedBy: admin.id,
+      decidedAt: new Date(),
+    });
 
     const queue = await listAccountsByStatus(database.sql, "pending");
     expect(queue.map((row) => row.id)).toContain(pending.id);
 
-    const admins = await listAdminAccounts(database.sql);
-    expect(admins.map((row) => row.email)).toContain(admin.email);
+    const notifiable = await listNotifiableAdmins(database.sql);
+    expect(notifiable.map((row) => row.email)).toContain(admin.email);
+    expect(notifiable.map((row) => row.email)).not.toContain(
+      unusableAdmin.email,
+    );
   });
 
   // Tokens and sessions ------------------------------------------------------
