@@ -129,6 +129,25 @@ export default tseslint.config(
     },
   },
 
+  // The SSRF guard is the only path to the network. Everything Muster fetches
+  // is an address a stranger typed in, so a bare `fetch` anywhere in the server
+  // or the shared packages is a hole in the boundary; the guard module itself
+  // disables this rule at the top of the file, which is the whole exemption.
+  // apps/web is excluded: it talks to Muster's own API, in the user's browser.
+  {
+    files: ["apps/server/**/*.ts", "packages/**/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Reach the network only through apps/server/src/outbound/outboundFetch.ts.",
+        },
+      ],
+    },
+  },
+
   // React console.
   {
     files: ["apps/web/**/*.{ts,tsx}"],
