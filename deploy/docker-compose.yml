@@ -1,0 +1,61 @@
+# Local Muster stack.
+#
+# Skeleton: the server and its database. The stub registration server and the
+# stub data holder join this file with the user stories that need them (trusted
+# DCR and ticket exchange respectively).
+#
+# Author: John Grimes
+
+name: muster
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: muster_owner
+      POSTGRES_PASSWORD: muster_owner
+      POSTGRES_DB: muster
+    ports:
+      - "5433:5432"
+    volumes:
+      # PostgreSQL 18 images expect a single mount here, with the cluster in a
+      # subdirectory, so that a future pg_upgrade --link stays inside one mount.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U muster_owner -d muster"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  muster:
+    # Named so the stack never reuses a similarly named image from elsewhere;
+    # bring the stack up with --build to pick up source changes.
+    image: muster:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Every public URL Muster mints or advertises derives from this.
+      MUSTER_PUBLIC_URL: http://localhost:8080
+      MUSTER_PORT: 8080
+      # Owner role applies migrations; the serving role only reads and writes.
+      MUSTER_MIGRATION_DATABASE_URL: postgresql://muster_owner:muster_owner@postgres:5432/muster
+      MUSTER_DATABASE_URL: postgresql://muster_server:muster_server@postgres:5432/muster
+      MUSTER_SERVER_DATABASE_ROLE: muster_server
+      MUSTER_SERVER_DATABASE_PASSWORD: muster_server
+      # Development value only; deployments supply this from a secret.
+      MUSTER_MASTER_KEY: development-master-key-not-for-deployment
+      # Unset MUSTER_SMTP_URL, so mail is written to the log instead of sent.
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://localhost:8080/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -1,0 +1,14 @@
+node_modules
+dist
+.tsbuild
+coverage
+playwright-report
+test-results
+blob-report
+.git
+.claude
+.local
+.github
+e2e/tests
+deploy
+*.md
