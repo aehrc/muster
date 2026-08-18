@@ -57,6 +57,10 @@ const headlineForRefusal: Record<RefusalReason, string> = {
   illegal_transition: "Already done",
   token_used: "Link already used",
   token_expired: "Link expired",
+  wrong_side: "Not your side of the pairing",
+  not_in_event: "Not enrolled in this event",
+  registration_not_needed: "No registration needed",
+  duplicate_pairing: "Already requested",
 };
 
 /**

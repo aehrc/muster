@@ -20,6 +20,7 @@ export {
   type AuthorisationDecision,
   type Refusal,
   type RefusalReason,
+  type RefusedDecision,
   type StatusAction,
   type StatusChangeResult,
   type TokenFacts,
@@ -33,3 +34,18 @@ export {
   type RateLimitPolicy,
   type SlidingWindow,
 } from "./limits/slidingWindow.ts";
+export {
+  normaliseRegistrationFields,
+  prefillRegistrationFields,
+} from "./pairing/registrationFields.ts";
+export {
+  applyPairingAction,
+  authorisePairingRequest,
+  openPairingStates,
+  pairingTransitions,
+  type PairingAction,
+  type PairingActionFacts,
+  type PairingRequestFacts,
+  type PairingTransition,
+  type PairingTransitionResult,
+} from "./pairing/stateMachine.ts";

@@ -43,7 +43,11 @@ export type RefusalReason =
   | "event_not_open"
   | "illegal_transition"
   | "token_used"
-  | "token_expired";
+  | "token_expired"
+  | "wrong_side"
+  | "not_in_event"
+  | "registration_not_needed"
+  | "duplicate_pairing";
 
 /** A refusal, with wording fit to show the person refused. */
 export type Refusal = {
@@ -53,9 +57,16 @@ export type Refusal = {
   readonly detail: string;
 };
 
+/** An action refused, with the reason to report. */
+export type RefusedDecision = {
+  /** the decision refused */
+  readonly ok: false;
+  /** why, in words fit to show the person refused */
+  readonly refusal: Refusal;
+};
+
 /** Whether an action is permitted. */
-export type AuthorisationDecision =
-  { readonly ok: true } | { readonly ok: false; readonly refusal: Refusal };
+export type AuthorisationDecision = { readonly ok: true } | RefusedDecision;
 
 /** What an admin may do to an account's status. */
 export type StatusAction = "approve" | "revoke";
@@ -78,19 +89,26 @@ const oneDayMs = 24 * 60 * 60 * 1000;
 export const verificationTokenLifetimeMs = oneDayMs;
 
 /** The one decision shared by every granted right. */
-const granted: AuthorisationDecision = { ok: true };
+export const granted: AuthorisationDecision = { ok: true };
 
 /**
  * Builds a refusal.
  *
+ * Shared with the other rule modules in this package, so every refusal in Muster
+ * has the same shape and carries wording fit to show the person refused.
+ *
  * @param reason - why the decision refused
  * @param detail - what to tell the caller
  * @returns the refusing decision
+ * @example
+ * ```ts
+ * return refuse("wrong_side", "Only the server's organisation can do that.");
+ * ```
  */
-const refuse = (
+export const refuse = (
   reason: RefusalReason,
   detail: string,
-): AuthorisationDecision => ({
+): RefusedDecision => ({
   ok: false,
   refusal: { reason, detail },
 });
