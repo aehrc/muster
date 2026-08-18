@@ -5,11 +5,8 @@ import {
   pairingStateSchema,
   registrationModeSchema,
 } from "./common.ts";
-import {
-  clientConfidentialitySchema,
-  organisationSummarySchema,
-} from "./directory.ts";
-import { httpsUrl, maximumTextLength } from "./fields.ts";
+import { clientProfileSchema, organisationSummarySchema } from "./directory.ts";
+import { maximumTextLength } from "./fields.ts";
 
 /**
  * The pairing tracker's wire shapes: the registration field set, a pairing as
@@ -27,6 +24,9 @@ import { httpsUrl, maximumTextLength } from "./fields.ts";
 /** Longest client identifier accepted; a server issues an identifier, not a document. */
 const maximumClientIdLength = 200;
 
+/** Longest client name accepted, matching a system's own name. */
+const maximumClientNameLength = 200;
+
 /**
  * The standard SMART registration field set (FR-012).
  *
@@ -34,14 +34,8 @@ const maximumClientIdLength = 200;
  * change afterwards, and what the server was asked to register must not change
  * under it.
  */
-export const registrationFieldsSchema = z.object({
-  clientName: z.string().trim().min(1).max(200),
-  launchUrl: httpsUrl,
-  redirectUris: z.array(httpsUrl).min(1),
-  scopes: z.array(z.string().min(1)).default([]),
-  confidentiality: clientConfidentialitySchema,
-  launchContext: z.string().max(maximumTextLength).default(""),
-  needsIntrospection: z.boolean().default(false),
+export const registrationFieldsSchema = clientProfileSchema.extend({
+  clientName: z.string().trim().min(1).max(maximumClientNameLength),
 });
 
 /** The standard SMART registration field set. */

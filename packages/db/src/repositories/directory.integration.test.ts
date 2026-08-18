@@ -8,6 +8,7 @@ import {
   findAccountBySessionToken,
   findEnrolledSystem,
   findEnrolment,
+  findEnrolmentById,
   findEventBySlug,
   findSystemById,
   insertAccount,
@@ -499,6 +500,33 @@ describeDatabase("the directory schema and repositories", () => {
         })
       )?.id,
     ).toBe(enrolment.id);
+  });
+
+  // A pairing names its sides by their enrolments, so an enrolment has to be
+  // findable by its own identifier: what it says about its event and its system
+  // is what makes a pairing legal (FR-012).
+  test("finds an enrolment by its identifier, and none for an unknown one", async () => {
+    const account = await arrangeAccount();
+    const organisation = await arrangeOrganisation(account.id);
+    const system = await arrangeSystem(organisation.id);
+    const event = await arrangeEvent();
+    const enrolment = await insertEnrolment(database.sql, {
+      eventId: event.id,
+      systemId: system.id,
+      tags: [],
+      confirmedBy: account.id,
+    });
+
+    const found = await findEnrolmentById(database.sql, enrolment.id);
+
+    expect(found?.eventId).toBe(event.id);
+    expect(found?.systemId).toBe(system.id);
+    expect(
+      await findEnrolmentById(
+        database.sql,
+        "1b0f8f4e-6a4a-4d64-9a4f-3c7c9c0f5b21",
+      ),
+    ).toBeUndefined();
   });
 
   // FR-009: tags are chosen from the event's set, so a typo cannot invent a

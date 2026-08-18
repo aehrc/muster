@@ -91,6 +91,8 @@ export type PairingRecordRow = {
   readonly pairing: PairingRow;
   /** the event's slug */
   readonly eventSlug: string;
+  /** the event's name, as a notification about the pairing states it */
+  readonly eventName: string;
   /** the event's status */
   readonly eventStatus: EventStatus;
   /** the client side */
@@ -225,6 +227,7 @@ const toParty = (row: RawRow, side: "client" | "server"): PairingPartyRow => ({
 const toRecord = (row: RawRow): PairingRecordRow => ({
   pairing: toPairing(row),
   eventSlug: String(row["event_slug"]),
+  eventName: String(row["event_name"]),
   eventStatus: row["event_status"] as EventStatus,
   client: toParty(row, "client"),
   server: toParty(row, "server"),
@@ -267,7 +270,8 @@ const pairingRecordQuery = (sql: SQL): unknown =>
   sql`select pairing.id, pairing.event_id, pairing.state,
              pairing.registration_fields, pairing.client_id,
              pairing.decline_reason, pairing.created_at, pairing.updated_at,
-             event.slug as event_slug, event.status as event_status,
+             event.slug as event_slug, event.name as event_name,
+             event.status as event_status,
              pairing.client_enrolment_id, client_system.id as client_system_id,
              client_system.name as client_system_name,
              client_system.client_profile as client_profile,

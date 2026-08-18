@@ -14,7 +14,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 
 import type { AppEnvironment } from "../app.ts";
-import type { AccountFacts, Refusal } from "@muster/core";
+import type { AccountFacts, Refusal, RefusalReason } from "@muster/core";
 import type { AccountRow, Membership } from "@muster/db";
 import type { Context } from "hono";
 
@@ -91,12 +91,34 @@ export const factsFor = (account: AccountRow): AccountFacts => ({
 });
 
 /**
+ * The refusals that are about the input rather than the caller's rights: a token
+ * that cannot be spent, a record that is not in the event named, and a server
+ * that registers nothing.
+ */
+const unprocessableReasons = new Set<RefusalReason>([
+  "token_used",
+  "token_expired",
+  "not_in_event",
+  "registration_not_needed",
+]);
+
+/**
+ * The refusals that are about the state of the world rather than the caller's
+ * rights: a closed event, a transition that has already happened, and a record
+ * that already exists.
+ */
+const conflictReasons = new Set<RefusalReason>([
+  "event_not_open",
+  "illegal_transition",
+  "duplicate_pairing",
+]);
+
+/**
  * Turns a refusal into the HTTP answer for it.
  *
- * Every refusal is a 403 except the two that are about a token rather than an
- * account, which are unprocessable input, and the two that are about the state
- * of the world rather than the caller's rights - a closed event and a
- * transition that has already happened - which are conflicts.
+ * Every refusal is a 403 - the caller may not - except those about the input,
+ * which are unprocessable, and those about the state of the world, which are
+ * conflicts.
  *
  * @param refusal - the refusal the rules produced
  * @returns the exception to throw
@@ -109,13 +131,10 @@ export const factsFor = (account: AccountRow): AccountFacts => ({
  * ```
  */
 export const refusalError = (refusal: Refusal): HTTPException => {
-  if (refusal.reason === "token_used" || refusal.reason === "token_expired") {
+  if (unprocessableReasons.has(refusal.reason)) {
     return new HTTPException(422, { message: refusal.detail });
   }
-  if (
-    refusal.reason === "event_not_open" ||
-    refusal.reason === "illegal_transition"
-  ) {
+  if (conflictReasons.has(refusal.reason)) {
     return new HTTPException(409, { message: refusal.detail });
   }
   return new HTTPException(403, { message: refusal.detail });

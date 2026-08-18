@@ -25,6 +25,18 @@ type AccountIdentity = {
   readonly email: string;
 };
 
+/** What a pairing notification is about. */
+export type PairingNotice = {
+  /** the pairing, so the message can link to it */
+  readonly pairingId: string;
+  /** the event it belongs to */
+  readonly eventName: string;
+  /** the client being registered */
+  readonly clientName: string;
+  /** the server being registered at */
+  readonly serverName: string;
+};
+
 /**
  * The message that proves control of an address.
  *
@@ -135,5 +147,103 @@ export const invitationMessage = (
     `You are now a member of ${organisationName} and can manage its systems and pairings.`,
     "",
     `Open it at ${publicUrlFor(config, "/my-organisation")}`,
+  ].join("\n"),
+});
+
+/**
+ * Where a pairing lives, so every message about it links to the same place.
+ *
+ * @param config - the configuration the public URL derives from
+ * @param notice - the pairing being reported on
+ * @returns the pairing's address
+ */
+const pairingUrl = (config: MusterConfig, notice: PairingNotice): string =>
+  publicUrlFor(config, `/pairings/${notice.pairingId}`);
+
+/**
+ * The message telling a server's organisation that a client wants registering
+ * (FR-012).
+ *
+ * Everything the server owner needs to decide is in Muster, so the message says
+ * what has arrived and where to answer it rather than restating the registration
+ * fields: an email that could be answered by replying to it is the round-trip
+ * this tracker exists to replace.
+ *
+ * @param config - the configuration the public URL derives from
+ * @param recipients - the server organisation's members
+ * @param notice - the pairing being reported on
+ * @returns the message to send
+ * @example
+ * ```ts
+ * await mail.send(pairingRequestedMessage(config, emails, notice));
+ * ```
+ */
+export const pairingRequestedMessage = (
+  config: MusterConfig,
+  recipients: readonly string[],
+  notice: PairingNotice,
+): MailMessage => ({
+  to: [...recipients],
+  subject: `${notice.clientName} has asked to register with ${notice.serverName}`,
+  text: [
+    `${notice.clientName} has requested a pairing with ${notice.serverName} for ${notice.eventName}.`,
+    "",
+    `The registration details are on the pairing: ${pairingUrl(config, notice)}`,
+    "",
+    "Record the client identifier you issue, or decline with a reason. Either way",
+    "the app's owner is told, and both of you see the same history.",
+  ].join("\n"),
+});
+
+/**
+ * The message telling an app's owner that their client has been registered
+ * (FR-014).
+ *
+ * @param config - the configuration the public URL derives from
+ * @param recipients - the client organisation's members
+ * @param notice - the pairing being reported on
+ * @param clientId - the identifier the server issued
+ * @returns the message to send
+ */
+export const pairingFulfilledMessage = (
+  config: MusterConfig,
+  recipients: readonly string[],
+  notice: PairingNotice,
+  clientId: string,
+): MailMessage => ({
+  to: [...recipients],
+  subject: `${notice.serverName} has registered ${notice.clientName}`,
+  text: [
+    `${notice.serverName} has registered ${notice.clientName} for ${notice.eventName}.`,
+    "",
+    `The client identifier it issued is ${clientId}`,
+    "",
+    `The pairing, with its history: ${pairingUrl(config, notice)}`,
+  ].join("\n"),
+});
+
+/**
+ * The message telling an app's owner that their request was declined (FR-014).
+ *
+ * @param config - the configuration the public URL derives from
+ * @param recipients - the client organisation's members
+ * @param notice - the pairing being reported on
+ * @param reason - why the server's organisation declined
+ * @returns the message to send
+ */
+export const pairingDeclinedMessage = (
+  config: MusterConfig,
+  recipients: readonly string[],
+  notice: PairingNotice,
+  reason: string,
+): MailMessage => ({
+  to: [...recipients],
+  subject: `${notice.serverName} declined to register ${notice.clientName}`,
+  text: [
+    `${notice.serverName} has declined to register ${notice.clientName} for ${notice.eventName}.`,
+    "",
+    `The reason given: ${reason}`,
+    "",
+    `The pairing, with its history: ${pairingUrl(config, notice)}`,
   ].join("\n"),
 });

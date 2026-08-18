@@ -34,6 +34,7 @@ export {
   findAccountTokenByHash,
   findEnrolledSystem,
   findEnrolment,
+  findEnrolmentById,
   findEventBySlug,
   findOrganisationById,
   findSystemById,

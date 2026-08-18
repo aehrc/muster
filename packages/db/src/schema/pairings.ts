@@ -8,6 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { auditColumns, surrogateKey } from "./columns.ts";
 import { account, enrolment, event, organisation } from "./directory.ts";
 
 /**
@@ -34,23 +35,6 @@ export const pairingState = pgEnum("pairing_state", [
   "failed",
   "lapsed",
 ]);
-
-/**
- * The surrogate key every table carries.
- *
- * @returns the primary key column
- */
-const surrogateKey = () => uuid().primaryKey().defaultRandom();
-
-/**
- * The timestamps every table carries.
- *
- * @returns the created and updated columns
- */
-const auditColumns = () => ({
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
 
 /** One client enrolment paired with one server enrolment, in one event. */
 export const pairing = pgTable(

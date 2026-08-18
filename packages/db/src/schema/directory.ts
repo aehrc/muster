@@ -13,6 +13,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { auditColumns, surrogateKey } from "./columns.ts";
+
 /**
  * The directory tables: accounts and their tokens and sessions, organisations
  * and their members, systems, events and enrolments.
@@ -46,25 +48,6 @@ export const accountTokenPurpose = pgEnum("account_token_purpose", [
 
 /** Event lifecycle, per the data model. */
 export const eventStatus = pgEnum("event_status", ["draft", "open", "closed"]);
-
-/**
- * The surrogate key every table carries.
- *
- * A function rather than a shared value: each table needs its own builder.
- *
- * @returns the primary key column
- */
-const surrogateKey = () => uuid().primaryKey().defaultRandom();
-
-/**
- * The timestamps every table carries.
- *
- * @returns the created and updated columns
- */
-const auditColumns = () => ({
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
 
 /**
  * A required reference to an account, dropped with it.

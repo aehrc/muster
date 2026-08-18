@@ -39,6 +39,7 @@ import {
 import { requireEvent, requireSystem } from "../http/lookups.ts";
 import { eventDetail, systemRecord } from "../http/views.ts";
 import { invitationMessage } from "../mail/messages.ts";
+import { lapseOpenPairings } from "../pairing/lapsing.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolmentView } from "@muster/contracts";
@@ -304,7 +305,8 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
   // from the status, which every write consults.
   routes.patch("/admin/events/:slug", async (context) => {
     const body = await parseBody(context, updateEventRequestSchema);
-    await requireAdmin(context);
+    const admin = await requireAdmin(context);
+    const existing = await requireEvent(context, context.req.param("slug"));
     const event = await updateEvent(
       context.get("sql"),
       context.req.param("slug"),
@@ -325,6 +327,18 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
     if (event === undefined) {
       throw new HTTPException(404, { message: "No such event." });
     }
+
+    // FR-011: closing an event lapses the pairings still open in it. Done here,
+    // on the transition into `closed`, so that editing a closed event again does
+    // not append a second lapse to anybody's timeline.
+    if (event.status === "closed" && existing.status !== "closed") {
+      await lapseOpenPairings(context.get("sql"), {
+        eventId: event.id,
+        eventStatus: event.status,
+        actorAccountId: admin.id,
+      });
+    }
+
     return context.json({ event: eventDetail(event) });
   });
 

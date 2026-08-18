@@ -1072,6 +1072,29 @@ export const findEnrolment = async (
 };
 
 /**
+ * Finds an enrolment by its identifier.
+ *
+ * A pairing names its two sides by their enrolments, so the routes that build one
+ * start here: the enrolment says which event it belongs to and which system it
+ * enrolled, and both are conditions of the pairing (FR-012).
+ *
+ * @param sql - a connection
+ * @param id - the enrolment
+ * @returns the enrolment, or undefined when there is no such enrolment
+ * @example
+ * ```ts
+ * const enrolment = await findEnrolmentById(sql, body.clientEnrolmentId);
+ * ```
+ */
+export const findEnrolmentById = async (
+  sql: SQL,
+  id: string,
+): Promise<EnrolmentRow | undefined> => {
+  const rows = await queryRows(sql`select * from enrolment where id = ${id}`);
+  return rows.length === 0 ? undefined : toEnrolment(rows[0]);
+};
+
+/**
  * Lists the systems enrolled in an event.
  *
  * This is the event view's query, and it is why enrolment exists: a system that

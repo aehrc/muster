@@ -5,6 +5,7 @@ import { createDirectoryRoutes } from "./admin/directory.routes.ts";
 import { createMembersRoutes } from "./admin/members.routes.ts";
 import { createAuthRoutes } from "./auth/routes.ts";
 import { createPublicRoutes } from "./http/publicApi.ts";
+import { createPairingRoutes } from "./pairing/routes.ts";
 
 import type { MusterConfig } from "./config.ts";
 import type { MailTransport } from "./mail/transport.ts";
@@ -100,6 +101,7 @@ export const createApp = (
   app.route("/api/auth", createAuthRoutes());
   app.route("/api", createMembersRoutes());
   app.route("/api", createDirectoryRoutes());
+  app.route("/api", createPairingRoutes());
   app.route("/api", createPublicRoutes());
 
   app.notFound((context) =>
