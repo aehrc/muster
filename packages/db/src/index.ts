@@ -79,4 +79,24 @@ export {
   type SystemPatch,
   type SystemRow,
 } from "./repositories/directory.ts";
+export {
+  findPairingByKey,
+  findPairingRecord,
+  insertPairing,
+  insertPairingEvent,
+  listPairingEvents,
+  listPairingRecordsForOrganisations,
+  listPairingsInState,
+  updatePairingState,
+  type NewPairing,
+  type NewPairingEvent,
+  type PairingEventRow,
+  type PairingKey,
+  type PairingListQuery,
+  type PairingPartyRow,
+  type PairingRecordRow,
+  type PairingRow,
+  type PairingStateChange,
+  type PairingStateQuery,
+} from "./repositories/pairings.ts";
 export { bootstrapServerRole, type ServerRoleOptions } from "./roles.ts";

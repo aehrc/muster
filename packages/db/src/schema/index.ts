@@ -10,3 +10,4 @@
  */
 
 export * from "./directory.ts";
+export * from "./pairings.ts";
