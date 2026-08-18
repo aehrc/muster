@@ -3,15 +3,13 @@ import {
   findCheckStatus,
   findEnrolledSystem,
   listCheckResults,
-  listCheckStatuses,
-  listEnrolledSystems,
   listEvents,
   listOrganisationContacts,
 } from "@muster/db";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
-import { requireEvent } from "./lookups.ts";
+import { listEnrolledEntries, requireEvent } from "./lookups.ts";
 import { enrolledSystem, eventDetail, eventSummary } from "./views.ts";
 import { currentAccount, factsFor } from "../auth/sessions.ts";
 
@@ -106,18 +104,10 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
   routes.get("/events/:slug/systems", async (context) => {
     const event = await requireEvent(context, context.req.param("slug"));
     const visible = await contactsVisible(context);
-    const sql = context.get("sql");
-    const rows = await listEnrolledSystems(sql, event.id);
-    // One query for every entry's status, rather than one per entry.
-    const checks = new Map(
-      (await listCheckStatuses(sql, event.id)).map((status) => [
-        status.latest.enrolmentId,
-        status,
-      ]),
-    );
+    const entries = await listEnrolledEntries(context.get("sql"), event.id);
     const systems = await Promise.all(
-      rows.map((row) =>
-        renderSystem(context, row, visible, checks.get(row.enrolmentId)),
+      entries.map(({ row, check }) =>
+        renderSystem(context, row, visible, check),
       ),
     );
     return context.json({ event: eventDetail(event), systems });

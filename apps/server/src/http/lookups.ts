@@ -1,12 +1,25 @@
-import { findEventBySlug, findPairingRecord, findSystemById } from "@muster/db";
+import {
+  findEventBySlug,
+  findPairingRecord,
+  findSystemById,
+  listCheckStatuses,
+  listEnrolledSystems,
+} from "@muster/db";
 import { HTTPException } from "hono/http-exception";
 
 import type { AppEnvironment } from "../app.ts";
-import type { EventRow, PairingRecordRow, SystemRow } from "@muster/db";
+import type {
+  CheckStatusRow,
+  EnrolledSystemRow,
+  EventRow,
+  PairingRecordRow,
+  SystemRow,
+} from "@muster/db";
+import type { SQL } from "bun";
 import type { Context } from "hono";
 
 /**
- * Finding the records a route was addressed to, or refusing.
+ * Reading the records a route was addressed to, or refusing.
  *
  * Every route that names an event or a system in its path has to answer the same
  * question first - does it exist - and has to answer it the same way, because a
@@ -88,4 +101,41 @@ export const requirePairingRecord = async (
     throw new HTTPException(404, { message: "No such pairing." });
   }
   return record;
+};
+
+/** One enrolled system, with the latest check of it when there is one. */
+export type EnrolledEntry = {
+  /** the enrolment joined to its system and organisation */
+  readonly row: EnrolledSystemRow;
+  /** the latest check, absent when nothing has checked the entry */
+  readonly check: CheckStatusRow | undefined;
+};
+
+/**
+ * Lists an event's enrolled systems, each with its latest check.
+ *
+ * Two queries rather than one per entry: the statuses arrive as one set and are
+ * matched to the entries here. Both the event view and the brands bundle need
+ * exactly this, so neither has to remember how to join them.
+ *
+ * @param sql - a connection
+ * @param eventId - the event whose enrolments are wanted
+ * @returns the entries, in the order the repository lists them
+ * @example
+ * ```ts
+ * const entries = await listEnrolledEntries(context.get("sql"), event.id);
+ * ```
+ */
+export const listEnrolledEntries = async (
+  sql: SQL,
+  eventId: string,
+): Promise<EnrolledEntry[]> => {
+  const [rows, statuses] = await Promise.all([
+    listEnrolledSystems(sql, eventId),
+    listCheckStatuses(sql, eventId),
+  ]);
+  const checks = new Map(
+    statuses.map((status) => [status.latest.enrolmentId, status]),
+  );
+  return rows.map((row) => ({ row, check: checks.get(row.enrolmentId) }));
 };

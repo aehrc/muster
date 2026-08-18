@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { createDirectoryRoutes } from "./admin/directory.routes.ts";
 import { createMembersRoutes } from "./admin/members.routes.ts";
 import { createAuthRoutes } from "./auth/routes.ts";
+import { createBrandsRoutes } from "./http/brands.ts";
 import { createPublicRoutes } from "./http/publicApi.ts";
 import { createPairingRoutes } from "./pairing/routes.ts";
 
@@ -103,6 +104,7 @@ export const createApp = (
   app.route("/api", createDirectoryRoutes());
   app.route("/api", createPairingRoutes());
   app.route("/api", createPublicRoutes());
+  app.route("/api", createBrandsRoutes());
 
   app.notFound((context) =>
     context.json(
