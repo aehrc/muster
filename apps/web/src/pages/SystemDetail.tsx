@@ -4,15 +4,23 @@ import {
   CalendarIcon,
   OrganizationIcon,
   PersonIcon,
+  PulseIcon,
   TagIcon,
 } from "@primer/octicons-react";
 import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
+import { CheckBadge, CheckNote } from "../components/CheckBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
+import { DetailList } from "../components/DetailList.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
 import { Panel } from "../components/Panel.tsx";
 import { SystemProfiles } from "../components/SystemProfiles.tsx";
+import {
+  advertisedDetails,
+  checkVerdict,
+  checkVerdictMeaning,
+} from "../lib/checks.ts";
 import { kindLabel } from "../lib/directory.ts";
 import { describeAge, formatDateRange } from "../lib/format.ts";
 
@@ -62,6 +70,8 @@ export function SystemDetail(): JSX.Element {
   }
 
   const { event, system: entry } = data;
+  const verdict = checkVerdict(entry.check);
+  const history = entry.checkHistory ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,6 +133,53 @@ export function SystemDetail(): JSX.Element {
       <Panel title="Connection details">
         <SystemProfiles system={entry.system} />
       </Panel>
+
+      {entry.system.serverProfile === null ? null : (
+        <Panel
+          title="Verification"
+          icon={<PulseIcon size={18} />}
+          description="What Muster found when it last fetched this server's SMART configuration and capability statement."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <CheckBadge verdict={verdict} />
+            <span className="text-sm">{checkVerdictMeaning[verdict]}</span>
+          </div>
+          <CheckNote entry={entry} />
+
+          {entry.check === null ? null : (
+            <DetailList details={advertisedDetails(entry.check.latest)} />
+          )}
+
+          {history.length === 0 ? null : (
+            <div className="flex flex-col gap-2">
+              <h4 className="text-sm font-semibold">Recent checks</h4>
+              <ul className="flex flex-col gap-1">
+                {history.map((check) => (
+                  <li
+                    key={check.id}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <CheckBadge
+                      verdict={checkVerdict({
+                        latest: check,
+                        lastSuccessAt: null,
+                      })}
+                    />
+                    <span className="text-xs text-base-content/70">
+                      {describeAge(check.checkedAt, new Date())}
+                    </span>
+                    {check.detail === null ? null : (
+                      <span className="text-xs text-base-content/60">
+                        {check.detail}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Panel>
+      )}
 
       <Panel title="Contacts" icon={<PersonIcon size={18} />}>
         <Contacts entry={entry} />

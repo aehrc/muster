@@ -1,5 +1,6 @@
 import { pairingResponseSchema } from "@muster/contracts";
 import {
+  AlertIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
   HistoryIcon,
@@ -18,6 +19,7 @@ import { TextAreaField, TextField } from "../components/Fields.tsx";
 import { IssueList } from "../components/IssueList.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
 import { Panel } from "../components/Panel.tsx";
+import { scopeWarningSentence } from "../lib/checks.ts";
 import { describeAge } from "../lib/format.ts";
 import { busy, failed, idle, pending, succeeded } from "../lib/operation.ts";
 import {
@@ -268,6 +270,28 @@ export function PairingDetail(): JSX.Element {
             {pairing.server.systemName} issued the client identifier{" "}
             <code className="font-mono">{pairing.clientId}</code>
           </span>
+        </div>
+      )}
+
+      {pairing.scopeWarning === null ? null : (
+        <div role="status" className="alert alert-soft alert-warning">
+          <AlertIcon size={16} />
+          <div className="flex flex-col gap-1">
+            <span>
+              {scopeWarningSentence(
+                pairing.scopeWarning,
+                pairing.server.systemName,
+                new Date(),
+              )}
+            </span>
+            <span className="text-xs">
+              It advertised{" "}
+              <code className="font-mono">
+                {pairing.scopeWarning.advertisedScopes.join(" ")}
+              </code>
+              . Both organisations see this warning.
+            </span>
+          </div>
         </div>
       )}
 

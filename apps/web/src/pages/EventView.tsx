@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
+import { CheckNote, EntryCheckBadge } from "../components/CheckBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
 import { SelectField, TextField } from "../components/Fields.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
@@ -83,9 +84,12 @@ function SystemCard({
               {entry.organisation.name}
             </p>
           </div>
-          <span className="badge badge-soft badge-sm">
-            {kindLabel(entry.system.kinds)}
-          </span>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="badge badge-soft badge-sm">
+              {kindLabel(entry.system.kinds)}
+            </span>
+            <EntryCheckBadge entry={entry} />
+          </div>
         </div>
 
         {entry.system.description === "" ? null : (
@@ -109,6 +113,7 @@ function SystemCard({
 
         <div className="flex flex-col gap-2 border-t border-base-300 pt-3">
           <Contacts entry={entry} />
+          <CheckNote entry={entry} />
           <p className="text-xs text-base-content/60">
             Details confirmed {describeAge(entry.confirmedAt, new Date())}.
           </p>
