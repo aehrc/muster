@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { checkResultSchema, checkStatusSchema } from "./checks.ts";
 import {
   accountStatusSchema,
   authorizationModeSchema,
@@ -42,12 +43,19 @@ export type ClientConfidentiality = z.infer<typeof clientConfidentialitySchema>;
  * A system's server side. The registration endpoint is required for trusted
  * DCR, because a server that says it accepts software statements without saying
  * where is not usable and the refusal belongs here rather than at mint time.
+ *
+ * The authorization and token endpoints are optional, and they are what a check
+ * compares against the server's own discovery document (FR-018): a declared
+ * value is the only thing drift can be detected from, so an entry that declares
+ * neither is verified for reachability alone.
  */
 export const serverProfileSchema = z
   .object({
     fhirBaseUrl: httpsUrl,
     authorizationMode: authorizationModeSchema,
     registrationMode: registrationModeSchema,
+    authorizationEndpoint: httpsUrl.optional(),
+    tokenEndpoint: httpsUrl.optional(),
     registrationEndpoint: httpsUrl.optional(),
     notes: z.string().max(maximumTextLength).default(""),
   })
@@ -302,6 +310,11 @@ export type EnrolmentView = z.infer<typeof enrolmentViewSchema>;
  *
  * `contacts` is present only for a signed-in approved member; an anonymous
  * reader gets the same shape without the field.
+ *
+ * `check` is the latest verification of a server entry, and null for a client
+ * entry or for a server nothing has checked yet: staleness is stated rather than
+ * implied (FR-017). `checkHistory` is present only on the system detail, which
+ * is where a history belongs.
  */
 export const enrolledSystemSchema = z.object({
   enrolmentId: z.string(),
@@ -310,6 +323,8 @@ export const enrolledSystemSchema = z.object({
   system: systemRecordSchema,
   organisation: organisationSummarySchema,
   contacts: z.array(contactSchema).optional(),
+  check: checkStatusSchema.nullable(),
+  checkHistory: z.array(checkResultSchema).optional(),
 });
 
 /** An enrolled system. */

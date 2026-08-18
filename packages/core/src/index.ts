@@ -26,6 +26,28 @@ export {
   type TokenFacts,
 } from "./accounts/rules.ts";
 export {
+  checkDue,
+  checkIntervalMs,
+  checkJitterMs,
+  idleEventCheckIntervalMs,
+  openEventCheckIntervalMs,
+  type CheckDueFacts,
+} from "./checks/cadence.ts";
+export {
+  capabilityHighlights,
+  discoveryHighlights,
+  driftFlags,
+  evaluateCheck,
+  evaluateCheckFailure,
+  scopeWarning,
+  unsupportedScopes,
+  type CheckEvaluation,
+  type CheckInput,
+  type CheckRefusal,
+  type ProbeOutcome,
+  type ScopeWarningFacts,
+} from "./checks/evaluate.ts";
+export {
   consume,
   emptyWindow,
   pruneWindow,

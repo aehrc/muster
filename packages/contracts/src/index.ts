@@ -9,6 +9,20 @@
  */
 
 export {
+  capabilityHighlightsSchema,
+  checkResultSchema,
+  checkStatusSchema,
+  discoveryHighlightsSchema,
+  driftFlagSchema,
+  scopeWarningSchema,
+  type CapabilityHighlights,
+  type CheckResult,
+  type CheckStatus,
+  type DiscoveryHighlights,
+  type DriftFlag,
+  type ScopeWarning,
+} from "./checks.ts";
+export {
   accountStatusSchema,
   authorizationModeSchema,
   checkFailureModeSchema,

@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@muster/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/fhir": "0.0.44"
   }
 }
