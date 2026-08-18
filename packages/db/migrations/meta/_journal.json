@@ -15,6 +15,13 @@
       "when": 1787081755926,
       "tag": "0001_pairings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787085079242,
+      "tag": "0002_checks",
+      "breakpoints": true
     }
   ]
 }

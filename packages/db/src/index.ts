@@ -26,6 +26,18 @@ export {
 } from "./migrations.ts";
 export { quoteIdentifier, quoteLiteral } from "./quoting.ts";
 export {
+  findCheckStatus,
+  insertCheckResult,
+  listCheckResults,
+  listCheckStatuses,
+  listCheckTargets,
+  type CheckHistoryQuery,
+  type CheckResultRow,
+  type CheckStatusRow,
+  type CheckTargetRow,
+  type NewCheckResult,
+} from "./repositories/checks.ts";
+export {
   deleteOrganisationMember,
   deleteSession,
   findAccountByEmail,

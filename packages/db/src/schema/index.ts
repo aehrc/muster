@@ -9,5 +9,6 @@
  * @author John Grimes
  */
 
+export * from "./checks.ts";
 export * from "./directory.ts";
 export * from "./pairings.ts";
