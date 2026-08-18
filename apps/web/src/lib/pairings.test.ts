@@ -39,6 +39,7 @@ const client = (
   enrolmentId: overrides.enrolmentId ?? "enrolment-client",
   tags: [],
   confirmedAt: "2026-08-18T00:00:00.000Z",
+  check: null,
   organisation: { id: overrides.organisationId ?? "org-csiro", name: "CSIRO" },
   system: {
     id: "system-smart-forms",
@@ -63,6 +64,7 @@ const server = (registrationMode: RegistrationMode): EnrolledSystem => ({
   enrolmentId: `enrolment-${registrationMode}`,
   tags: [],
   confirmedAt: "2026-08-18T00:00:00.000Z",
+  check: null,
   organisation: { id: "org-medirecords", name: "MediRecords" },
   system: {
     id: `system-${registrationMode}`,

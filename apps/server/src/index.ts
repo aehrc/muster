@@ -1,9 +1,11 @@
+import { openEventCheckIntervalMs } from "@muster/core";
 import { bootstrapServerRole, runMigrations } from "@muster/db";
 import { SQL } from "bun";
 
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createMailTransport } from "./mail/transport.ts";
+import { createScheduler } from "./scheduler/scheduler.ts";
 
 import type { MusterConfig } from "./config.ts";
 
@@ -67,7 +69,14 @@ const server = Bun.serve({
   fetch: createApp({ config, mail, sql }).fetch,
 });
 
+// One interval in one instance, per the constitution: the Helm chart pins
+// `replicas: 1` because a second copy of this would double every participant's
+// inbound traffic. Every result is persisted, so a restart loses nothing.
+const scheduler = createScheduler({ config, sql });
+scheduler.start();
+
 console.log(
   `Muster listening on ${server.url.toString()}, public URL ${config.publicUrl}, ` +
-    `mail ${config.mail.kind === "smtp" ? "over SMTP" : "written to this log"}`,
+    `mail ${config.mail.kind === "smtp" ? "over SMTP" : "written to this log"}, ` +
+    `checks every ${String(openEventCheckIntervalMs / 60_000)} minutes while an event is open`,
 );

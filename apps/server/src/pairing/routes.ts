@@ -1,15 +1,19 @@
 import {
   createPairingRequestSchema,
   declinePairingRequestSchema,
+  discoveryHighlightsSchema,
   fulfilPairingRequestSchema,
+  registrationFieldsSchema,
   serverProfileSchema,
 } from "@muster/contracts";
 import {
   applyPairingAction,
   authorisePairingRequest,
   normaliseRegistrationFields,
+  scopeWarning,
 } from "@muster/core";
 import {
+  findCheckStatus,
   findEnrolmentById,
   findPairingByKey,
   findPairingRecord,
@@ -43,6 +47,7 @@ import type {
   PairingConflict,
   PairingDetail,
   PairingSide,
+  ScopeWarning,
 } from "@muster/contracts";
 import type {
   AccountRow,
@@ -180,6 +185,43 @@ const requireSides = async (
 };
 
 /**
+ * Computes the pairing's scope warning from the server's latest check (FR-019).
+ *
+ * The scopes compared are the ones snapshot into the pairing, because those are
+ * what the server was actually asked for. A server nothing has checked, or one
+ * whose discovery document advertised no scopes, produces no warning: a warning
+ * drawn from silence would be a guess, and this warning is meant to be acted on.
+ *
+ * @param context - the request being answered
+ * @param record - the pairing and its two sides
+ * @returns the warning, or undefined when there is nothing to warn about
+ */
+const scopeWarningFor = async (
+  context: Context<AppEnvironment>,
+  record: PairingRecordRow,
+): Promise<ScopeWarning | undefined> => {
+  const status = await findCheckStatus(
+    context.get("sql"),
+    record.pairing.serverEnrolmentId,
+  );
+  if (status?.latest.discovery == null) {
+    return undefined;
+  }
+  const discovery = discoveryHighlightsSchema.safeParse(
+    status.latest.discovery,
+  );
+  if (!discovery.success) {
+    return undefined;
+  }
+  return scopeWarning({
+    requested: registrationFieldsSchema.parse(record.pairing.registrationFields)
+      .scopes,
+    advertised: discovery.data.scopesSupported,
+    checkedAt: status.latest.checkedAt.toISOString(),
+  });
+};
+
+/**
  * Renders a pairing with its timeline, as both parties read it.
  *
  * @param context - the request being answered
@@ -196,6 +238,7 @@ const detailOf = async (
     record,
     sides,
     await listPairingEvents(context.get("sql"), record.pairing.id),
+    await scopeWarningFor(context, record),
   );
 
 /**

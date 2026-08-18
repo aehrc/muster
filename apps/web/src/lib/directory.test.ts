@@ -61,6 +61,7 @@ const entry = (
     enrolmentId: `enr-${overrides.name ?? "MediRecords FHIR"}`,
     tags: [...(overrides.tags ?? [])],
     confirmedAt: "2026-08-18T02:00:00.000Z",
+    check: null,
     organisation,
     system: {
       id: `sys-${overrides.name ?? "MediRecords FHIR"}`,

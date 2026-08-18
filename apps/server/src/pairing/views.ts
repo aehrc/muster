@@ -10,6 +10,7 @@ import type {
   PairingParty,
   PairingSide,
   PairingSummary,
+  ScopeWarning,
 } from "@muster/contracts";
 import type {
   PairingEventRow,
@@ -132,21 +133,25 @@ const pairingEvent = (row: PairingEventRow): PairingEvent => ({
  * @param record - the pairing and its two sides
  * @param sides - the sides the reader is on
  * @param timeline - the pairing's transitions, oldest first
+ * @param warning - the scope warning, when the server's advertised set does not
+ *   cover what the client asked for; the same value for both parties (FR-019)
  * @returns the detail
  * @throws {Error} when the stored field set does not satisfy the contract
  * @example
  * ```ts
- * context.json({ pairing: pairingDetail(record, sides, timeline) });
+ * context.json({ pairing: pairingDetail(record, sides, timeline, warning) });
  * ```
  */
 export const pairingDetail = (
   record: PairingRecordRow,
   sides: readonly PairingSide[],
   timeline: readonly PairingEventRow[],
+  warning: ScopeWarning | undefined,
 ): PairingDetail => ({
   ...pairingSummary(record, sides),
   registrationFields: registrationFieldsSchema.parse(
     record.pairing.registrationFields,
   ),
   timeline: timeline.map(pairingEvent),
+  scopeWarning: warning ?? null,
 });

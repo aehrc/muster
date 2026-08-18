@@ -1,6 +1,9 @@
 import { authoriseWrite } from "@muster/core";
 import {
+  findCheckStatus,
   findEnrolledSystem,
+  listCheckResults,
+  listCheckStatuses,
   listEnrolledSystems,
   listEvents,
   listOrganisationContacts,
@@ -14,7 +17,7 @@ import { currentAccount, factsFor } from "../auth/sessions.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolledSystem } from "@muster/contracts";
-import type { EnrolledSystemRow } from "@muster/db";
+import type { CheckStatusRow, EnrolledSystemRow } from "@muster/db";
 import type { Context } from "hono";
 
 /**
@@ -45,25 +48,35 @@ const contactsVisible = async (
   return account !== undefined && authoriseWrite(factsFor(account)).ok;
 };
 
+/** How many checks the system detail shows. */
+const checkHistoryLength = 20;
+
 /**
  * Renders an enrolled system, with contacts only when the reader may see them.
  *
  * @param context - the request being answered
  * @param row - the enrolment joined to its system and organisation
  * @param visible - whether the reader may see contact details
+ * @param check - the entry's latest check, when something has checked it
  * @returns the enrolled system
  */
 const renderSystem = async (
   context: Context<AppEnvironment>,
   row: EnrolledSystemRow,
   visible: boolean,
+  check: CheckStatusRow | undefined,
 ): Promise<EnrolledSystem> =>
-  visible
-    ? enrolledSystem(
-        row,
-        await listOrganisationContacts(context.get("sql"), row.organisation.id),
-      )
-    : enrolledSystem(row);
+  enrolledSystem(row, {
+    ...(visible
+      ? {
+          contacts: await listOrganisationContacts(
+            context.get("sql"),
+            row.organisation.id,
+          ),
+        }
+      : {}),
+    ...(check === undefined ? {} : { check }),
+  });
 
 /**
  * Builds the public read routes.
@@ -88,20 +101,32 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
   });
 
   // The table replacement: every enrolled system in the event, and nothing that
-  // is not enrolled in it (FR-009, FR-010).
+  // is not enrolled in it (FR-009, FR-010). Each entry carries its latest check,
+  // because a row nobody can date is what the participant table already was.
   routes.get("/events/:slug/systems", async (context) => {
     const event = await requireEvent(context, context.req.param("slug"));
     const visible = await contactsVisible(context);
-    const rows = await listEnrolledSystems(context.get("sql"), event.id);
+    const sql = context.get("sql");
+    const rows = await listEnrolledSystems(sql, event.id);
+    // One query for every entry's status, rather than one per entry.
+    const checks = new Map(
+      (await listCheckStatuses(sql, event.id)).map((status) => [
+        status.latest.enrolmentId,
+        status,
+      ]),
+    );
     const systems = await Promise.all(
-      rows.map((row) => renderSystem(context, row, visible)),
+      rows.map((row) =>
+        renderSystem(context, row, visible, checks.get(row.enrolmentId)),
+      ),
     );
     return context.json({ event: eventDetail(event), systems });
   });
 
   routes.get("/events/:slug/systems/:id", async (context) => {
     const event = await requireEvent(context, context.req.param("slug"));
-    const row = await findEnrolledSystem(context.get("sql"), {
+    const sql = context.get("sql");
+    const row = await findEnrolledSystem(sql, {
       eventId: event.id,
       systemId: context.req.param("id"),
     });
@@ -112,9 +137,25 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
         message: "No such system is enrolled in that event.",
       });
     }
+    const check = await findCheckStatus(sql, row.enrolmentId);
+    const history = await listCheckResults(sql, {
+      enrolmentId: row.enrolmentId,
+      limit: checkHistoryLength,
+    });
     return context.json({
       event: eventDetail(event),
-      system: await renderSystem(context, row, await contactsVisible(context)),
+      system: enrolledSystem(row, {
+        ...((await contactsVisible(context))
+          ? {
+              contacts: await listOrganisationContacts(
+                sql,
+                row.organisation.id,
+              ),
+            }
+          : {}),
+        ...(check === undefined ? {} : { check }),
+        history,
+      }),
     });
   });
 

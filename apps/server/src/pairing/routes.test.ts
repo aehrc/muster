@@ -3,7 +3,7 @@ import {
   pairingResponseSchema,
   pairingsResponseSchema,
 } from "@muster/contracts";
-import { updateAccountStatus } from "@muster/db";
+import { insertCheckResult, updateAccountStatus } from "@muster/db";
 import { describeDatabase, uniqueName } from "@muster/db/test/harness";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 
@@ -857,6 +857,81 @@ describeDatabase("the pairing routes", () => {
     );
 
     expect(response.status).toBe(409);
+  });
+
+  // Records a check of the pairing's server, advertising the given scopes.
+  const arrangeCheck = async (
+    stage: Stage,
+    scopesSupported: readonly string[],
+  ): Promise<void> => {
+    await insertCheckResult(server.database.sql, {
+      enrolmentId: stage.serverEnrolmentId,
+      checkedAt: new Date("2026-08-19T01:00:00.000Z"),
+      reachable: true,
+      failureMode: null,
+      detail: null,
+      discovery: {
+        issuer: "https://auth.medirecords.example.org",
+        authorizationEndpoint: "https://auth.medirecords.example.org/authorize",
+        tokenEndpoint: "https://auth.medirecords.example.org/token",
+        registrationEndpoint: null,
+        scopesSupported: [...scopesSupported],
+        capabilities: [],
+      },
+      capability: null,
+      driftFlags: [],
+    });
+  };
+
+  // Reads a pairing as one party.
+  const readPairing = async (pairingId: string, as: SignedIn) =>
+    readJson(
+      await request(server, "GET", `/api/pairings/${pairingId}`, {
+        cookie: as.cookie,
+      }),
+      pairingResponseSchema,
+    );
+
+  // FR-019 and acceptance scenario 4: both parties are warned, with the
+  // unsupported scopes named, before either wastes a morning on them.
+  test("warns both parties about a scope the server does not advertise", async () => {
+    const stage = await arrangeStage();
+    const pairingId = await arrangePairing(stage);
+    await arrangeCheck(stage, ["launch/patient", "patient/Patient.rs"]);
+
+    const asAppOwner = await readPairing(pairingId, stage.appOwner);
+    const asServerOwner = await readPairing(pairingId, stage.serverOwner);
+
+    expect(asAppOwner.pairing.scopeWarning).toEqual({
+      unsupportedScopes: ["patient/Observation.rs"],
+      advertisedScopes: ["launch/patient", "patient/Patient.rs"],
+      checkedAt: "2026-08-19T01:00:00.000Z",
+    });
+    // One record, one warning: neither party is shown something the other is not.
+    expect(asServerOwner.pairing.scopeWarning).toEqual(
+      asAppOwner.pairing.scopeWarning,
+    );
+  });
+
+  test("carries no warning when the server advertises every requested scope", async () => {
+    const stage = await arrangeStage();
+    const pairingId = await arrangePairing(stage);
+    await arrangeCheck(stage, ["launch/patient", "patient/*.rs"]);
+
+    expect(
+      (await readPairing(pairingId, stage.appOwner)).pairing.scopeWarning,
+    ).toBeNull();
+  });
+
+  // Nothing has been checked, so nothing is known: a warning drawn from silence
+  // would be a guess, and the pairing says nothing rather than guessing.
+  test("carries no warning when nothing has checked the server", async () => {
+    const stage = await arrangeStage();
+    const pairingId = await arrangePairing(stage);
+
+    expect(
+      (await readPairing(pairingId, stage.appOwner)).pairing.scopeWarning,
+    ).toBeNull();
   });
 
   // Opening an event again, or editing it, does not lapse anything.

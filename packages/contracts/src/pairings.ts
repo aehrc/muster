@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { scopeWarningSchema } from "./checks.ts";
 import {
   errorEnvelopeSchema,
   eventStatusSchema,
@@ -115,10 +116,17 @@ export const pairingSummarySchema = z.object({
 /** A pairing as the list shows it. */
 export type PairingSummary = z.infer<typeof pairingSummarySchema>;
 
-/** A pairing in full: the field set the server was handed, and the timeline. */
+/**
+ * A pairing in full: the field set the server was handed, and the timeline.
+ *
+ * `scopeWarning` is the same value for both parties, because FR-019 warns both:
+ * an app owner who is about to waste a morning on a scope the server never
+ * supported, and a server owner about to be asked for one.
+ */
 export const pairingDetailSchema = pairingSummarySchema.extend({
   registrationFields: registrationFieldsSchema,
   timeline: z.array(pairingEventSchema),
+  scopeWarning: scopeWarningSchema.nullable(),
 });
 
 /** A pairing in full. */
