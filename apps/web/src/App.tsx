@@ -1,6 +1,7 @@
 import {
   CalendarIcon,
   HomeIcon,
+  LinkIcon,
   OrganizationIcon,
   PeopleIcon,
   PersonIcon,
@@ -14,6 +15,8 @@ import { EventView } from "./pages/EventView.tsx";
 import { Home } from "./pages/Home.tsx";
 import { MyOrganisation } from "./pages/MyOrganisation.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
+import { PairingDetail } from "./pages/PairingDetail.tsx";
+import { Pairings } from "./pages/Pairings.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { SystemDetail } from "./pages/SystemDetail.tsx";
 import { useSession } from "./session/sessionContext.ts";
@@ -40,6 +43,7 @@ import type { JSX } from "react";
 const icons: Record<NavigationIcon, JSX.Element> = {
   home: <HomeIcon size={16} />,
   organisation: <OrganizationIcon size={16} />,
+  pairing: <LinkIcon size={16} />,
   people: <PeopleIcon size={16} />,
   calendar: <CalendarIcon size={16} />,
   account: <PersonIcon size={16} />,
@@ -97,6 +101,11 @@ export function App(): JSX.Element {
                   element={<SystemDetail />}
                 />
                 <Route path="/my-organisation" element={<MyOrganisation />} />
+                <Route path="/pairings" element={<Pairings />} />
+                <Route
+                  path="/pairings/:pairingId"
+                  element={<PairingDetail />}
+                />
                 <Route path="/admin/members" element={<Members />} />
                 <Route path="/admin/events" element={<Events />} />
                 {/* The verification email links to /verify with its token, and

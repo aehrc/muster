@@ -91,6 +91,7 @@ export const pairingSummary = (
 ): PairingSummary => ({
   id: record.pairing.id,
   eventSlug: record.eventSlug,
+  eventStatus: record.eventStatus,
   state: record.pairing.state,
   client: pairingParty(record.client),
   server: pairingParty(record.server),

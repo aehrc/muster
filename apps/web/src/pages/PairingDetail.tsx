@@ -1,0 +1,361 @@
+import { pairingResponseSchema } from "@muster/contracts";
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  HistoryIcon,
+  KeyIcon,
+  PlugIcon,
+  ServerIcon,
+  XCircleIcon,
+} from "@primer/octicons-react";
+import { useState } from "react";
+import { Link, useParams } from "react-router";
+
+import { muster } from "../api/muster.ts";
+import { useResource } from "../api/useResource.ts";
+import { DetailList } from "../components/DetailList.tsx";
+import { TextAreaField, TextField } from "../components/Fields.tsx";
+import { IssueList } from "../components/IssueList.tsx";
+import { OperationAlert } from "../components/OperationAlert.tsx";
+import { Panel } from "../components/Panel.tsx";
+import { describeAge } from "../lib/format.ts";
+import { busy, failed, idle, pending, succeeded } from "../lib/operation.ts";
+import {
+  describeTimelineEntry,
+  mayTake,
+  pairingStateClass,
+  pairingStateMeaning,
+  pairingStateWords,
+} from "../lib/pairings.ts";
+import { clientDetails } from "../lib/systemDetails.ts";
+
+import type { Operation } from "../lib/operation.ts";
+import type { PairingDetail as Pairing } from "@muster/contracts";
+import type { JSX } from "react";
+
+/**
+ * One pairing, in full: the field set, the timeline, and the two actions.
+ *
+ * Acceptance scenario 4 is the shape of this screen. Both organisations open the
+ * same page and see the same state and the same history - who did what, when, and
+ * for which organisation - so neither has to ask the other how the registration
+ * went. The two actions appear only for the party entitled to take them, and only
+ * while the pairing and its event can still take them, because that is what
+ * `mayTake` asks the state machine.
+ *
+ * @author John Grimes
+ */
+
+/**
+ * Renders the timeline both parties read (FR-013).
+ *
+ * @param props - the pairing whose history to show
+ * @returns the timeline
+ */
+function Timeline({
+  pairing,
+}: Readonly<{
+  /** the pairing whose history to show */
+  pairing: Pairing;
+}>): JSX.Element {
+  return (
+    <ol className="flex flex-col gap-3">
+      {pairing.timeline.map((entry) => (
+        <li key={entry.id} className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`badge badge-sm ${pairingStateClass[entry.toState]}`}
+            >
+              {pairingStateWords[entry.toState]}
+            </span>
+            <span className="text-sm">{describeTimelineEntry(entry)}</span>
+            <span className="text-xs text-base-content/60">
+              {describeAge(entry.at, new Date())}
+            </span>
+          </div>
+          {entry.detail.clientId === undefined ? null : (
+            <p className="text-xs text-base-content/70">
+              Client identifier{" "}
+              <code className="font-mono">{entry.detail.clientId}</code>
+            </p>
+          )}
+          {entry.detail.reason === undefined ? null : (
+            <p className="text-xs text-base-content/70">
+              {entry.detail.reason}
+            </p>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** What one of the server organisation's two actions needs. */
+type ActionProps = {
+  /** what the action is called in its messages */
+  readonly what: string;
+  /** the label of the one field it carries */
+  readonly label: string;
+  /** how to fill that field in */
+  readonly hint: string;
+  /** whether the field is a paragraph rather than a line */
+  readonly multiline: boolean;
+  /** the wording on the button */
+  readonly submit: string;
+  /** the icon on the button */
+  readonly icon: JSX.Element;
+  /** builds the request body from what was typed */
+  readonly body: (value: string) => unknown;
+  /** where to send it */
+  readonly path: string;
+  /** called with the pairing the server answered with */
+  readonly onDone: (pairing: Pairing) => void;
+};
+
+/**
+ * Renders one of the server organisation's actions: fulfil, or decline.
+ *
+ * One component for both, because they differ only in the field they carry and
+ * what they are called - and because a refusal has to be reported the same way
+ * whichever was attempted (FR-037).
+ *
+ * @param props - what the action is called, its one field, and where to send it
+ * @returns the form
+ */
+function PairingActionForm(props: Readonly<ActionProps>): JSX.Element {
+  const [value, setValue] = useState("");
+  const [issues, setIssues] = useState<readonly string[]>([]);
+  const [operation, setOperation] = useState<Operation>(idle);
+
+  const handleSubmit = async (): Promise<void> => {
+    if (value.trim() === "") {
+      setIssues([`${props.label} is needed.`]);
+      return;
+    }
+    setIssues([]);
+    setOperation(pending(props.what));
+    const result = await muster.post(
+      props.path,
+      props.body(value.trim()),
+      pairingResponseSchema,
+    );
+    if (!result.ok) {
+      setOperation(failed(props.what, result.failure));
+      return;
+    }
+    setValue("");
+    setOperation(
+      succeeded(
+        props.what,
+        `This pairing is now ${pairingStateWords[result.data.pairing.state].toLowerCase()}. The app's owner has been told.`,
+      ),
+    );
+    props.onDone(result.data.pairing);
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSubmit();
+      }}
+    >
+      <IssueList issues={issues} />
+      {props.multiline ? (
+        <TextAreaField
+          label={props.label}
+          hint={props.hint}
+          value={value}
+          onChange={setValue}
+        />
+      ) : (
+        <TextField
+          label={props.label}
+          hint={props.hint}
+          value={value}
+          onChange={setValue}
+        />
+      )}
+      <button
+        type="submit"
+        className="btn btn-sm self-start"
+        disabled={busy(operation)}
+      >
+        {props.icon}
+        {props.submit}
+      </button>
+      <OperationAlert operation={operation} />
+    </form>
+  );
+}
+
+/**
+ * The pairing detail screen.
+ *
+ * @returns the screen
+ * @author John Grimes
+ */
+export function PairingDetail(): JSX.Element {
+  const { pairingId } = useParams();
+  const { data, operation, reload } = useResource(
+    pairingId === undefined ? null : `/api/pairings/${pairingId}`,
+    pairingResponseSchema,
+    "Loading the pairing",
+  );
+
+  if (data === null) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">Pairing</h1>
+        <OperationAlert operation={operation} />
+        <Link to="/pairings" className="btn btn-sm self-start">
+          <ArrowLeftIcon size={16} />
+          Back to the pairings
+        </Link>
+      </div>
+    );
+  }
+
+  const { pairing } = data;
+  const fields = pairing.registrationFields;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <Link
+          to={`/pairings?event=${pairing.eventSlug}`}
+          className="btn btn-ghost btn-sm"
+        >
+          <ArrowLeftIcon size={16} />
+          Pairings
+        </Link>
+      </div>
+
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold sm:text-3xl">
+            {pairing.client.systemName} at {pairing.server.systemName}
+          </h1>
+          <span
+            className={`badge badge-sm ${pairingStateClass[pairing.state]}`}
+          >
+            {pairingStateWords[pairing.state]}
+          </span>
+        </div>
+        <p className="text-sm text-base-content/70">
+          {pairingStateMeaning[pairing.state]}
+        </p>
+        <p className="text-sm text-base-content/70">
+          Requested {describeAge(pairing.requestedAt, new Date())}, in{" "}
+          <Link to={`/events/${pairing.eventSlug}`} className="link">
+            {pairing.eventSlug}
+          </Link>
+          {pairing.sides.length === 2
+            ? " - you are on both sides of it."
+            : pairing.sides.includes("server")
+              ? " - you are the server's side."
+              : " - you are the client's side."}
+        </p>
+      </header>
+
+      <OperationAlert operation={operation} />
+
+      {pairing.clientId === null ? null : (
+        <div role="status" className="alert alert-soft alert-success">
+          <KeyIcon size={16} />
+          <span>
+            {pairing.server.systemName} issued the client identifier{" "}
+            <code className="font-mono">{pairing.clientId}</code>
+          </span>
+        </div>
+      )}
+
+      {pairing.declineReason === null ? null : (
+        <div role="status" className="alert alert-soft alert-warning">
+          <XCircleIcon size={16} />
+          <span>
+            {pairing.server.systemName} declined: {pairing.declineReason}
+          </span>
+        </div>
+      )}
+
+      <Panel title="The two sides" icon={<PlugIcon size={18} />}>
+        <DetailList
+          details={[
+            {
+              label: "Client",
+              value: `${pairing.client.systemName} (${pairing.client.organisation.name})`,
+            },
+            {
+              label: "Server",
+              value: `${pairing.server.systemName} (${pairing.server.organisation.name})`,
+            },
+            { label: "Registration", value: pairing.registrationMode },
+          ]}
+        />
+      </Panel>
+
+      <Panel
+        title="Registration details"
+        icon={<ServerIcon size={18} />}
+        description="What the app's owner submitted when the pairing was requested. A snapshot: the client's own record may have changed since."
+      >
+        <DetailList
+          details={[
+            { label: "Client name", value: fields.clientName },
+            ...clientDetails(fields),
+          ]}
+        />
+      </Panel>
+
+      {mayTake(pairing, "fulfil") ? (
+        <Panel
+          title="Register the client"
+          icon={<CheckCircleIcon size={18} />}
+          description="Record the client identifier you issued. The app's owner is told, and both of you see it here."
+        >
+          <PairingActionForm
+            what="Recording the client identifier"
+            label="Client identifier"
+            hint="The client_id your server issued for this app."
+            multiline={false}
+            submit="Fulfil the request"
+            icon={<CheckCircleIcon size={16} />}
+            body={(clientId) => ({ clientId })}
+            path={`/api/pairings/${pairing.id}/fulfil`}
+            onDone={reload}
+          />
+        </Panel>
+      ) : null}
+
+      {mayTake(pairing, "decline") ? (
+        <Panel
+          title="Decline the request"
+          icon={<XCircleIcon size={18} />}
+          description="Say why, so the app's owner can fix it and ask again."
+        >
+          <PairingActionForm
+            what="Declining the request"
+            label="Reason"
+            hint="What would have to change for you to register this client."
+            multiline
+            submit="Decline"
+            icon={<XCircleIcon size={16} />}
+            body={(reason) => ({ reason })}
+            path={`/api/pairings/${pairing.id}/decline`}
+            onDone={reload}
+          />
+        </Panel>
+      ) : null}
+
+      <Panel
+        title="History"
+        icon={<HistoryIcon size={18} />}
+        description="The same history for both organisations, in the order things happened."
+      >
+        <Timeline pairing={pairing} />
+      </Panel>
+    </div>
+  );
+}

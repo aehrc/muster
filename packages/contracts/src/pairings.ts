@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   errorEnvelopeSchema,
+  eventStatusSchema,
   pairingStateSchema,
   registrationModeSchema,
 } from "./common.ts";
@@ -97,6 +98,8 @@ export type PairingEvent = z.infer<typeof pairingEventSchema>;
 export const pairingSummarySchema = z.object({
   id: z.string(),
   eventSlug: z.string(),
+  /** the event's status: what a pairing may still do depends on it (FR-011) */
+  eventStatus: eventStatusSchema,
   state: pairingStateSchema,
   client: pairingPartySchema,
   server: pairingPartySchema,

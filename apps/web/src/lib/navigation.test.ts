@@ -42,9 +42,9 @@ describe("navigationFor", () => {
     expect(paths(null)).toEqual(["/", "/sign-in"]);
   });
 
-  // A pending account has no write rights (FR-002), so its own organisation page
-  // has nothing for it yet.
-  test("withholds the organisation page from a pending account", () => {
+  // A pending account has no write rights (FR-002), so neither its own
+  // organisation page nor its pairings have anything for it yet.
+  test("withholds the organisation and pairing pages from a pending account", () => {
     expect(paths(session({ status: "pending" }))).toEqual(["/", "/sign-in"]);
   });
 
@@ -54,8 +54,13 @@ describe("navigationFor", () => {
   });
 
   // Approval is what standing membership buys, so the organisation page appears.
-  test("offers the organisation page to an approved member", () => {
-    expect(paths(session())).toEqual(["/", "/my-organisation", "/sign-in"]);
+  test("offers the organisation and pairing pages to an approved member", () => {
+    expect(paths(session())).toEqual([
+      "/",
+      "/my-organisation",
+      "/pairings",
+      "/sign-in",
+    ]);
   });
 
   // Revocation takes it away again (FR-002).
@@ -69,6 +74,7 @@ describe("navigationFor", () => {
     expect(paths(session({ isAdmin: true }))).toEqual([
       "/",
       "/my-organisation",
+      "/pairings",
       "/admin/members",
       "/admin/events",
       "/sign-in",

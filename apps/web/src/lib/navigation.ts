@@ -16,7 +16,7 @@ import type { SessionView } from "@muster/contracts";
 
 /** The icons the navigation uses, named so the list stays free of markup. */
 export type NavigationIcon =
-  "home" | "organisation" | "people" | "calendar" | "account";
+  "home" | "organisation" | "pairing" | "people" | "calendar" | "account";
 
 /** Where a navigation entry leads, and what it is called. */
 export type NavigationTarget = {
@@ -32,7 +32,8 @@ export type NavigationTarget = {
  * Builds the navigation for a reader.
  *
  * The public pages come first because the directory is readable without an
- * account, the reader's own organisation next when they may manage one, the admin
+ * account, the reader's own organisation and its pairings next when they may
+ * manage one, the admin
  * queues only for a track admin, and the account entry last - it names who is
  * signed in, or invites signing in when nobody is.
  *
@@ -56,6 +57,7 @@ export const navigationFor = (
           label: "My organisation",
           icon: "organisation",
         },
+        { to: "/pairings", label: "Pairings", icon: "pairing" },
       ]
     : [];
 
