@@ -6,6 +6,7 @@ import {
   eventStatusSchema,
   registrationModeSchema,
 } from "./common.ts";
+import { httpsUrl, maximumTextLength } from "./fields.ts";
 
 /**
  * The directory's wire shapes: accounts and sessions, organisations, systems,
@@ -22,30 +23,6 @@ import {
 
 /** Shortest password accepted; a passphrase is the intended shape. */
 const minimumPasswordLength = 12;
-
-/** Longest free-text field accepted, so a note cannot become a payload. */
-const maximumTextLength = 4000;
-
-/**
- * Builds a check that a value is an absolute URL with one of the given schemes.
- *
- * @param schemes - the acceptable URL schemes, with their colons
- * @returns a predicate for `refine`
- */
-const urlWithScheme =
-  (schemes: readonly string[]) =>
-  (value: string): boolean => {
-    try {
-      return schemes.includes(new URL(value).protocol);
-    } catch {
-      return false;
-    }
-  };
-
-/** An https URL, which is what a participant's endpoints must be. */
-const httpsUrl = z
-  .string()
-  .refine(urlWithScheme(["https:"]), "must be an absolute https URL");
 
 /** An email address, folded and trimmed by the server before it is stored. */
 export const emailSchema = z.string().trim().min(3).max(320).includes("@");
