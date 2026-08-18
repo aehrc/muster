@@ -25,6 +25,7 @@ export {
   type StatusChangeResult,
   type TokenFacts,
 } from "./accounts/rules.ts";
+export { buildBrandsBundle, type BrandsBundleFacts } from "./brands/build.ts";
 export {
   checkDue,
   checkIntervalMs,

@@ -1,0 +1,203 @@
+{
+  "resourceType": "Bundle",
+  "id": "brands-sparked-2026-09",
+  "meta": {
+    "lastUpdated": "2026-08-17T02:00:00.000Z",
+    "profile": [
+      "http://hl7.org/fhir/smart-app-launch/StructureDefinition/user-access-brands-bundle"
+    ]
+  },
+  "type": "collection",
+  "timestamp": "2026-08-17T02:00:00.000Z",
+  "entry": [
+    {
+      "fullUrl": "https://muster.test/api/events/sparked-2026-09/Organization/11111111-1111-4111-8111-111111111111",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "meta": { "lastUpdated": "2026-08-17T02:00:00.000Z" },
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/organization-portal",
+            "extension": [
+              { "url": "portalName", "valueString": "MediRecords FHIR" },
+              {
+                "url": "portalDescription",
+                "valueMarkdown": "The MediRecords sandbox FHIR server."
+              },
+              {
+                "url": "portalUrl",
+                "valueUrl": "https://muster.test/events/sparked-2026-09/systems/11111111-1111-4111-8111-111111111111"
+              },
+              {
+                "url": "portalEndpoint",
+                "valueReference": {
+                  "reference": "Endpoint/11111111-1111-4111-8111-111111111111",
+                  "display": "MediRecords FHIR"
+                }
+              }
+            ]
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:ietf:rfc:3986",
+            "value": "https://muster.test/events/sparked-2026-09/systems/11111111-1111-4111-8111-111111111111"
+          }
+        ],
+        "active": true,
+        "name": "MediRecords",
+        "telecom": [
+          {
+            "system": "url",
+            "_value": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                  "valueCode": "asked-unknown"
+                }
+              ]
+            }
+          }
+        ],
+        "endpoint": [
+          {
+            "reference": "Endpoint/11111111-1111-4111-8111-111111111111",
+            "display": "MediRecords FHIR"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://muster.test/api/events/sparked-2026-09/Endpoint/11111111-1111-4111-8111-111111111111",
+      "resource": {
+        "resourceType": "Endpoint",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "meta": { "lastUpdated": "2026-08-17T02:00:00.000Z" },
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/endpoint-fhir-version",
+            "valueCode": "4.0.1"
+          }
+        ],
+        "status": "active",
+        "connectionType": {
+          "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+          "code": "hl7-fhir-rest"
+        },
+        "name": "MediRecords FHIR",
+        "contact": [
+          {
+            "system": "url",
+            "value": "https://muster.test/events/sparked-2026-09/systems/11111111-1111-4111-8111-111111111111"
+          }
+        ],
+        "payloadType": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/endpoint-payload-type",
+                "code": "none"
+              }
+            ]
+          }
+        ],
+        "address": "https://fhir.medirecords.test/r4"
+      }
+    },
+    {
+      "fullUrl": "https://muster.test/api/events/sparked-2026-09/Organization/22222222-2222-4222-8222-222222222222",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "22222222-2222-4222-8222-222222222222",
+        "meta": { "lastUpdated": "2026-08-16T04:00:00.000Z" },
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/organization-portal",
+            "extension": [
+              {
+                "url": "portalName",
+                "valueString": "Sparked Reference Server"
+              },
+              {
+                "url": "portalUrl",
+                "valueUrl": "https://muster.test/events/sparked-2026-09/systems/22222222-2222-4222-8222-222222222222"
+              },
+              {
+                "url": "portalEndpoint",
+                "valueReference": {
+                  "reference": "Endpoint/22222222-2222-4222-8222-222222222222",
+                  "display": "Sparked Reference Server"
+                }
+              }
+            ]
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:ietf:rfc:3986",
+            "value": "https://muster.test/events/sparked-2026-09/systems/22222222-2222-4222-8222-222222222222"
+          }
+        ],
+        "active": true,
+        "name": "CSIRO",
+        "telecom": [
+          {
+            "system": "url",
+            "_value": {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                  "valueCode": "asked-unknown"
+                }
+              ]
+            }
+          }
+        ],
+        "endpoint": [
+          {
+            "reference": "Endpoint/22222222-2222-4222-8222-222222222222",
+            "display": "Sparked Reference Server"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://muster.test/api/events/sparked-2026-09/Endpoint/22222222-2222-4222-8222-222222222222",
+      "resource": {
+        "resourceType": "Endpoint",
+        "id": "22222222-2222-4222-8222-222222222222",
+        "meta": { "lastUpdated": "2026-08-16T04:00:00.000Z" },
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/endpoint-fhir-version",
+            "valueCode": "4.0.1"
+          }
+        ],
+        "status": "active",
+        "connectionType": {
+          "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+          "code": "hl7-fhir-rest"
+        },
+        "name": "Sparked Reference Server",
+        "contact": [
+          {
+            "system": "url",
+            "value": "https://muster.test/events/sparked-2026-09/systems/22222222-2222-4222-8222-222222222222"
+          }
+        ],
+        "payloadType": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/endpoint-payload-type",
+                "code": "none"
+              }
+            ]
+          }
+        ],
+        "address": "https://reference.sparked.test/fhir"
+      }
+    }
+  ]
+}
