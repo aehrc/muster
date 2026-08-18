@@ -69,9 +69,10 @@ const server = Bun.serve({
   fetch: createApp({ config, mail, sql }).fetch,
 });
 
-// One interval in one instance, per the constitution: the Helm chart pins
-// `replicas: 1` because a second copy of this would double every participant's
-// inbound traffic. Every result is persisted, so a restart loses nothing.
+// One interval in one instance, per the constitution: a deployment must pin a
+// single replica, because a second copy of this would double every
+// participant's inbound traffic. Every result is persisted, so a restart loses
+// nothing.
 const scheduler = createScheduler({ config, sql });
 scheduler.start();
 
