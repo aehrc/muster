@@ -24,6 +24,7 @@ import {
   listEvents,
   listMembershipsForAccount,
   listOrganisationContacts,
+  listSystemsByOrganisation,
   markAccountTokenUsed,
   markAccountVerified,
   reconfirmEnrolment,
@@ -80,10 +81,11 @@ describeDatabase("the directory schema and repositories", () => {
     });
 
   // Arranges an organisation with one member.
-  const arrangeOrganisation = async (accountId: string) => {
-    const organisation = await insertOrganisation(database.sql, {
-      name: "MediRecords",
-    });
+  const arrangeOrganisation = async (
+    accountId: string,
+    name = "MediRecords",
+  ) => {
+    const organisation = await insertOrganisation(database.sql, { name });
     await insertOrganisationMember(database.sql, {
       organisationId: organisation.id,
       accountId,
@@ -392,6 +394,24 @@ describeDatabase("the directory schema and repositories", () => {
     expect((await findSystemById(database.sql, created.id))?.name).toBe(
       "Smart Forms",
     );
+  });
+
+  // The console shows an organisation what it already owns, so the systems of
+  // one organisation are listable without touching another's.
+  test("lists an organisation's own systems in name order", async () => {
+    const account = await arrangeAccount();
+    const mine = await arrangeOrganisation(account.id);
+    const theirs = await arrangeOrganisation(account.id, "Someone Else");
+    await arrangeSystem(mine.id, "Zebra Server");
+    await arrangeSystem(mine.id, "Alpha Server");
+    await arrangeSystem(theirs.id, "Not Mine");
+
+    const listed = await listSystemsByOrganisation(database.sql, mine.id);
+
+    expect(listed.map((system) => system.name)).toEqual([
+      "Alpha Server",
+      "Zebra Server",
+    ]);
   });
 
   // Clearing the last remaining profile is refused by the same constraint.

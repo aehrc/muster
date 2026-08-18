@@ -385,6 +385,11 @@ export const contactsResponseSchema = z.object({
 /** Every system mutation. */
 export const systemResponseSchema = z.object({ system: systemRecordSchema });
 
+/** `GET /api/organisations/{id}/systems`. */
+export const systemsResponseSchema = z.object({
+  systems: z.array(systemRecordSchema),
+});
+
 /** `POST /api/events/{slug}/enrolments`. */
 export const enrolmentResponseSchema = z.object({
   enrolment: enrolmentViewSchema,

@@ -947,6 +947,30 @@ export const updateSystem = async (
 };
 
 /**
+ * Lists the systems one organisation owns.
+ *
+ * Ordered by name, because this is what the console shows a member and a list
+ * whose order changes between reads is a list nobody can scan.
+ *
+ * @param sql - a connection
+ * @param organisationId - the owning organisation
+ * @returns the organisation's systems, in name order
+ * @example
+ * ```ts
+ * const systems = await listSystemsByOrganisation(sql, organisationId);
+ * ```
+ */
+export const listSystemsByOrganisation = async (
+  sql: SQL,
+  organisationId: string,
+): Promise<SystemRow[]> => {
+  const rows = await queryRows(
+    sql`select * from system where organisation_id = ${organisationId} order by name`,
+  );
+  return rows.map(toSystem);
+};
+
+/**
  * Finds a system by its identifier.
  *
  * @param sql - a connection

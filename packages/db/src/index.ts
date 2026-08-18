@@ -51,6 +51,7 @@ export {
   listMembershipsForAccount,
   listNotifiableAdmins,
   listOrganisationContacts,
+  listSystemsByOrganisation,
   markAccountTokenUsed,
   markAccountVerified,
   reconfirmEnrolment,

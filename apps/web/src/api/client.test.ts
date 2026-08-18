@@ -83,6 +83,50 @@ describe("createApiClient", () => {
     );
   });
 
+  // An edit and a removal are the other two things the console does, and both
+  // read the updated resource back, because every mutation returns it.
+  test("sends an edit as PATCH with a JSON body", async () => {
+    const seen: { init?: RequestInit | undefined } = {};
+    const client = createApiClient({
+      fetchImplementation: (_url, init) => {
+        seen.init = init;
+        return Promise.resolve(Response.json({ slug: "a", name: "renamed" }));
+      },
+    });
+
+    const result = await client.patch(
+      "/api/admin/events/a",
+      { name: "renamed" },
+      eventSchema,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      data: { slug: "a", name: "renamed" },
+    });
+    expect(seen.init?.method).toBe("PATCH");
+    expect(seen.init?.body).toBe('{"name":"renamed"}');
+  });
+
+  test("sends a removal as DELETE with no body", async () => {
+    const seen: { init?: RequestInit | undefined } = {};
+    const client = createApiClient({
+      fetchImplementation: (_url, init) => {
+        seen.init = init;
+        return Promise.resolve(Response.json({ slug: "a", name: "b" }));
+      },
+    });
+
+    const result = await client.delete(
+      "/api/organisations/1/members/2",
+      eventSchema,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(seen.init?.method).toBe("DELETE");
+    expect(seen.init?.body).toBeUndefined();
+  });
+
   // The envelope is the contract, so its contents reach the caller intact.
   test("reads a refusal out of the error envelope", async () => {
     const client = createApiClient({

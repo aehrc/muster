@@ -44,19 +44,29 @@ export type ApiClientOptions = {
   ) => Promise<Response>;
 };
 
+/** A call that sends a JSON body. */
+type BodyCall = <Output>(
+  path: string,
+  body: unknown,
+  parser: ResponseParser<Output>,
+) => Promise<ApiResult<Output>>;
+
+/** A call that sends no body. */
+type BodylessCall = <Output>(
+  path: string,
+  parser: ResponseParser<Output>,
+) => Promise<ApiResult<Output>>;
+
 /** Calls Muster's JSON API. */
 export type ApiClient = {
   /** reads a resource */
-  readonly get: <Output>(
-    path: string,
-    parser: ResponseParser<Output>,
-  ) => Promise<ApiResult<Output>>;
+  readonly get: BodylessCall;
   /** creates or acts on a resource */
-  readonly post: <Output>(
-    path: string,
-    body: unknown,
-    parser: ResponseParser<Output>,
-  ) => Promise<ApiResult<Output>>;
+  readonly post: BodyCall;
+  /** edits a resource */
+  readonly patch: BodyCall;
+  /** removes a resource */
+  readonly delete: BodylessCall;
 };
 
 /**
@@ -147,14 +157,15 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
     }
   };
 
-  return {
-    get: (path, parser) =>
-      call(path, { headers: { accept: "application/json" } }, parser),
-    post: (path, body, parser) =>
+  // One builder for the two methods that carry a body, and one for the two that
+  // do not, so a header cannot be right on one verb and wrong on another.
+  const withBody =
+    (method: string): BodyCall =>
+    (path, body, parser) =>
       call(
         path,
         {
-          method: "POST",
+          method,
           headers: {
             accept: "application/json",
             "content-type": "application/json",
@@ -162,6 +173,24 @@ export const createApiClient = (options: ApiClientOptions = {}): ApiClient => {
           body: JSON.stringify(body),
         },
         parser,
-      ),
+      );
+
+  const withoutBody =
+    (method?: string): BodylessCall =>
+    (path, parser) =>
+      call(
+        path,
+        {
+          ...(method === undefined ? {} : { method }),
+          headers: { accept: "application/json" },
+        },
+        parser,
+      );
+
+  return {
+    get: withoutBody(),
+    post: withBody("POST"),
+    patch: withBody("PATCH"),
+    delete: withoutBody("DELETE"),
   };
 };

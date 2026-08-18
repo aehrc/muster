@@ -11,9 +11,7 @@ import { authoriseEventOpen } from "@muster/core";
 import {
   deleteOrganisationMember,
   findEnrolment,
-  findEventBySlug,
   findOrganisationById,
-  findSystemById,
   insertEnrolment,
   insertEvent,
   insertOrganisation,
@@ -22,6 +20,7 @@ import {
   isCheckViolation,
   isUniqueViolation,
   listOrganisationContacts,
+  listSystemsByOrganisation,
   reconfirmEnrolment,
   updateEvent,
   updateSystem,
@@ -37,13 +36,13 @@ import {
   requireMember,
   requireWriter,
 } from "../auth/sessions.ts";
+import { requireEvent, requireSystem } from "../http/lookups.ts";
 import { eventDetail, systemRecord } from "../http/views.ts";
 import { invitationMessage } from "../mail/messages.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolmentView } from "@muster/contracts";
-import type { EnrolmentRow, EventRow, SystemRow } from "@muster/db";
-import type { Context } from "hono";
+import type { EnrolmentRow, EventRow } from "@muster/db";
 
 /**
  * Organisations, their members and systems, events, and enrolment.
@@ -79,44 +78,6 @@ const enrolmentView = (
   tags: [...enrolment.tags],
   confirmedAt: enrolment.confirmedAt.toISOString(),
 });
-
-/**
- * Finds an event by slug, or refuses.
- *
- * @param context - the request being answered
- * @param slug - the event's slug
- * @returns the event
- * @throws {HTTPException} 404 when there is no such event
- */
-const requireEvent = async (
-  context: Context<AppEnvironment>,
-  slug: string,
-): Promise<EventRow> => {
-  const event = await findEventBySlug(context.get("sql"), slug);
-  if (event === undefined) {
-    throw new HTTPException(404, { message: "No such event." });
-  }
-  return event;
-};
-
-/**
- * Finds a system by identifier, or refuses.
- *
- * @param context - the request being answered
- * @param id - the system identifier
- * @returns the system
- * @throws {HTTPException} 404 when there is no such system
- */
-const requireSystem = async (
-  context: Context<AppEnvironment>,
-  id: string,
-): Promise<SystemRow> => {
-  const system = await findSystemById(context.get("sql"), id);
-  if (system === undefined) {
-    throw new HTTPException(404, { message: "No such system." });
-  }
-  return system;
-};
 
 /**
  * Builds the organisation, system, event and enrolment routes.
@@ -155,6 +116,19 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
         organisationId,
       ),
     });
+  });
+
+  // An organisation's own systems, as its members manage them: the full record
+  // including both profiles, which the event view does not carry because a system
+  // is only published through an enrolment.
+  routes.get("/organisations/:id/systems", async (context) => {
+    const organisationId = context.req.param("id");
+    await requireMember(context, organisationId);
+    const systems = await listSystemsByOrganisation(
+      context.get("sql"),
+      organisationId,
+    );
+    return context.json({ systems: systems.map(systemRecord) });
   });
 
   routes.post("/organisations/:id/members", async (context) => {

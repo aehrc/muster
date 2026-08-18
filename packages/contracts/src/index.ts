@@ -68,6 +68,7 @@ export {
   systemKindSchema,
   systemRecordSchema,
   systemResponseSchema,
+  systemsResponseSchema,
   updateEventRequestSchema,
   updateSystemRequestSchema,
   verifyRequestSchema,

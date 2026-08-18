@@ -169,6 +169,14 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+
+      // A component takes one props object, destructured in the signature, and
+      // each prop carries its own doc comment on the props type - which is where
+      // a reader looks and what the editor shows on the JSX attribute. Repeating
+      // all of them as `@param props.x` in the JSDoc block duplicates that
+      // without adding anything, so the block documents `props` as a whole.
+      "jsdoc/require-param": ["error", { checkDestructured: false }],
+      "jsdoc/check-param-names": ["error", { checkDestructured: false }],
     },
   },
 

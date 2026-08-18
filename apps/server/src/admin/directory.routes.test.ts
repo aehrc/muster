@@ -2,6 +2,7 @@ import {
   accountsResponseSchema,
   contactsResponseSchema,
   eventSystemsSchema,
+  systemsResponseSchema,
 } from "@muster/contracts";
 import { updateAccountStatus } from "@muster/db";
 import { describeDatabase, uniqueName } from "@muster/db/test/harness";
@@ -326,6 +327,35 @@ describeDatabase("the directory routes", () => {
         organisationId,
       },
     });
+  });
+
+  // The console cannot manage what it cannot see, so an organisation's own
+  // members read its systems back - and nobody else does, because a system
+  // record carries the connection details of a system that is not yet enrolled.
+  test("lists an organisation's systems for its members only", async () => {
+    const member = await arrangeMember();
+    const outsider = await arrangeMember();
+    const organisationId = await arrangeOrganisation(member);
+    await arrangeSystem(member, organisationId, "Zebra Server");
+    await arrangeSystem(member, organisationId, "Alpha Server");
+    const path = `/api/organisations/${organisationId}/systems`;
+
+    const listed = await request(server, "GET", path, {
+      cookie: member.cookie,
+    });
+    expect(listed.status).toBe(200);
+    const { systems } = await readJson(listed, systemsResponseSchema);
+    expect(systems.map((system) => system.name)).toEqual([
+      "Alpha Server",
+      "Zebra Server",
+    ]);
+    expect(systems[0]?.kinds).toEqual(["server"]);
+
+    // An approved member of another organisation is still an outsider here.
+    expect(
+      (await request(server, "GET", path, { cookie: outsider.cookie })).status,
+    ).toBe(403);
+    expect((await request(server, "GET", path)).status).toBe(401);
   });
 
   // FR-006: a system is a server, a client, or both - never neither.

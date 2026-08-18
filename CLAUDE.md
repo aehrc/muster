@@ -76,7 +76,7 @@ All of these pass before any change is considered done:
 bun run format:check
 bun run lint
 bun run typecheck
-bun run lint:duplication   # jscpd, threshold 0
+bun run lint:duplication   # jscpd, threshold 0, minTokens 60
 bun run test               # unit + integration
 bun run test:coverage      # ≥80% lines and functions, totalled by scripts/checkCoverage.mjs
 bun run build && bun run check:bundle

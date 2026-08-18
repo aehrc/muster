@@ -1,7 +1,6 @@
 import { authoriseWrite } from "@muster/core";
 import {
   findEnrolledSystem,
-  findEventBySlug,
   listEnrolledSystems,
   listEvents,
   listOrganisationContacts,
@@ -9,12 +8,13 @@ import {
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
+import { requireEvent } from "./lookups.ts";
 import { enrolledSystem, eventDetail, eventSummary } from "./views.ts";
 import { currentAccount, factsFor } from "../auth/sessions.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolledSystem } from "@muster/contracts";
-import type { EnrolledSystemRow, EventRow } from "@muster/db";
+import type { EnrolledSystemRow } from "@muster/db";
 import type { Context } from "hono";
 
 /**
@@ -43,25 +43,6 @@ const contactsVisible = async (
 ): Promise<boolean> => {
   const account = await currentAccount(context);
   return account !== undefined && authoriseWrite(factsFor(account)).ok;
-};
-
-/**
- * Finds an event by slug, or refuses.
- *
- * @param context - the request being answered
- * @param slug - the event's slug
- * @returns the event
- * @throws {HTTPException} 404 when there is no such event
- */
-const requireEvent = async (
-  context: Context<AppEnvironment>,
-  slug: string,
-): Promise<EventRow> => {
-  const event = await findEventBySlug(context.get("sql"), slug);
-  if (event === undefined) {
-    throw new HTTPException(404, { message: "No such event." });
-  }
-  return event;
 };
 
 /**

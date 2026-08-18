@@ -1,5 +1,6 @@
 {
   "threshold": 0,
+  "minTokens": 60,
   "reporters": ["console"],
   "path": ["packages", "apps", "e2e", "scripts"],
   "ignore": [
