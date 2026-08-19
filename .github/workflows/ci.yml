@@ -177,13 +177,18 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - name: Start the stack
-        run: docker compose -f deploy/docker-compose.yml up -d --build --wait
+        run: bun run stack:up
+
+      # The admin account and the open event every scenario runs inside. Reads
+      # deploy/stack.env, so the values are the stack's own.
+      - name: Seed the stack
+        run: bun run stack:seed
 
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      # The suite itself arrives with the polish phase; the job is wired now so
-      # that it starts covering scenarios the moment tests appear.
+      # Quickstart scenarios 1 to 7. The addresses default to the compose
+      # network's names, so only Muster's own published address is given here.
       - name: Run the suite
         run: bun run test:e2e
         env:
@@ -191,15 +196,16 @@ jobs:
 
       - name: Stack logs on failure
         if: failure()
-        run: docker compose -f deploy/docker-compose.yml logs
+        run: bun run stack:logs
 
       - name: Stop the stack
         if: always()
-        run: docker compose -f deploy/docker-compose.yml down -v
+        run: bun run stack:down
 
+      # Playwright writes its report beside its configuration, which is in e2e/.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
+          path: e2e/playwright-report/
+          if-no-files-found: warn
