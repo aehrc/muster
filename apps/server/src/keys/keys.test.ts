@@ -28,6 +28,7 @@ import {
   generateSigningKey,
   publishedJwks,
   rotateSigningKey,
+  signingKeyByKid,
   signJws,
 } from "./keys.ts";
 
@@ -455,6 +456,30 @@ describeDatabase("signing key management", () => {
       kid: key.kid,
       typ: "JWT",
     });
+  });
+
+  // A caller can reach a key by identifier rather than by purpose, which is what
+  // the conformance harness needs: a statement signed with a key the target server
+  // cannot know about is one of the checks it runs.
+  test("reads a key by its identifier, including a superseded one", async () => {
+    const superseded = await ensureActiveSigningKey(database.sql, {
+      purpose: "statements",
+      masterKey,
+    });
+    await rotateSigningKey(database.sql, { purpose: "statements", masterKey });
+
+    const found = await signingKeyByKid(
+      database.sql,
+      superseded.kid,
+      masterKey,
+    );
+
+    expect(found?.kid).toBe(superseded.kid);
+    expect(found?.purpose).toBe("statements");
+    // Deny by default: an identifier nothing was signed with answers nothing.
+    expect(
+      await signingKeyByKid(database.sql, "no-such-kid", masterKey),
+    ).toBeUndefined();
   });
 
   // The key the signer holds is the key the JWKS publishes, so an implementer
