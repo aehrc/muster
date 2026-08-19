@@ -15,6 +15,7 @@ import { Members } from "./pages/admin/Members.tsx";
 import { DcrRun } from "./pages/DcrRun.tsx";
 import { Docs } from "./pages/Docs.tsx";
 import { EventView } from "./pages/EventView.tsx";
+import { Harness } from "./pages/Harness.tsx";
 import { Home } from "./pages/Home.tsx";
 import { MyOrganisation } from "./pages/MyOrganisation.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
@@ -103,6 +104,10 @@ export function App(): JSX.Element {
                 <Route
                   path="/events/:slug/systems/:systemId"
                   element={<SystemDetail />}
+                />
+                <Route
+                  path="/enrolments/:enrolmentId/harness"
+                  element={<Harness />}
                 />
                 <Route path="/my-organisation" element={<MyOrganisation />} />
                 <Route path="/pairings" element={<Pairings />} />

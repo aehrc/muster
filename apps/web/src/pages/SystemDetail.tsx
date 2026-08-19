@@ -1,6 +1,7 @@
 import { eventSystemSchema } from "@muster/contracts";
 import {
   ArrowLeftIcon,
+  BeakerIcon,
   CalendarIcon,
   OrganizationIcon,
   PersonIcon,
@@ -11,6 +12,7 @@ import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
 import { CheckBadge, CheckNote } from "../components/CheckBadge.tsx";
+import { ConformanceBadge } from "../components/ConformanceBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
 import { DetailList } from "../components/DetailList.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
@@ -23,6 +25,7 @@ import {
 } from "../lib/checks.ts";
 import { kindLabel } from "../lib/directory.ts";
 import { describeAge, formatDateRange } from "../lib/format.ts";
+import { conformanceSentence, harnessPath } from "../lib/harness.ts";
 
 import type { JSX } from "react";
 
@@ -180,6 +183,30 @@ export function SystemDetail(): JSX.Element {
           )}
         </Panel>
       )}
+
+      {entry.system.serverProfile?.registrationMode === "trustedDcr" ? (
+        <Panel
+          title="Trusted registration conformance"
+          icon={<BeakerIcon size={18} />}
+          description="This entry accepts client registrations Muster vouches for, so the profile can be run against it and the result published."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <ConformanceBadge entry={entry} />
+            <span className="text-sm">
+              {conformanceSentence(entry.conformance, new Date())}
+            </span>
+          </div>
+          <Link
+            to={harnessPath(entry.enrolmentId)}
+            className="btn btn-sm self-start"
+          >
+            <BeakerIcon size={16} />
+            {entry.conformance === null
+              ? "The conformance harness"
+              : "Read the report"}
+          </Link>
+        </Panel>
+      ) : null}
 
       <Panel title="Contacts" icon={<PersonIcon size={18} />}>
         <Contacts entry={entry} />

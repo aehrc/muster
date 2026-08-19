@@ -11,6 +11,7 @@ import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
 import { CheckNote, EntryCheckBadge } from "../components/CheckBadge.tsx";
+import { ConformanceBadge } from "../components/ConformanceBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
 import { SelectField, TextField } from "../components/Fields.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
@@ -89,6 +90,7 @@ function SystemCard({
               {kindLabel(entry.system.kinds)}
             </span>
             <EntryCheckBadge entry={entry} />
+            <ConformanceBadge entry={entry} />
           </div>
         </div>
 
