@@ -14,6 +14,13 @@ import { quoteIdentifier } from "../quoting.ts";
  * `MUSTER_REQUIRE_DATABASE_TESTS` as well, which turns a missing URL into a
  * failure so the suites cannot go quiet.
  *
+ * A suite's set-up creates a scratch schema and applies every migration to it,
+ * which takes seconds rather than milliseconds - and several times longer under
+ * coverage instrumentation, where bun's default five-second limit is not enough
+ * and the hooks time out. The root `test` scripts therefore pass
+ * `--timeout 30000`, which is the only lever: bun's hooks take no timeout of
+ * their own.
+ *
  * @author John Grimes
  */
 

@@ -8,8 +8,8 @@
     "e2e"
   ],
   "scripts": {
-    "test": "bun test packages apps",
-    "test:coverage": "bun test --coverage packages apps && bun scripts/checkCoverage.mjs",
+    "test": "bun test --timeout 30000 packages apps",
+    "test:coverage": "bun test --timeout 30000 --coverage packages apps && bun scripts/checkCoverage.mjs",
     "test:e2e": "bun --filter @muster/e2e test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
