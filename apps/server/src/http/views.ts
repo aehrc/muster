@@ -7,6 +7,7 @@ import {
   personaDisplaySchema,
   serverProfileSchema,
   systemKinds,
+  ticketClaimsSchema,
 } from "@muster/contracts";
 import { z } from "zod";
 
@@ -23,6 +24,7 @@ import type {
   Persona,
   PersonaCoverage,
   SystemRecord,
+  TicketRecord,
 } from "@muster/contracts";
 import type {
   AccountRow,
@@ -34,6 +36,7 @@ import type {
   PersonaCoverageRow,
   PersonaRow,
   SystemRow,
+  TicketRow,
 } from "@muster/db";
 
 /**
@@ -300,4 +303,29 @@ export const personaCoverage = (row: PersonaCoverageRow): PersonaCoverage => ({
   outcome: row.outcome,
   detail: row.detail,
   checkedAt: row.checkedAt.toISOString(),
+});
+
+/**
+ * Renders one minted permission ticket.
+ *
+ * The claims are parsed against the contract schema on the way out, like every
+ * other stored document. The compact artefact is not here because it is not
+ * stored: it belongs to the answer of the mint that produced it, once (the
+ * constitution).
+ *
+ * @param row - the ticket as stored
+ * @returns the record
+ * @throws {Error} when the stored claims do not satisfy the contract
+ * @example
+ * ```ts
+ * context.json({ jwt, ticket: ticketRecord(row) }, 201);
+ * ```
+ */
+export const ticketRecord = (row: TicketRow): TicketRecord => ({
+  jti: row.jti,
+  keyId: row.keyId,
+  personaId: row.personaId,
+  mintedAt: row.createdAt.toISOString(),
+  expiresAt: row.expiresAt.toISOString(),
+  claims: ticketClaimsSchema.parse(row.claims),
 });

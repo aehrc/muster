@@ -164,4 +164,9 @@ export {
   type NewSoftwareStatement,
   type SoftwareStatementRow,
 } from "./repositories/statements.ts";
+export {
+  insertTicket,
+  type NewTicket,
+  type TicketRow,
+} from "./repositories/tickets.ts";
 export { bootstrapServerRole, type ServerRoleOptions } from "./roles.ts";

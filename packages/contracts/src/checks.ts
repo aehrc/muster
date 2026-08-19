@@ -51,6 +51,13 @@ export const discoveryHighlightsSchema = z.object({
   scopesSupported: z.array(z.string()),
   /** the SMART capabilities the server says it has */
   capabilities: z.array(z.string()),
+  /**
+   * the permission ticket types the server says it accepts, per
+   * `contracts/ticket-profile.md`. Defaulted rather than required, so a check
+   * recorded before ticket support was read still parses on the way out: an older
+   * row means "nothing was observed", which is exactly an empty list.
+   */
+  permissionTicketTypesSupported: z.array(z.string()).default([]),
 });
 
 /** What a server's discovery document advertises. */

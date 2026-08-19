@@ -200,3 +200,17 @@ export {
   type SoftwareStatementView,
   type StatementClaims,
 } from "./registration.ts";
+export {
+  createTicketRequestSchema,
+  ticketClaimsSchema,
+  ticketRecordSchema,
+  ticketResponseSchema,
+  ticketSubjectSchema,
+  ticketTypeSchema,
+  type CreateTicketRequest,
+  type TicketClaims,
+  type TicketRecord,
+  type TicketResponse,
+  type TicketSubject,
+  type TicketType,
+} from "./tickets.ts";

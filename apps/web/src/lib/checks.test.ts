@@ -40,6 +40,7 @@ const check = (overrides: Partial<CheckResult> = {}): CheckResult => ({
     registrationEndpoint: null,
     scopesSupported: ["launch", "patient/Patient.rs"],
     capabilities: ["launch-standalone"],
+    permissionTicketTypesSupported: [],
   },
   capability: {
     fhirVersion: "4.0.1",

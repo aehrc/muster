@@ -156,8 +156,33 @@ export const discoveryHighlights = (
     registrationEndpoint: asText(body["registration_endpoint"]),
     scopesSupported: asTextList(body["scopes_supported"]),
     capabilities: asTextList(body["capabilities"]),
+    // The ticket profile's discovery rule: a data holder advertises the ticket
+    // types it accepts here, and only while it accepts them (FR-034).
+    permissionTicketTypesSupported: asTextList(
+      body["smart_permission_ticket_types_supported"],
+    ),
   };
 };
+
+/**
+ * Reads the permission ticket types an entry's latest check observed.
+ *
+ * An entry nothing has checked, and one whose discovery document could not be
+ * read, both support nothing: an absence of evidence is not evidence, and an entry
+ * shown as accepting tickets when it does not is worse than one that says nothing
+ * (FR-034).
+ *
+ * @param discovery - the discovery highlights, or null when none were read
+ * @returns the advertised ticket types, empty when none were observed
+ * @example
+ * ```ts
+ * permissionTicketTypes(check.latest.discovery);
+ * // ["patient-self-access"]
+ * ```
+ */
+export const permissionTicketTypes = (
+  discovery: DiscoveryHighlights | null,
+): readonly string[] => discovery?.permissionTicketTypesSupported ?? [];
 
 /**
  * Reads the highlights out of a FHIR capability statement.

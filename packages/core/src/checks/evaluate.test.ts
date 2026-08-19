@@ -110,6 +110,7 @@ describe("discoveryHighlights", () => {
       registrationEndpoint: "https://auth.example.org/register",
       scopesSupported: ["launch", "openid", "fhirUser", "patient/Patient.rs"],
       capabilities: ["launch-standalone", "client-public"],
+      permissionTicketTypesSupported: [],
     });
   });
 
@@ -127,6 +128,7 @@ describe("discoveryHighlights", () => {
       registrationEndpoint: null,
       scopesSupported: [],
       capabilities: [],
+      permissionTicketTypesSupported: [],
     });
   });
 
@@ -212,6 +214,7 @@ describe("driftFlags", () => {
         registrationEndpoint: null,
         scopesSupported: [],
         capabilities: [],
+        permissionTicketTypesSupported: [],
       },
       null,
     );
@@ -265,6 +268,7 @@ describe("driftFlags", () => {
           registrationEndpoint: null,
           scopesSupported: [],
           capabilities: [],
+          permissionTicketTypesSupported: [],
         },
         null,
       ),

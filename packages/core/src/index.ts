@@ -40,6 +40,7 @@ export {
   driftFlags,
   evaluateCheck,
   evaluateCheckFailure,
+  permissionTicketTypes,
   scopeWarning,
   unsupportedScopes,
   type CheckEvaluation,
@@ -144,3 +145,16 @@ export {
   type StatementMintResult,
   type VouchingWindow,
 } from "./statements/build.ts";
+export {
+  authoriseTicketMint,
+  mintTicket,
+  ticketClaims,
+  ticketExpiresAt,
+  ticketTypes,
+  type TicketClaims,
+  type TicketContentFacts,
+  type TicketMintFacts,
+  type TicketMintResult,
+  type TicketSubject,
+  type TicketValidity,
+} from "./tickets/build.ts";
