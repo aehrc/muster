@@ -9,6 +9,7 @@ import { createBrandsRoutes } from "./http/brands.ts";
 import { createDocsRoutes } from "./http/docs.ts";
 import { createJwksRoutes } from "./http/jwks.ts";
 import { createPublicRoutes } from "./http/publicApi.ts";
+import { createWebAppRoutes } from "./http/webApp.ts";
 import { createDcrRoutes } from "./pairing/dcr.routes.ts";
 import { createHarnessRoutes } from "./pairing/harness.routes.ts";
 import { createPairingRoutes } from "./pairing/routes.ts";
@@ -130,6 +131,10 @@ export const createApp = (
   // the documentation is published where an implementer would look for it.
   app.route("/", createJwksRoutes());
   app.route("/", createDocsRoutes());
+
+  // Last, because it answers whatever is left: the built console, so that one
+  // container serves the API and the screens.
+  app.route("/", createWebAppRoutes());
 
   app.notFound((context) =>
     context.json(

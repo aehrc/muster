@@ -52,6 +52,13 @@ export type MusterConfig = {
    * working directory rather than to the module.
    */
   readonly migrationsDirectory: string;
+  /**
+   * directory holding the built console, served for every path the API does not
+   * own. Relative to the working directory, like the migrations: the image holds
+   * it beside the bundle. A directory that is not there means the API is served
+   * alone, which is a legitimate deployment and is stated at start-up.
+   */
+  readonly webDirectory: string;
   /** the serving role bootstrapped by the owning role */
   readonly serverDatabaseRole: string;
   /** password to set on the serving role, when the deployment sets one */
@@ -89,6 +96,9 @@ const defaultServerDatabaseRole = "muster_server";
 
 /** Migration directory when unconfigured, which is where the image holds it. */
 const defaultMigrationsDirectory = "migrations";
+
+/** Console directory when unconfigured, which is where the image holds it. */
+const defaultWebDirectory = "web";
 
 /** Shortest master key accepted; anything shorter is not a secret. */
 const minimumMasterKeyLength = 16;
@@ -154,6 +164,7 @@ const environmentSchema = z.object({
     .optional(),
   MUSTER_MAIL_FROM: z.string().optional(),
   MUSTER_MIGRATIONS_DIRECTORY: z.string().optional(),
+  MUSTER_WEB_DIRECTORY: z.string().optional(),
   MUSTER_SERVER_DATABASE_ROLE: z.string().optional(),
   MUSTER_SERVER_DATABASE_PASSWORD: z.string().optional(),
   MUSTER_OUTBOUND_TIMEOUT_MS: wholeNumber
@@ -242,6 +253,7 @@ export const loadConfig = (
     migrationDatabaseUrl: values.MUSTER_MIGRATION_DATABASE_URL,
     migrationsDirectory:
       values.MUSTER_MIGRATIONS_DIRECTORY ?? defaultMigrationsDirectory,
+    webDirectory: values.MUSTER_WEB_DIRECTORY ?? defaultWebDirectory,
     serverDatabaseRole:
       values.MUSTER_SERVER_DATABASE_ROLE ?? defaultServerDatabaseRole,
     serverDatabasePassword: values.MUSTER_SERVER_DATABASE_PASSWORD,

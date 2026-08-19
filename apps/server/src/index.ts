@@ -1,6 +1,7 @@
 import { openEventCheckIntervalMs } from "@muster/core";
 import { bootstrapServerRole, runMigrations } from "@muster/db";
 import { SQL } from "bun";
+import { stat } from "node:fs/promises";
 
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -20,6 +21,10 @@ import type { MusterConfig } from "./config.ts";
  * Start-up applies the migrations and bootstraps the serving role with the
  * owning role's connection, then drops that connection and serves with the
  * non-owning one: the running server has data rights and no DDL rights.
+ *
+ * One process serves both the JSON API and the built console, so a deployment is
+ * one image behind one public URL. Whether the console is there is stated in the
+ * log, because an operator should not have to browse to find out.
  *
  * @author John Grimes
  */
@@ -76,8 +81,15 @@ const server = Bun.serve({
 const scheduler = createScheduler({ config, sql });
 scheduler.start();
 
+// Stated rather than implied: an image built without the console still serves
+// the API, and the operator should be able to see which one they have.
+const consolePresent = await stat(config.webDirectory)
+  .then((found) => found.isDirectory())
+  .catch(() => false);
+
 console.log(
   `Muster listening on ${server.url.toString()}, public URL ${config.publicUrl}, ` +
     `mail ${config.mail.kind === "smtp" ? "over SMTP" : "written to this log"}, ` +
-    `checks every ${String(openEventCheckIntervalMs / 60_000)} minutes while an event is open`,
+    `checks every ${String(openEventCheckIntervalMs / 60_000)} minutes while an event is open, ` +
+    `${consolePresent ? `console served from ${config.webDirectory}` : `no console at ${config.webDirectory}, so the API is served alone`}`,
 );

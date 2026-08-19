@@ -44,6 +44,8 @@ describe("loadConfig", () => {
       MUSTER_OUTBOUND_TIMEOUT_MS: "5000",
       MUSTER_OUTBOUND_ALLOWLIST: "stub-register:9000, localhost",
       MUSTER_IHI_SYSTEM: "http://example.org/id/national",
+      MUSTER_MIGRATIONS_DIRECTORY: "packages/db/migrations",
+      MUSTER_WEB_DIRECTORY: "apps/web/dist",
     });
 
     expect(config.publicUrl).toBe("https://muster.example.org");
@@ -66,6 +68,8 @@ describe("loadConfig", () => {
       "localhost",
     ]);
     expect(config.ihiSystem).toBe("http://example.org/id/national");
+    expect(config.migrationsDirectory).toBe("packages/db/migrations");
+    expect(config.webDirectory).toBe("apps/web/dist");
   });
 
   test("applies the documented defaults when optional variables are absent", () => {
@@ -76,6 +80,9 @@ describe("loadConfig", () => {
     expect(config.serverDatabasePassword).toBeUndefined();
     expect(config.outbound.timeoutMs).toBe(10_000);
     expect(config.outbound.allowedHosts).toEqual([]);
+    // Both directories default to where the image holds them, beside the bundle.
+    expect(config.migrationsDirectory).toBe("migrations");
+    expect(config.webDirectory).toBe("web");
     // The programme's IHI system, which is what a persona's identifier is
     // asserted under unless a deployment says otherwise (FR-031).
     expect(config.ihiSystem).toBe(
