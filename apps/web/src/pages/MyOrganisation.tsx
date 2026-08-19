@@ -148,7 +148,7 @@ export function MyOrganisation(): JSX.Element {
           <div className="flex-1">
             <TextField
               label="Organisation name"
-              placeholder="MediRecords"
+              placeholder="ACME Health"
               value={name}
               onChange={setName}
             />
