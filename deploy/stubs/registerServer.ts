@@ -473,11 +473,18 @@ const register = async (
     return Response.json({ client_id: clientId }, { status: 201 });
   }
 
+  // RFC 7592's management address is this server's own, derived from the address
+  // the request arrived at: it is where the client lives, not where the anchor
+  // does, and a harness cleaning up follows it only on the origin it registered
+  // at.
   const managed =
     mode === "noCleanup"
       ? {}
       : {
-          registration_client_uri: `${issuer.replace(/\/+$/, "")}/register/${clientId}`,
+          registration_client_uri: new URL(
+            `/register/${clientId}`,
+            request.url,
+          ).toString(),
           registration_access_token: client.accessToken,
         };
   return Response.json(
