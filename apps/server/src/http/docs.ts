@@ -114,6 +114,7 @@ pre { margin: 0; padding: 0.9rem 1rem; overflow-x: auto; background: var(--panel
 ul, ol { padding-left: 1.4rem; }
 li { margin-bottom: 0.4rem; }
 nav { font-size: 0.9rem; margin-bottom: 1.5rem; }
+header { margin: 0 auto 2rem; max-width: 48rem; font-weight: 600; }
 `.trim();
 
 /**
@@ -130,7 +131,10 @@ const renderPage = (title: string, body: string): string =>
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${escapeHtml(title)} - Muster</title>`,
     `<style>${stylesheet}</style>`,
-    "</head><body><main>",
+    "</head><body>",
+    // The same process serves the console, so a reader who arrives here from a
+    // search engine or a vendor's email has a way into the rest of Muster.
+    '<header><a href="/">Muster</a></header><main>',
     body,
     "</main></body></html>",
   ].join("");

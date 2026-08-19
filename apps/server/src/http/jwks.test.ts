@@ -163,6 +163,18 @@ describeDatabase("the trust anchor's public routes", () => {
     expect(page).toContain("/docs/ticket-profile");
   });
 
+  // The same process serves the console, so a reader who arrives at a profile
+  // from a search engine or a vendor's email has a way into the rest of Muster.
+  test.each(["/docs", "/docs/registration-profile"])(
+    "links %p back to the console",
+    async (path) => {
+      const response = await request(server, "GET", path);
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain('<a href="/">Muster</a>');
+    },
+  );
+
   // A document Muster does not publish is a 404 in the error envelope, like
   // every other refusal on the wire.
   test("answers an unknown document as not found", async () => {
