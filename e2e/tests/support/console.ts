@@ -102,10 +102,12 @@ export const signUp = async (page: Page, role: string): Promise<Account> => {
  */
 export const signOut = async (page: Page): Promise<void> => {
   await page.goto("/sign-in");
+  // The console renders the screen only once it knows who is reading it, and it
+  // says so until then. Waiting for that notice to go is what keeps this from
+  // deciding whether anybody is signed in before the console knows.
+  await expect(page.getByText("Reading your session.")).toBeHidden();
   const button = page.getByRole("button", { name: "Sign out" });
   const form = panel(page, "Sign in");
-  // The screen shows one or the other, once the session has been read. Waiting
-  // for either is what keeps this from racing the request that reads it.
   await expect(button.or(form).first()).toBeVisible();
   if (await button.isVisible()) {
     await button.click();

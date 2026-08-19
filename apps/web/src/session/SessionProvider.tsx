@@ -17,6 +17,10 @@ import type { JSX, ReactNode } from "react";
  * while the tab is open. A 401 is not a failure: being anonymous is a normal
  * state of the console, and the directory is readable in it.
  *
+ * Until that first read settles the answer is unknown, and `established` says so.
+ * A screen that treated unknown as anonymous would show a signed-in member the
+ * anonymous view - and its forms - for as long as the read took.
+ *
  * @author John Grimes
  */
 
@@ -44,24 +48,29 @@ export function SessionProvider({
   const [state, setState] = useState<{
     /** the session, or null when anonymous */
     session: SessionView | null;
+    /** whether the first read has settled */
+    established: boolean;
     /** the state of the read */
     operation: Operation;
-  }>({ session: null, operation: pending(what) });
+  }>({ session: null, established: false, operation: pending(what) });
 
   const load = useCallback(async (): Promise<void> => {
     setState((previous) => ({
       session: previous.session,
+      established: previous.established,
       operation: pending(what),
     }));
     const result = await muster.get("/api/auth/me", sessionViewSchema);
     if (result.ok) {
-      setState({ session: result.data, operation: idle });
+      setState({ session: result.data, established: true, operation: idle });
       return;
     }
     // Anonymous is a state, not a fault: the event view is readable without an
-    // account, so a 401 here is the answer and not an error to report.
+    // account, so a 401 here is the answer and not an error to report. Either way
+    // the question has been answered, so the session is established.
     setState({
       session: null,
+      established: true,
       operation:
         result.failure.status === 401 ? idle : failed(what, result.failure),
     });
@@ -74,15 +83,16 @@ export function SessionProvider({
   const value = useMemo(
     () => ({
       session: state.session,
+      established: state.established,
       operation: state.operation,
       refresh: () => {
         void load();
       },
       adopt: (session: SessionView | null) => {
-        setState({ session, operation: idle });
+        setState({ session, established: true, operation: idle });
       },
     }),
-    [state.session, state.operation, load],
+    [state.session, state.established, state.operation, load],
   );
 
   return (

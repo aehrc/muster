@@ -9,6 +9,7 @@ import {
 } from "@primer/octicons-react";
 import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router";
 
+import { OperationAlert } from "./components/OperationAlert.tsx";
 import { navigationFor } from "./lib/navigation.ts";
 import { Events } from "./pages/admin/Events.tsx";
 import { Members } from "./pages/admin/Members.tsx";
@@ -29,7 +30,7 @@ import { useSession } from "./session/sessionContext.ts";
 import { SessionProvider } from "./session/SessionProvider.tsx";
 
 import type { NavigationIcon } from "./lib/navigation.ts";
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 
 /**
  * The console shell: the router, and the layout every page sits inside.
@@ -55,6 +56,39 @@ const icons: Record<NavigationIcon, JSX.Element> = {
   calendar: <CalendarIcon size={16} />,
   account: <PersonIcon size={16} />,
 };
+
+/**
+ * The screens, once the console knows who is reading them.
+ *
+ * Nearly every screen behaves differently for a member and for anybody else, and
+ * "we do not know yet" is neither: a screen rendered before the session has been
+ * established shows a signed-in member the anonymous view, and its forms, until
+ * the answer arrives. So the routes wait for that answer, and say that they are
+ * waiting (FR-037).
+ *
+ * @param props - the routes to render once the session is established
+ * @returns the routes, or the notice that the session is being read
+ */
+function Established({
+  children,
+}: Readonly<{
+  /** the routes to render once the session is established */
+  children: ReactNode;
+}>): JSX.Element {
+  const { established, operation } = useSession();
+  if (established) {
+    return <>{children}</>;
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <OperationAlert operation={operation} />
+      <p className="flex items-center gap-2 text-base-content/70">
+        <span className="loading loading-spinner loading-sm" />
+        Reading your session.
+      </p>
+    </div>
+  );
+}
 
 /**
  * The navigation, for whoever is reading.
@@ -100,42 +134,44 @@ export function App(): JSX.Element {
 
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-10">
             <div className="mx-auto w-full max-w-5xl">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/events/:slug" element={<EventView />} />
-                <Route
-                  path="/events/:slug/systems/:systemId"
-                  element={<SystemDetail />}
-                />
-                <Route path="/events/:slug/personas" element={<Personas />} />
-                <Route
-                  path="/events/:slug/tickets"
-                  element={<TicketPlayground />}
-                />
-                <Route
-                  path="/enrolments/:enrolmentId/harness"
-                  element={<Harness />}
-                />
-                <Route path="/my-organisation" element={<MyOrganisation />} />
-                <Route path="/pairings" element={<Pairings />} />
-                <Route
-                  path="/pairings/:pairingId"
-                  element={<PairingDetail />}
-                />
-                <Route
-                  path="/pairings/:pairingId/register"
-                  element={<DcrRun />}
-                />
-                <Route path="/docs" element={<Docs />} />
-                <Route path="/docs/:slug" element={<Docs />} />
-                <Route path="/admin/members" element={<Members />} />
-                <Route path="/admin/events" element={<Events />} />
-                {/* The verification email links to /verify with its token, and
+              <Established>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/events/:slug" element={<EventView />} />
+                  <Route
+                    path="/events/:slug/systems/:systemId"
+                    element={<SystemDetail />}
+                  />
+                  <Route path="/events/:slug/personas" element={<Personas />} />
+                  <Route
+                    path="/events/:slug/tickets"
+                    element={<TicketPlayground />}
+                  />
+                  <Route
+                    path="/enrolments/:enrolmentId/harness"
+                    element={<Harness />}
+                  />
+                  <Route path="/my-organisation" element={<MyOrganisation />} />
+                  <Route path="/pairings" element={<Pairings />} />
+                  <Route
+                    path="/pairings/:pairingId"
+                    element={<PairingDetail />}
+                  />
+                  <Route
+                    path="/pairings/:pairingId/register"
+                    element={<DcrRun />}
+                  />
+                  <Route path="/docs" element={<Docs />} />
+                  <Route path="/docs/:slug" element={<Docs />} />
+                  <Route path="/admin/members" element={<Members />} />
+                  <Route path="/admin/events" element={<Events />} />
+                  {/* The verification email links to /verify with its token, and
                     spending it belongs to the account screen. */}
-                <Route path="/sign-in" element={<SignIn />} />
-                <Route path="/verify" element={<SignIn />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  <Route path="/sign-in" element={<SignIn />} />
+                  <Route path="/verify" element={<SignIn />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Established>
             </div>
           </main>
         </div>

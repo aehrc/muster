@@ -21,6 +21,13 @@ import type { SessionView } from "@muster/contracts";
 export type SessionState = {
   /** the signed-in account and its memberships, or null when anonymous */
   readonly session: SessionView | null;
+  /**
+   * whether the first read has settled. False only before it has, so a screen can
+   * say "we do not know yet" instead of showing the anonymous view to somebody
+   * who turns out to be signed in. A later refresh does not clear it: what is
+   * known stays known while it is checked again.
+   */
+  readonly established: boolean;
   /** the state of the read that established it */
   readonly operation: Operation;
   /** reads it again from the server */
@@ -32,6 +39,7 @@ export type SessionState = {
 /** What a screen sees before any provider has established anything. */
 const unknownSession: SessionState = {
   session: null,
+  established: false,
   operation: idle,
   refresh: () => undefined,
   adopt: () => undefined,
