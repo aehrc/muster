@@ -10,10 +10,12 @@ import { fileURLToPath } from "node:url";
  * arrangement can be run as bare processes - which is how it is driven on a
  * machine with no container runtime - and then the stubs are on localhost instead.
  *
- * Two addresses exist for the data holder, and the distinction matters. Muster
- * reaches it over the compose network as `data-holder-stub:9091`, which is what
- * goes into an entry; the suite reaches it through its published port, which is
- * what a token exchange is posted to.
+ * Two addresses exist for each stub the suite talks to itself, and the distinction
+ * matters. Muster reaches the data holder over the compose network as
+ * `data-holder-stub:9091`, which is what goes into an entry; the suite reaches it
+ * through its published port, which is what a token exchange is posted to. The
+ * same holds for the registration stub, whose list of registered clients the suite
+ * reads directly.
  *
  * @author John Grimes
  */
@@ -48,6 +50,12 @@ export const musterUrl = address(
 export const registerStubUrl = address(
   "MUSTER_E2E_REGISTER_STUB",
   "http://register-stub:9090",
+);
+
+/** The registration stub, as this suite reaches it. */
+export const registerStubPublicUrl = address(
+  "MUSTER_E2E_REGISTER_STUB_PUBLIC",
+  "http://localhost:9090",
 );
 
 /** The data holder, as Muster reaches it. */

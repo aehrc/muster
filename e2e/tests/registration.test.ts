@@ -14,6 +14,7 @@ import {
   admin,
   eventSlug,
   participantAddress,
+  registerStubPublicUrl,
   registerStubUrl,
   unique,
 } from "./support/stack.ts";
@@ -165,7 +166,9 @@ test("hands over the identical statement when it is downloaded", async ({
   expect(statement.split(".")).toHaveLength(3);
 
   // What the stub says it holds, so the run is corroborated by the other side.
-  const registered = await page.request.get(`${registerStubUrl}/clients`);
+  // Through its published port: `registerStubUrl` is the address Muster reaches it
+  // on inside the stack's network, which does not resolve from out here.
+  const registered = await page.request.get(`${registerStubPublicUrl}/clients`);
   const { clients } = (await registered.json()) as {
     clients: { client_id: string; software_statement?: string }[];
   };
