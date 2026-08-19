@@ -3,6 +3,7 @@ import { SQL } from "bun";
 
 import { authoriseParticipantEndpoints } from "@muster/core";
 import {
+  describeConnection,
   findAccountByEmail,
   findEventBySlug,
   insertAccount,
@@ -74,6 +75,14 @@ if (!sourceDecision.ok) {
   console.error(sourceDecision.refusal.detail);
   process.exit(1);
 }
+
+// Said rather than assumed: `bun --env-file` leaves a variable the shell already
+// exports alone, so which database this is going to is worth stating. The URL
+// itself is not logged - it carries a password.
+console.log(
+  `Seeding ${describeConnection(config.migrationDatabaseUrl)} ` +
+    `with the admin account ${adminEmail} and the event ${eventSlug}.`,
+);
 
 const sql = new SQL(config.migrationDatabaseUrl);
 try {

@@ -30,6 +30,7 @@ export {
   type MigrationRunResult,
   type RunMigrationsOptions,
 } from "./migrations.ts";
+export { describeConnection } from "./describing.ts";
 export { quoteIdentifier, quoteLiteral } from "./quoting.ts";
 export {
   findCheckStatus,
