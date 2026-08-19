@@ -76,38 +76,70 @@ jobs:
     name: Docker build and smoke test
     runs-on: ubuntu-latest
 
+    # A real database, because start-up applies the migrations and bootstraps the
+    # serving role: a smoke test that could not reach one would only prove that
+    # the process starts before failing.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: muster_owner
+          POSTGRES_PASSWORD: muster_owner
+          POSTGRES_DB: muster
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U muster_owner -d muster"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
       - uses: actions/checkout@v4
 
       # The image build runs scripts/checkBundle.mjs, so a dependency that
-      # cannot be bundled fails here.
+      # cannot be bundled fails here. It also builds the console into the image.
       - name: Build image
         run: docker build -t muster:ci .
 
       # Configuration is deny by default, so the container needs a complete
-      # environment to start at all. Nothing here reaches a database: the smoke
-      # test only proves the bundle boots and answers on /healthz.
-      - name: Smoke test the image
+      # environment to start at all. --network host is what lets it reach the
+      # service database on the runner, and it publishes 8080 there too.
+      - name: Start the container
         run: |
-          docker run -d --name muster-smoke -p 8080:8080 \
+          docker run -d --name muster-smoke --network host \
             -e MUSTER_PUBLIC_URL=http://localhost:8080 \
             -e MUSTER_MASTER_KEY=smoke-test-master-key-not-a-secret \
-            -e MUSTER_DATABASE_URL=postgresql://muster@127.0.0.1:5432/muster \
-            -e MUSTER_MIGRATION_DATABASE_URL=postgresql://muster@127.0.0.1:5432/muster \
+            -e MUSTER_MIGRATION_DATABASE_URL=postgresql://muster_owner:muster_owner@localhost:5432/muster \
+            -e MUSTER_DATABASE_URL=postgresql://muster_server:muster_server@localhost:5432/muster \
+            -e MUSTER_SERVER_DATABASE_ROLE=muster_server \
+            -e MUSTER_SERVER_DATABASE_PASSWORD=muster_server \
             muster:ci
-          for _ in $(seq 1 30); do
-            if curl -fsS http://localhost:8080/healthz; then
-              echo
-              echo "Smoke test: the server answered on /healthz"
-              docker rm -f muster-smoke
-              exit 0
+
+      # What the image is for: it migrates, it serves the API as the non-owning
+      # role, and it serves the console beside it.
+      - name: Smoke test the image
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/healthz >/dev/null; then
+              break
             fi
             sleep 1
           done
-          echo "Smoke test: the server never answered on /healthz"
-          docker logs muster-smoke
-          docker rm -f muster-smoke
-          exit 1
+          curl -fsS http://localhost:8080/healthz
+          echo
+          curl -fsS http://localhost:8080/api/events
+          echo
+          curl -fsS http://localhost:8080/ | grep -q "<title>Muster</title>"
+          echo "Smoke test: the image migrated, served the API and served the console"
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs muster-smoke
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f muster-smoke
 
   helm:
     name: Helm lint and render
