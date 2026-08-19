@@ -44,66 +44,79 @@ The vendor-facing contracts are published by the running server at
 
 ## Getting started
 
-Requirements: [Bun](https://bun.com) 1.3 or later. The stack needs Docker; the
-tests need PostgreSQL 18, either the one in the stack or one of your own.
+Requirements: [Bun](https://bun.com) 1.3 or later, PostgreSQL 18, and
+[overmind](https://github.com/DarthSim/overmind) (`brew install overmind`,
+which needs `tmux`). No Docker is needed for day-to-day development; it is
+used only for the end-to-end suite and for building the deployable image (see
+"The stack" and "The gates" below).
 
 ```sh
 bun install
 ```
 
-### The whole stack
+### The dev stack
 
-Brings up Muster, PostgreSQL, the stub registration server, the stub data holder
-and the stub persona source, then creates the admin account and an open event:
+One-time setup creates the `muster` role and database, and `muster_test` for
+the integration suites, on whatever PostgreSQL 18 is already running locally
+(a Homebrew install's default superuser is enough; nothing here manages
+Postgres itself):
+
+```sh
+bun run dev:setup
+cp .env.example .env
+```
+
+Then bring up Muster, the console, and the three stub servers - the stub
+registration server, the stub data holder and the stub persona source - under
+one `overmind` session:
+
+```sh
+bun run dev
+```
+
+In a second terminal, seed the admin account and an open event:
+
+```sh
+bun run dev:seed
+```
+
+The console is then at <http://localhost:5173>, served from Vite with hot
+reload and the API proxied to the server at 8090. Sign in as the seeded track
+admin, `admin@example.org`, with the password `muster-admin-password`. Mail is
+written to the log rather than sent, so a verification link is read from
+whichever terminal `bun run dev` is running in. `overmind connect server`
+attaches to one process; `Ctrl-C` in the `bun run dev` terminal stops them all.
+
+The stubs are what make the whole product demonstrable without a vendor's
+server. They are reached over plain http, which Muster permits only for a host
+named in `MUSTER_OUTBOUND_ALLOWLIST` - the same variable that exempts a host
+from the address guard - so there is no certificate and no private key in this
+repository, and nothing anywhere disables TLS verification. A deployment
+leaves that variable unset, and then no private address is reachable and no
+plaintext endpoint can be recorded.
+
+`.env` uses ports 8090 (Muster) and 9190-9192 (the stubs), deliberately
+different from the Docker stack's 8080 and 9090-9092 below, so the two can run
+at the same time without colliding - useful when the e2e suite needs to run
+while the dev stack stays up.
+
+### Docker: e2e and the built image
+
+The Playwright suite runs against a disposable copy of the stack, brought up
+in Docker rather than reusing the dev stack above:
 
 ```sh
 bun run stack:up
 bun run stack:seed
+bunx playwright install chromium
+bun run test:e2e
+bun run stack:down   # removes it all, database included
 ```
 
-The console is then at <http://localhost:8080>. Sign in as the seeded track
-admin, `admin@example.org`, with the password `muster-admin-password`. Mail is
-written to the log rather than sent, so a verification link is read with
-`bun run stack:logs`. `bun run stack:down` removes it all, database included.
-
-The stubs are what make the whole product demonstrable without a vendor's
-server. They are reached over plain http, which Muster permits only for a host
-named in `MUSTER_OUTBOUND_ALLOWLIST` - the same variable that exempts a host from
-the address guard - so there is no certificate and no private key in this
-repository, and nothing anywhere disables TLS verification. A deployment leaves
-that variable unset, and then no private address is reachable and no plaintext
-endpoint can be recorded.
-
-### From source
-
-Serving the console from the server needs it built first, and the two directories
-default to where the image holds them, so both are given here. One database role
-does for development; the stack and the chart use the two roles this repository
-otherwise insists on, an owning one to migrate and a serving one to serve:
-
-```sh
-export MUSTER_PUBLIC_URL=http://localhost:8080
-export MUSTER_MASTER_KEY=development-master-key-not-for-deployment
-export MUSTER_DATABASE_URL=postgresql://muster:muster@localhost:5432/muster
-export MUSTER_MIGRATION_DATABASE_URL=postgresql://muster:muster@localhost:5432/muster
-export MUSTER_MIGRATIONS_DIRECTORY=packages/db/migrations
-export MUSTER_WEB_DIRECTORY=apps/web/dist
-
-bun run build:web
-bun scripts/seed.ts
-bun apps/server/src/index.ts
-```
-
-The server applies its migrations at start-up and states what it started with,
-including whether it found a console to serve, and it stops on `SIGTERM` after
-finishing the requests in flight. For working on the console itself,
-`bun --filter @muster/web dev` serves it from Vite on port 5173 and proxies the
-API to 8080.
-
-Note that variables exported like this stay exported: `bun run stack:seed` reads
-`deploy/stack.env` but leaves anything the shell already set alone, so it would
-seed the database above rather than the stack's. It says which database it is
-seeding for that reason.
+The console for that stack is at <http://localhost:8080>; `bun run stack:logs`
+reads Muster's log, which is where a verification link ends up for this stack
+too. Docker is also how the deployable image is built and smoke tested; see
+"The stack" below.
 
 ## The stack
 
@@ -115,7 +128,7 @@ apps/server          Hono server, bundled to one file, serves the console too
 apps/web             React + Vite console and public pages
 e2e                  Playwright suite over quickstart scenarios 1 to 7
 deploy               compose stack, the stubs, and the Helm chart
-scripts              the quality gates and the seed
+scripts              the quality gates, the seed, and the dev bootstrap
 ```
 
 TypeScript throughout, run and bundled with Bun. The domain logic in
@@ -157,7 +170,9 @@ bun run test:coverage      # >=80% lines and functions
 bun run build && bun run check:bundle
 ```
 
-The integration suites need a database and skip visibly without one:
+`.env` (see Getting started) already sets `MUSTER_TEST_DATABASE_URL`, so
+`bun run test` picks up the integration suites without anything exported by
+hand. Without a `.env`, they skip visibly instead of failing:
 
 ```sh
 export MUSTER_TEST_DATABASE_URL=postgresql://muster:muster@localhost:5432/muster_test
@@ -165,7 +180,7 @@ export MUSTER_REQUIRE_DATABASE_TESTS=1   # turns a missing URL into a failure
 bun run test
 ```
 
-The end-to-end suite runs against the stack rather than a dev server:
+The end-to-end suite runs against the Docker stack, not `bun run dev`'s:
 
 ```sh
 bun run stack:up && bun run stack:seed
