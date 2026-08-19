@@ -120,6 +120,19 @@ also what permits a participant entry to name an `http` endpoint. Both
 relaxations exist for the local stack's stubs. A deployment leaves it unset, and
 then no private address is reachable and no plaintext endpoint can be recorded.
 
+## The ingress must overwrite X-Forwarded-For
+
+Sign-up, sign-in, verification and verification resends are rate limited by
+client address, and the address is read from the first value of
+`X-Forwarded-For`, falling back to the peer address. That is correct behind a
+proxy that sets the header itself, and wrong behind one that appends to whatever
+the caller sent: a caller who supplies the header then chooses its own bucket and
+the limit stops binding.
+
+Configure the ingress controller to overwrite the header rather than append to
+it. On ingress-nginx that is `use-forwarded-headers: "false"` (the default),
+which makes it set the header from the connection it terminated.
+
 ## Examples
 
 A deployment that sends mail through a relay and is reachable through an ingress
