@@ -3,10 +3,12 @@ import {
   AlertIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
+  DownloadIcon,
   HistoryIcon,
   KeyIcon,
   PlugIcon,
   ServerIcon,
+  ShieldLockIcon,
   XCircleIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
@@ -18,8 +20,10 @@ import { DetailList } from "../components/DetailList.tsx";
 import { TextAreaField, TextField } from "../components/Fields.tsx";
 import { IssueList } from "../components/IssueList.tsx";
 import { OperationAlert } from "../components/OperationAlert.tsx";
+import { PairingHeading } from "../components/PairingHeading.tsx";
 import { Panel } from "../components/Panel.tsx";
 import { scopeWarningSentence } from "../lib/checks.ts";
+import { mayRegister } from "../lib/dcr.ts";
 import { describeAge } from "../lib/format.ts";
 import { busy, failed, idle, pending, succeeded } from "../lib/operation.ts";
 import {
@@ -234,17 +238,10 @@ export function PairingDetail(): JSX.Element {
         </Link>
       </div>
 
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold sm:text-3xl">
-            {pairing.client.systemName} at {pairing.server.systemName}
-          </h1>
-          <span
-            className={`badge badge-sm ${pairingStateClass[pairing.state]}`}
-          >
-            {pairingStateWords[pairing.state]}
-          </span>
-        </div>
+      <PairingHeading
+        title={`${pairing.client.systemName} at ${pairing.server.systemName}`}
+        pairing={pairing}
+      >
         <p className="text-sm text-base-content/70">
           {pairingStateMeaning[pairing.state]}
         </p>
@@ -259,7 +256,7 @@ export function PairingDetail(): JSX.Element {
               ? " - you are the server's side."
               : " - you are the client's side."}
         </p>
-      </header>
+      </PairingHeading>
 
       <OperationAlert operation={operation} />
 
@@ -332,6 +329,56 @@ export function PairingDetail(): JSX.Element {
           ]}
         />
       </Panel>
+
+      {mayRegister(pairing) ? (
+        <Panel
+          title="Register with no human on the server's side"
+          icon={<KeyIcon size={18} />}
+          description={`${pairing.server.systemName} accepts registrations that Muster vouches for, so this pairing can be completed without waiting for its organisation.`}
+        >
+          <Link
+            to={`/pairings/${pairing.id}/register`}
+            className="btn btn-primary btn-sm self-start"
+          >
+            <KeyIcon size={16} />
+            Register at {pairing.server.systemName}
+          </Link>
+        </Panel>
+      ) : null}
+
+      {pairing.statement === null ? null : (
+        <Panel
+          title="What Muster vouched for"
+          icon={<ShieldLockIcon size={18} />}
+          description="The software statement Muster signed and presented. Both organisations can read it; it carries no secret."
+        >
+          <div className="flex flex-col gap-3">
+            <DetailList
+              details={[
+                {
+                  label: "Statement",
+                  value: pairing.statement.jti,
+                  mono: true,
+                },
+                {
+                  label: "Signed with",
+                  value: pairing.statement.keyId,
+                  mono: true,
+                },
+                { label: "Vouches until", value: pairing.statement.expiresAt },
+              ]}
+            />
+            <a
+              className="btn btn-sm self-start"
+              href={pairing.statement.downloadPath}
+              download={`${pairing.statement.jti}.jws`}
+            >
+              <DownloadIcon size={16} />
+              Download the statement
+            </a>
+          </div>
+        </Panel>
+      )}
 
       {mayTake(pairing, "fulfil") ? (
         <Panel

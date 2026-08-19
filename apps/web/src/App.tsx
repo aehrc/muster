@@ -1,4 +1,5 @@
 import {
+  BookIcon,
   CalendarIcon,
   HomeIcon,
   LinkIcon,
@@ -11,6 +12,8 @@ import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router";
 import { navigationFor } from "./lib/navigation.ts";
 import { Events } from "./pages/admin/Events.tsx";
 import { Members } from "./pages/admin/Members.tsx";
+import { DcrRun } from "./pages/DcrRun.tsx";
+import { Docs } from "./pages/Docs.tsx";
 import { EventView } from "./pages/EventView.tsx";
 import { Home } from "./pages/Home.tsx";
 import { MyOrganisation } from "./pages/MyOrganisation.tsx";
@@ -42,6 +45,7 @@ import type { JSX } from "react";
 /** The icon each navigation entry names. */
 const icons: Record<NavigationIcon, JSX.Element> = {
   home: <HomeIcon size={16} />,
+  docs: <BookIcon size={16} />,
   organisation: <OrganizationIcon size={16} />,
   pairing: <LinkIcon size={16} />,
   people: <PeopleIcon size={16} />,
@@ -106,6 +110,12 @@ export function App(): JSX.Element {
                   path="/pairings/:pairingId"
                   element={<PairingDetail />}
                 />
+                <Route
+                  path="/pairings/:pairingId/register"
+                  element={<DcrRun />}
+                />
+                <Route path="/docs" element={<Docs />} />
+                <Route path="/docs/:slug" element={<Docs />} />
                 <Route path="/admin/members" element={<Members />} />
                 <Route path="/admin/events" element={<Events />} />
                 {/* The verification email links to /verify with its token, and

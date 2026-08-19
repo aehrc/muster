@@ -16,7 +16,13 @@ import type { SessionView } from "@muster/contracts";
 
 /** The icons the navigation uses, named so the list stays free of markup. */
 export type NavigationIcon =
-  "home" | "organisation" | "pairing" | "people" | "calendar" | "account";
+  | "home"
+  | "docs"
+  | "organisation"
+  | "pairing"
+  | "people"
+  | "calendar"
+  | "account";
 
 /** Where a navigation entry leads, and what it is called. */
 export type NavigationTarget = {
@@ -31,8 +37,8 @@ export type NavigationTarget = {
 /**
  * Builds the navigation for a reader.
  *
- * The public pages come first because the directory is readable without an
- * account, the reader's own organisation and its pairings next when they may
+ * The public pages come first - the directory and the published profiles are
+ * both readable without an account - the reader's own organisation and its pairings next when they may
  * manage one, the admin
  * queues only for a track admin, and the account entry last - it names who is
  * signed in, or invites signing in when nobody is.
@@ -70,6 +76,9 @@ export const navigationFor = (
 
   return [
     { to: "/", label: "Home", icon: "home" },
+    // Public, like the directory itself: the profiles and the key locations are
+    // what a vendor implements against, and they have no account here (FR-028).
+    { to: "/docs", label: "Profiles", icon: "docs" },
     ...own,
     ...administration,
     {

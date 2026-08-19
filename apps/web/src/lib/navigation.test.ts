@@ -39,24 +39,33 @@ describe("navigationFor", () => {
   // The directory is public, so an anonymous reader is offered the public pages
   // and a way to sign in - and nothing that would refuse them (SC-006).
   test("offers the public pages and sign-in to an anonymous reader", () => {
-    expect(paths(null)).toEqual(["/", "/sign-in"]);
+    expect(paths(null)).toEqual(["/", "/docs", "/sign-in"]);
   });
 
   // A pending account has no write rights (FR-002), so neither its own
   // organisation page nor its pairings have anything for it yet.
   test("withholds the organisation and pairing pages from a pending account", () => {
-    expect(paths(session({ status: "pending" }))).toEqual(["/", "/sign-in"]);
+    expect(paths(session({ status: "pending" }))).toEqual([
+      "/",
+      "/docs",
+      "/sign-in",
+    ]);
   });
 
   // An unverified address is the same refusal for a different reason (FR-001).
   test("withholds the organisation page until the address is verified", () => {
-    expect(paths(session({ emailVerified: false }))).toEqual(["/", "/sign-in"]);
+    expect(paths(session({ emailVerified: false }))).toEqual([
+      "/",
+      "/docs",
+      "/sign-in",
+    ]);
   });
 
   // Approval is what standing membership buys, so the organisation page appears.
   test("offers the organisation and pairing pages to an approved member", () => {
     expect(paths(session())).toEqual([
       "/",
+      "/docs",
       "/my-organisation",
       "/pairings",
       "/sign-in",
@@ -65,7 +74,11 @@ describe("navigationFor", () => {
 
   // Revocation takes it away again (FR-002).
   test("withdraws the organisation page from a revoked account", () => {
-    expect(paths(session({ status: "revoked" }))).toEqual(["/", "/sign-in"]);
+    expect(paths(session({ status: "revoked" }))).toEqual([
+      "/",
+      "/docs",
+      "/sign-in",
+    ]);
   });
 
   // The admin role is distinct from membership (FR-004), so only it is offered the
@@ -73,6 +86,7 @@ describe("navigationFor", () => {
   test("offers the admin pages to a track admin", () => {
     expect(paths(session({ isAdmin: true }))).toEqual([
       "/",
+      "/docs",
       "/my-organisation",
       "/pairings",
       "/admin/members",
@@ -86,6 +100,7 @@ describe("navigationFor", () => {
   test("withdraws the admin pages from a revoked admin", () => {
     expect(paths(session({ isAdmin: true, status: "revoked" }))).toEqual([
       "/",
+      "/docs",
       "/sign-in",
     ]);
   });
