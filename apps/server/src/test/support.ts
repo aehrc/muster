@@ -53,15 +53,21 @@ export const testPassword = "correct horse battery staple";
  * Builds the configuration the suites run against.
  *
  * @param databaseUrl - the scratch schema's connection URL
+ * @param environment - variables to add or override, for a suite whose subject
+ *   is configuration-dependent
  * @returns the configuration
  */
-const testConfig = (databaseUrl: string): MusterConfig =>
+const testConfig = (
+  databaseUrl: string,
+  environment: Readonly<Record<string, string>> = {},
+): MusterConfig =>
   loadConfig({
     MUSTER_PUBLIC_URL: "https://muster.example.org",
     MUSTER_MASTER_KEY: "0123456789abcdef0123456789abcdef",
     MUSTER_DATABASE_URL: databaseUrl,
     MUSTER_MIGRATION_DATABASE_URL: databaseUrl,
     MUSTER_MAIL_FROM: "muster@example.org",
+    ...environment,
   });
 
 /**
@@ -73,6 +79,8 @@ const testConfig = (databaseUrl: string): MusterConfig =>
  * @param prefix - a lower-case prefix identifying the suite
  * @param outbound - replacements for the guarded fetch's collaborators, for a
  *   suite that drives a route which reaches a participant's server
+ * @param environment - variables to add to the configuration the application is
+ *   built with, for a suite whose subject is configuration-dependent
  * @returns the application, its mail, its database and the teardown
  * @throws {Error} when `MUSTER_TEST_DATABASE_URL` is not set
  * @example
@@ -85,10 +93,12 @@ const testConfig = (databaseUrl: string): MusterConfig =>
 export const startTestServer = async (
   prefix: string,
   outbound: OutboundOverrides = {},
+  environment: Readonly<Record<string, string>> = {},
 ): Promise<TestServer> => {
   const database = await createMigratedSchema(prefix);
   const config = testConfig(
     process.env["MUSTER_TEST_DATABASE_URL"] ?? "postgresql://unset/unset",
+    environment,
   );
   const sentMail: string[] = [];
   const app = createApp({

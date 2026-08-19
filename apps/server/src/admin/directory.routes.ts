@@ -7,7 +7,10 @@ import {
   updateEventRequestSchema,
   updateSystemRequestSchema,
 } from "@muster/contracts";
-import { authoriseEventOpen } from "@muster/core";
+import {
+  authoriseEventOpen,
+  authoriseParticipantEndpoints,
+} from "@muster/core";
 import {
   deleteOrganisationMember,
   findEnrolment,
@@ -42,8 +45,9 @@ import { invitationMessage } from "../mail/messages.ts";
 import { lapseOpenPairings } from "../pairing/lapsing.ts";
 
 import type { AppEnvironment } from "../app.ts";
-import type { EnrolmentView } from "@muster/contracts";
+import type { EnrolmentView, ServerProfile } from "@muster/contracts";
 import type { EnrolmentRow, EventRow } from "@muster/db";
+import type { Context } from "hono";
 
 /**
  * Organisations, their members and systems, events, and enrolment.
@@ -59,8 +63,54 @@ import type { EnrolmentRow, EventRow } from "@muster/db";
  * naming the rule, so a member learns what to change rather than seeing a failed
  * write.
  *
+ * One rule the schema cannot hold is applied here as well: an endpoint Muster
+ * will fetch must be https unless its host is named in
+ * `MUSTER_OUTBOUND_ALLOWLIST`. It cannot live in the schema because the schema
+ * also reads stored entries back, where refusing would make a recorded entry
+ * uncheckable, and because the answer depends on configuration. These are the
+ * only routes that record such an endpoint, so this is the whole boundary.
+ *
  * @author John Grimes
  */
+
+/**
+ * Refuses an endpoint Muster may not fetch, or does nothing.
+ *
+ * @param context - the request being answered
+ * @param endpoints - the endpoints by the field name each arrived under
+ * @throws {HTTPException} 422 naming the field, when the endpoint is plaintext
+ *   and its host is not allowlisted
+ */
+const requireFetchableEndpoints = (
+  context: Context<AppEnvironment>,
+  endpoints: Readonly<Record<string, string | null | undefined>>,
+): void => {
+  const decision = authoriseParticipantEndpoints(
+    endpoints,
+    context.get("config").outbound.allowedHosts,
+  );
+  if (!decision.ok) {
+    throw refusalError(decision.refusal);
+  }
+};
+
+/**
+ * Reads the endpoints of a server profile, by field name.
+ *
+ * @param profile - the profile as the request states it, or null
+ * @returns the endpoints to check, empty for a system with no server side
+ */
+const serverProfileEndpoints = (
+  profile: ServerProfile | null | undefined,
+): Readonly<Record<string, string | null | undefined>> =>
+  profile == null
+    ? {}
+    : {
+        fhirBaseUrl: profile.fhirBaseUrl,
+        authorizationEndpoint: profile.authorizationEndpoint,
+        tokenEndpoint: profile.tokenEndpoint,
+        registrationEndpoint: profile.registrationEndpoint,
+      };
 
 /**
  * Renders an enrolment for the console.
@@ -186,6 +236,10 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
     const organisationId = context.req.param("id");
     const body = await parseBody(context, createSystemRequestSchema);
     await requireMember(context, organisationId);
+    requireFetchableEndpoints(
+      context,
+      serverProfileEndpoints(body.serverProfile),
+    );
     const system = await insertSystem(context.get("sql"), {
       organisationId,
       name: body.name,
@@ -200,6 +254,10 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
     const body = await parseBody(context, updateSystemRequestSchema);
     const existing = await requireSystem(context, context.req.param("id"));
     await requireMember(context, existing.organisationId);
+    requireFetchableEndpoints(
+      context,
+      serverProfileEndpoints(body.serverProfile),
+    );
     const updated = await updateSystem(context.get("sql"), existing.id, {
       ...(body.name === undefined ? {} : { name: body.name }),
       ...(body.description === undefined
@@ -277,6 +335,9 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
   routes.post("/admin/events", async (context) => {
     const body = await parseBody(context, createEventRequestSchema);
     await requireAdmin(context);
+    requireFetchableEndpoints(context, {
+      personaSourceUrl: body.personaSourceUrl,
+    });
     try {
       const event = await insertEvent(context.get("sql"), {
         slug: body.slug,
@@ -306,6 +367,9 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
   routes.patch("/admin/events/:slug", async (context) => {
     const body = await parseBody(context, updateEventRequestSchema);
     const admin = await requireAdmin(context);
+    requireFetchableEndpoints(context, {
+      personaSourceUrl: body.personaSourceUrl,
+    });
     const existing = await requireEvent(context, context.req.param("slug"));
     const event = await updateEvent(
       context.get("sql"),

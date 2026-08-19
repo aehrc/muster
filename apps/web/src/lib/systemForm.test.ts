@@ -148,13 +148,27 @@ describe("buildSystemRequest", () => {
     );
   });
 
-  test("refuses an address that is not an absolute https URL", () => {
+  test.each(["fhir.example.org", "ftp://fhir.example.org", ""])(
+    "refuses %p as an address",
+    (fhirBaseUrl) => {
+      const outcome = buildSystemRequest({ ...serverForm, fhirBaseUrl });
+
+      expect(outcome.ok).toBe(false);
+    },
+  );
+
+  // Whether an http endpoint is acceptable depends on MUSTER_OUTBOUND_ALLOWLIST,
+  // which is the server's configuration and not something the browser knows. The
+  // console therefore submits it and shows the server's refusal, rather than
+  // guessing - and in the local stack, where the stubs are allowlisted, it is
+  // accepted.
+  test("leaves an http address for the server to rule on", () => {
     const outcome = buildSystemRequest({
       ...serverForm,
-      fhirBaseUrl: "http://fhir.example.org",
+      fhirBaseUrl: "http://register-stub:9090/fhir",
     });
 
-    expect(outcome.ok).toBe(false);
+    expect(outcome.ok).toBe(true);
   });
 
   test("refuses a system with no name", () => {

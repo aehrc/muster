@@ -102,6 +102,9 @@ const unprocessableReasons = new Set<RefusalReason>([
   "registration_not_needed",
   "invalid_metadata",
   "manual_registration",
+  // An endpoint Muster may not fetch: the request named an address, and what is
+  // wrong is the address rather than the caller.
+  "insecure_endpoint",
   // A candidate persona the source will not support: the request named a
   // patient, and what is wrong is the patient rather than the caller.
   "no_ihi",

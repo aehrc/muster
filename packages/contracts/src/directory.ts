@@ -11,7 +11,7 @@ import {
   eventStatusSchema,
   registrationModeSchema,
 } from "./common.ts";
-import { httpsUrl, maximumTextLength } from "./fields.ts";
+import { fetchableUrl, httpsUrl, maximumTextLength } from "./fields.ts";
 
 /**
  * The directory's wire shapes: accounts and sessions, organisations, systems,
@@ -52,15 +52,22 @@ export type ClientConfidentiality = z.infer<typeof clientConfidentialitySchema>;
  * compares against the server's own discovery document (FR-018): a declared
  * value is the only thing drift can be detected from, so an entry that declares
  * neither is verified for reachability alone.
+ *
+ * Every endpoint here is one Muster fetches, so each is a {@link fetchableUrl}
+ * and the scheme rule is applied where the outbound allowlist is known - by
+ * `authoriseParticipantEndpoints`, on the routes that record a profile. An http
+ * endpoint is refused unless its host is allowlisted, which is never the case in
+ * a deployment; reading a stored profile back never refuses, because an entry
+ * that was recorded must stay checkable.
  */
 export const serverProfileSchema = z
   .object({
-    fhirBaseUrl: httpsUrl,
+    fhirBaseUrl: fetchableUrl,
     authorizationMode: authorizationModeSchema,
     registrationMode: registrationModeSchema,
-    authorizationEndpoint: httpsUrl.optional(),
-    tokenEndpoint: httpsUrl.optional(),
-    registrationEndpoint: httpsUrl.optional(),
+    authorizationEndpoint: fetchableUrl.optional(),
+    tokenEndpoint: fetchableUrl.optional(),
+    registrationEndpoint: fetchableUrl.optional(),
     notes: z.string().max(maximumTextLength).default(""),
   })
   .refine(
@@ -265,7 +272,7 @@ export const createEventRequestSchema = z.object({
   endsOn: daySchema,
   status: eventStatusSchema.optional(),
   capabilityTags: z.array(z.string().min(1).max(100)).default([]),
-  personaSourceUrl: httpsUrl.nullish(),
+  personaSourceUrl: fetchableUrl.nullish(),
   graceDays: z.number().int().min(0).max(365).optional(),
 });
 
@@ -279,7 +286,7 @@ export const updateEventRequestSchema = z.object({
   endsOn: daySchema.optional(),
   status: eventStatusSchema.optional(),
   capabilityTags: z.array(z.string().min(1).max(100)).optional(),
-  personaSourceUrl: httpsUrl.nullish(),
+  personaSourceUrl: fetchableUrl.nullish(),
   graceDays: z.number().int().min(0).max(365).optional(),
 });
 

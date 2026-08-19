@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-globals -- this module is the only permitted caller of fetch */
+import { allowlistedHost } from "@muster/core";
 import { lookup } from "node:dns/promises";
 
 /**
@@ -285,29 +286,6 @@ export const guardedAddressReason = (address: string): string | undefined => {
 };
 
 /**
- * Reports whether a target is exempted from the address guard.
- *
- * An entry of `host` matches that host on any port; `host:port` matches only
- * that port.
- *
- * @param target - the URL being fetched
- * @param allowedHosts - the configured allowlist
- * @returns true when the target is allowlisted
- */
-const isAllowlisted = (
-  target: URL,
-  allowedHosts: readonly string[],
-): boolean => {
-  const hostname = target.hostname.toLowerCase();
-  const authority =
-    target.port === "" ? hostname : `${hostname}:${target.port}`;
-  return allowedHosts.some((entry) => {
-    const candidate = entry.trim().toLowerCase();
-    return candidate === hostname || candidate === authority;
-  });
-};
-
-/**
  * Checks every address a target resolves to.
  *
  * @param target - the URL being fetched
@@ -424,7 +402,10 @@ export const outboundFetch = async (
       return refuse("invalid", `${target.protocol} is not an http(s) URL`);
     }
 
-    if (!isAllowlisted(target, allowedHosts)) {
+    // The same matching decides whether an entry may name an http endpoint at
+    // all (`authoriseParticipantEndpoints`), so an endpoint that could be
+    // recorded is exactly one the guard will go on to reach.
+    if (!allowlistedHost(target, allowedHosts)) {
       const refusal = await guardTarget(target, resolver);
       if (refusal !== undefined) {
         return { ok: false, refusal };

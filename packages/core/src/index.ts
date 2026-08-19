@@ -50,6 +50,10 @@ export {
   type ScopeWarningFacts,
 } from "./checks/evaluate.ts";
 export {
+  allowlistedHost,
+  authoriseParticipantEndpoints,
+} from "./directory/endpoints.ts";
+export {
   findProfileDocument,
   profileDocuments,
   type DocBlock,

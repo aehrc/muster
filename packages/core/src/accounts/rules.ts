@@ -53,7 +53,8 @@ export type RefusalReason =
   | "vouching_expired"
   | "no_ihi"
   | "not_a_patient"
-  | "duplicate_persona";
+  | "duplicate_persona"
+  | "insecure_endpoint";
 
 /** A refusal, with wording fit to show the person refused. */
 export type Refusal = {

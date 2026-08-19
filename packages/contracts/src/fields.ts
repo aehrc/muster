@@ -3,11 +3,17 @@ import { z } from "zod";
 /**
  * The field shapes more than one contract module needs.
  *
- * A participant's endpoint is an https URL wherever it appears, and a free-text
- * field has the same ceiling wherever it appears, so both are stated once here
- * rather than once per module. Nothing in here is exported from the package: it
- * is the vocabulary the contract modules are written in, not part of the
- * contract itself.
+ * A participant's own endpoint is an https URL wherever it appears, and a
+ * free-text field has the same ceiling wherever it appears, so both are stated
+ * once here rather than once per module. Nothing in here is exported from the
+ * package: it is the vocabulary the contract modules are written in, not part of
+ * the contract itself.
+ *
+ * An endpoint Muster itself fetches is a {@link fetchableUrl} rather than an
+ * {@link httpsUrl}. The scheme rule for those is not the schema's, because it
+ * depends on `MUSTER_OUTBOUND_ALLOWLIST`: `authoriseParticipantEndpoints` in
+ * `@muster/core` applies it where the allowlist is known, and refuses http
+ * everywhere it is not named. Structural validation here, the policy there.
  *
  * @author John Grimes
  */
@@ -35,7 +41,21 @@ export const urlWithScheme =
     }
   };
 
-/** An https URL, which is what a participant's endpoints must be. */
+/** An https URL, which is what a participant's own endpoints must be. */
 export const httpsUrl = z
   .string()
   .refine(urlWithScheme(["https:"]), "must be an absolute https URL");
+
+/**
+ * A URL Muster can fetch: absolute, and http or https.
+ *
+ * Whether the http case is permitted is decided against the outbound allowlist
+ * by `authoriseParticipantEndpoints`, not here, so that a stored entry recorded
+ * while its host was allowlisted still parses when it is read back.
+ */
+export const fetchableUrl = z
+  .string()
+  .refine(
+    urlWithScheme(["http:", "https:"]),
+    "must be an absolute http or https URL",
+  );

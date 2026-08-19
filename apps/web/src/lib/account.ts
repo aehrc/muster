@@ -67,6 +67,7 @@ const headlineForRefusal: Record<RefusalReason, string> = {
   no_ihi: "No IHI on the source record",
   not_a_patient: "Not a patient record",
   duplicate_persona: "Already a persona",
+  insecure_endpoint: "Endpoint is not https",
 };
 
 /**
