@@ -1,6 +1,11 @@
+import { serverProfileSchema } from "@muster/contracts";
 import { describe, expect, test } from "bun:test";
 
-import { allowlistedHost, authoriseParticipantEndpoints } from "./endpoints.ts";
+import {
+  allowlistedHost,
+  authoriseParticipantEndpoints,
+  authoriseServerProfileEndpoints,
+} from "./endpoints.ts";
 
 /**
  * The endpoint scheme rule.
@@ -51,9 +56,70 @@ describe("allowlistedHost", () => {
     expect(allowlistedHost("http://register-stub:9090/", [])).toBeFalse();
   });
 
-  // Deny by default: something that is not a URL cannot be vouched for.
-  test("refuses a value that is not a URL", () => {
+  // `register-stub:9090` parses - as a URL with the scheme `register-stub:` and no
+  // host at all - so what makes it match nothing is the empty host rather than a
+  // parse failure. Both are refusals, and both are worth pinning.
+  test("matches nothing for a value with no host", () => {
     expect(allowlistedHost("register-stub:9090", stubAllowlist)).toBeFalse();
+  });
+
+  test("matches nothing for a value that is not a URL at all", () => {
+    expect(allowlistedHost("not a url", stubAllowlist)).toBeFalse();
+  });
+});
+
+describe("authoriseServerProfileEndpoints", () => {
+  /** A profile with every endpoint a server can declare. */
+  const profile = {
+    fhirBaseUrl: "https://fhir.example.org",
+    authorizationEndpoint: "https://auth.example.org/authorize",
+    tokenEndpoint: "https://auth.example.org/token",
+    registrationEndpoint: "https://auth.example.org/register",
+  };
+
+  test("permits a profile whose endpoints are all https", () => {
+    expect(authoriseServerProfileEndpoints(profile, []).ok).toBeTrue();
+  });
+
+  test.each([
+    "fhirBaseUrl",
+    "authorizationEndpoint",
+    "tokenEndpoint",
+    "registrationEndpoint",
+  ] as const)("checks %s", (field) => {
+    const decision = authoriseServerProfileEndpoints(
+      { ...profile, [field]: "http://fhir.example.org" },
+      [],
+    );
+
+    expect(decision.ok).toBeFalse();
+    if (!decision.ok) {
+      expect(decision.refusal.detail).toContain(field);
+    }
+  });
+
+  // A system with no server side has no endpoints to check.
+  test.each([null, undefined])("permits %p", (absent) => {
+    expect(authoriseServerProfileEndpoints(absent, []).ok).toBeTrue();
+  });
+
+  // The tripwire: the fields this rule checks are the fields the contract says a
+  // server profile has, minus the ones that are not addresses. A profile that
+  // gains an address fails here, which is the reminder to check it as well.
+  test("checks every endpoint the contract defines", () => {
+    const declared = Object.keys(serverProfileSchema.shape);
+
+    expect(declared.toSorted()).toEqual(
+      [
+        "authorizationEndpoint",
+        "authorizationMode",
+        "fhirBaseUrl",
+        "notes",
+        "registrationEndpoint",
+        "registrationMode",
+        "tokenEndpoint",
+      ].toSorted(),
+    );
   });
 });
 

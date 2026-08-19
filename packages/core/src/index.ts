@@ -52,6 +52,8 @@ export {
 export {
   allowlistedHost,
   authoriseParticipantEndpoints,
+  authoriseServerProfileEndpoints,
+  type ServerProfileEndpointField,
 } from "./directory/endpoints.ts";
 export {
   findProfileDocument,

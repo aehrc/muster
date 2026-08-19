@@ -18,14 +18,36 @@ import type { AuthorisationDecision } from "../accounts/rules.ts";
  * refused there, which is the deny-by-default direction.
  *
  * Pure, and it is the same host matching the guard itself applies
- * ({@link allowlistedHost} is what `outboundFetch` uses), so an endpoint that
- * may be recorded is exactly one the guard would go on to reach.
+ * ({@link allowlistedHost} is what `outboundFetch` uses), so an http endpoint
+ * that may be recorded is one the guard will not refuse for being plaintext on an
+ * address it would otherwise guard. It says nothing about the https case: an
+ * https endpoint on a private address is recordable and is then refused at fetch
+ * time, which is the right way round - the entry is a fact about what a
+ * participant claims, and the refusal is a fact about what Muster will reach.
  *
  * @author John Grimes
  */
 
 /** The schemes an endpoint may use at all. */
 const fetchableSchemes: readonly string[] = ["http:", "https:"];
+
+/**
+ * The fields of a server profile that Muster fetches.
+ *
+ * Beside the rule rather than in the route that applies it: a field added to the
+ * profile has to be added here to be checked, and the test for this list is what
+ * says so. `packages/contracts/src/directory.ts` is the other half.
+ */
+const serverProfileEndpointFields = [
+  "fhirBaseUrl",
+  "authorizationEndpoint",
+  "tokenEndpoint",
+  "registrationEndpoint",
+] as const;
+
+/** A field of a server profile that Muster fetches. */
+export type ServerProfileEndpointField =
+  (typeof serverProfileEndpointFields)[number];
 
 /**
  * Reports whether a URL's host is named in the outbound allowlist.
@@ -125,3 +147,37 @@ export const authoriseParticipantEndpoints = (
   }
   return { ok: true };
 };
+
+/**
+ * Decides whether a server profile's endpoints may be recorded.
+ *
+ * The field set is this module's, so a profile gaining a fetched endpoint is one
+ * change here rather than a change in every route that records one.
+ *
+ * @param profile - the profile as the request states it, or null for a system
+ *   with no server side
+ * @param allowedHosts - the configured allowlist
+ * @returns the decision, refusing with the first endpoint that failed
+ * @example
+ * ```ts
+ * const decision = authoriseServerProfileEndpoints(
+ *   body.serverProfile,
+ *   config.outbound.allowedHosts,
+ * );
+ * ```
+ */
+export const authoriseServerProfileEndpoints = (
+  profile:
+    | Readonly<Partial<Record<ServerProfileEndpointField, string | undefined>>>
+    | null
+    | undefined,
+  allowedHosts: readonly string[],
+): AuthorisationDecision =>
+  profile == null
+    ? { ok: true }
+    : authoriseParticipantEndpoints(
+        Object.fromEntries(
+          serverProfileEndpointFields.map((field) => [field, profile[field]]),
+        ),
+        allowedHosts,
+      );

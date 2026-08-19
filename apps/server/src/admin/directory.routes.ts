@@ -10,6 +10,7 @@ import {
 import {
   authoriseEventOpen,
   authoriseParticipantEndpoints,
+  authoriseServerProfileEndpoints,
 } from "@muster/core";
 import {
   deleteOrganisationMember,
@@ -46,6 +47,7 @@ import { lapseOpenPairings } from "../pairing/lapsing.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolmentView, ServerProfile } from "@muster/contracts";
+import type { AuthorisationDecision } from "@muster/core";
 import type { EnrolmentRow, EventRow } from "@muster/db";
 import type { Context } from "hono";
 
@@ -85,32 +87,48 @@ const requireFetchableEndpoints = (
   context: Context<AppEnvironment>,
   endpoints: Readonly<Record<string, string | null | undefined>>,
 ): void => {
-  const decision = authoriseParticipantEndpoints(
-    endpoints,
-    context.get("config").outbound.allowedHosts,
+  refuseUnfetchable(
+    authoriseParticipantEndpoints(
+      endpoints,
+      context.get("config").outbound.allowedHosts,
+    ),
   );
+};
+
+/**
+ * Refuses a server profile Muster may not fetch, or does nothing.
+ *
+ * Which of a profile's fields are fetched is `@muster/core`'s to know, so a field
+ * added to the profile is checked without this module changing.
+ *
+ * @param context - the request being answered
+ * @param profile - the profile as the request states it, or null
+ * @throws {HTTPException} 422 naming the field, when an endpoint is plaintext and
+ *   its host is not allowlisted
+ */
+const requireFetchableProfile = (
+  context: Context<AppEnvironment>,
+  profile: ServerProfile | null | undefined,
+): void => {
+  refuseUnfetchable(
+    authoriseServerProfileEndpoints(
+      profile,
+      context.get("config").outbound.allowedHosts,
+    ),
+  );
+};
+
+/**
+ * Turns a refused endpoint decision into the answer for it.
+ *
+ * @param decision - the decision the rule produced
+ * @throws {HTTPException} 422 naming the field, when the decision refused
+ */
+const refuseUnfetchable = (decision: AuthorisationDecision): void => {
   if (!decision.ok) {
     throw refusalError(decision.refusal);
   }
 };
-
-/**
- * Reads the endpoints of a server profile, by field name.
- *
- * @param profile - the profile as the request states it, or null
- * @returns the endpoints to check, empty for a system with no server side
- */
-const serverProfileEndpoints = (
-  profile: ServerProfile | null | undefined,
-): Readonly<Record<string, string | null | undefined>> =>
-  profile == null
-    ? {}
-    : {
-        fhirBaseUrl: profile.fhirBaseUrl,
-        authorizationEndpoint: profile.authorizationEndpoint,
-        tokenEndpoint: profile.tokenEndpoint,
-        registrationEndpoint: profile.registrationEndpoint,
-      };
 
 /**
  * Renders an enrolment for the console.
@@ -236,10 +254,7 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
     const organisationId = context.req.param("id");
     const body = await parseBody(context, createSystemRequestSchema);
     await requireMember(context, organisationId);
-    requireFetchableEndpoints(
-      context,
-      serverProfileEndpoints(body.serverProfile),
-    );
+    requireFetchableProfile(context, body.serverProfile);
     const system = await insertSystem(context.get("sql"), {
       organisationId,
       name: body.name,
@@ -254,10 +269,7 @@ export const createDirectoryRoutes = (): Hono<AppEnvironment> => {
     const body = await parseBody(context, updateSystemRequestSchema);
     const existing = await requireSystem(context, context.req.param("id"));
     await requireMember(context, existing.organisationId);
-    requireFetchableEndpoints(
-      context,
-      serverProfileEndpoints(body.serverProfile),
-    );
+    requireFetchableProfile(context, body.serverProfile);
     const updated = await updateSystem(context.get("sql"), existing.id, {
       ...(body.name === undefined ? {} : { name: body.name }),
       ...(body.description === undefined
