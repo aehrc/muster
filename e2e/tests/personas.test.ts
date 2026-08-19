@@ -43,8 +43,15 @@ const holdingName = `Persona Source ${unique("server")}`;
 /** The enrolled server that will not answer a search: the data holder. */
 const guardedName = `Authorised Holder ${unique("server")}`;
 
-/** How long the assertions wait for the scheduler's coverage pass. */
-const schedulerTimeout = 150_000;
+/**
+ * How long the assertions wait for the scheduler's coverage pass.
+ *
+ * Coverage is one probe per persona and enrolled server, run after the liveness
+ * checks in the same pass, so the wait is the same shape as in `checks.test.ts`:
+ * ample for a freshly seeded stack, and tolerant of one carrying entries from
+ * earlier runs.
+ */
+const schedulerTimeout = 240_000;
 
 let serverOwner: Account;
 

@@ -32,10 +32,9 @@ import type { APIRequestContext } from "@playwright/test";
  *
  * The scheduler ticks once a minute and an entry nothing has checked is due at
  * once, so the assertions poll rather than wait a fixed time. Stopping a stub
- * mid-run - the quickstart's way of showing "unreachable with the last
- * successful check time" - is left out deliberately: it would tie the suite to
- * the container runtime, and an entry that was never reachable exercises the same
- * reporting.
+ * mid-run - the quickstart's way of showing "unreachable with the last successful
+ * check time" - is left out deliberately: it would tie the suite to the container
+ * runtime, and an entry that was never reachable exercises the same reporting.
  *
  * @author John Grimes
  */
@@ -49,8 +48,16 @@ const silentName = `Unreachable Server ${unique("server")}`;
 /** A private address, which the guard refuses without making a request. */
 const guardedName = `Internal Server ${unique("server")}`;
 
-/** How long the assertions wait for the scheduler's next pass. */
-const schedulerTimeout = 150_000;
+/**
+ * How long the assertions wait for the scheduler's next pass.
+ *
+ * A pass covers every entry that is due and probes them one at a time, and a tick
+ * that arrives while a pass is running is dropped, so a stack carrying entries
+ * from earlier runs of this suite can take more than one interval to reach the
+ * entries this file just made. Four ticks is ample for a freshly seeded stack and
+ * tolerant of one that is not.
+ */
+const schedulerTimeout = 240_000;
 
 let serverOwner: Account;
 
