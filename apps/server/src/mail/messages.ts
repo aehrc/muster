@@ -276,9 +276,10 @@ export const pairingRegisteredMessage = (
   to: [...recipients],
   subject: `${notice.clientName} has registered itself with ${notice.serverName}`,
   text: [
-    `${notice.serverName} accepted Muster's software statement for ${notice.clientName}`,
-    `and registered it for ${notice.eventName}. Nobody in your organisation had to`,
-    "act: your entry says the server accepts trusted registration.",
+    `${notice.serverName} accepted Muster's software statement for`,
+    `${notice.clientName} and registered it for ${notice.eventName}.`,
+    "Nobody in your organisation had to act: your entry says the server accepts",
+    "trusted registration.",
     "",
     `The client identifier your server issued: ${clientId}`,
     "",

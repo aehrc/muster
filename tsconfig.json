@@ -20,6 +20,9 @@
       "path": "./e2e"
     },
     {
+      "path": "./deploy"
+    },
+    {
       "path": "./scripts"
     }
   ]

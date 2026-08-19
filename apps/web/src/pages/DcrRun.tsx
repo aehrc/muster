@@ -257,12 +257,17 @@ export function DcrRun(): JSX.Element {
           </div>
         </Panel>
       ) : (
-        <Panel title="The run" icon={<KeyIcon size={18} />}>
+        <Panel
+          title={run === null ? "The run" : "What the run did"}
+          icon={<KeyIcon size={18} />}
+        >
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-base-content/70">
-              This pairing is {pairingStateWords[pairing.state].toLowerCase()},
-              so there is no registration to run.
-            </p>
+            {run === null ? (
+              <p className="text-sm text-base-content/70">
+                This pairing is {pairingStateWords[pairing.state].toLowerCase()}
+                , so there is no registration to run.
+              </p>
+            ) : null}
             <RunSteps run={run} running={false} />
           </div>
         </Panel>

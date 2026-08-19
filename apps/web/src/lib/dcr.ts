@@ -78,12 +78,14 @@ export const describeRun = (run: DcrRunResponse): string => {
     return `${run.pairing.server.systemName} registered ${run.pairing.client.systemName} as ${run.clientId}.`;
   }
   const error = run.serverError;
-  return [
+  const said = [
     `${run.pairing.server.systemName} refused the registration: `,
     error === null ? "no reason given" : error.error,
     error?.errorDescription === undefined ? "" : ` - ${error.errorDescription}`,
-    ".",
   ].join("");
+  // The server's own description often ends in a full stop of its own, and two
+  // in a row reads like a typing error rather than a quotation.
+  return said.endsWith(".") ? said : `${said}.`;
 };
 
 /**
