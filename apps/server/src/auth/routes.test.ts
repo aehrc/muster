@@ -168,6 +168,124 @@ describeDatabase("the auth routes", () => {
     });
   });
 
+  // Counts the verification links sent so far, so a test can say whether one was
+  // sent rather than only what the response said.
+  const linksSent = (target: TestServer): number =>
+    target.sentMail.filter((message) => message.includes("/verify?token="))
+      .length;
+
+  // The other half of the spec's edge case: the offer to resend has to work. A
+  // link that has been spent, or has lapsed, is replaced by one that verifies.
+  test("sends a fresh verification link, and the superseded one stops working", async () => {
+    const email = address();
+    await request(server, "POST", "/api/auth/sign-up", {
+      body: { email, displayName: "Stranded", password: testPassword },
+    });
+    const lapsed = verificationToken(server);
+
+    const resent = await request(
+      server,
+      "POST",
+      "/api/auth/resend-verification",
+      { body: { email } },
+    );
+
+    expect(resent.status).toBe(202);
+    expect(await resent.json()).toEqual({ requested: true });
+    const fresh = verificationToken(server);
+    expect(fresh).not.toBe(lapsed);
+
+    // Only one link is live at a time: the outstanding one was superseded rather
+    // than left usable alongside its replacement.
+    const spendOld = await request(server, "POST", "/api/auth/verify", {
+      body: { token: lapsed },
+    });
+    expect(spendOld.status).toBe(422);
+    expect(await spendOld.json()).toMatchObject({
+      detail: expect.stringContaining("already been used"),
+    });
+
+    const spendFresh = await request(server, "POST", "/api/auth/verify", {
+      body: { token: fresh },
+    });
+    expect(spendFresh.status).toBe(200);
+    expect(await spendFresh.json()).toMatchObject({
+      account: { email, emailVerified: true },
+    });
+  });
+
+  // The reply to an anonymous caller says nothing about which addresses hold
+  // accounts, so an unknown address is answered exactly as a real one is - and
+  // nothing is sent.
+  test("answers an address with no account the same way, and sends nothing", async () => {
+    const before = linksSent(server);
+
+    const response = await request(
+      server,
+      "POST",
+      "/api/auth/resend-verification",
+      { body: { email: address() } },
+    );
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ requested: true });
+    expect(linksSent(server)).toBe(before);
+  });
+
+  // An address already proved needs no new link, and the refusal is silent for
+  // the same reason: a distinct answer would disclose that the account exists.
+  test("sends no link for an address that is already verified", async () => {
+    const email = address();
+    await request(server, "POST", "/api/auth/sign-up", {
+      body: { email, displayName: "Verified", password: testPassword },
+    });
+    await request(server, "POST", "/api/auth/verify", {
+      body: { token: verificationToken(server) },
+    });
+    const before = linksSent(server);
+
+    const response = await request(
+      server,
+      "POST",
+      "/api/auth/resend-verification",
+      { body: { email } },
+    );
+
+    expect(response.status).toBe(202);
+    expect(linksSent(server)).toBe(before);
+  });
+
+  // FR-035: the resend mints a token and sends mail, so it is limited by address
+  // and route like the rest of the credential endpoints.
+  test("refuses further resends once the window is full", async () => {
+    const isolated = await startTestServer("authresendlimit");
+    try {
+      const email = address();
+      for (let attempt = 0; attempt < authRateLimitPolicy.limit; attempt += 1) {
+        const allowed = await request(
+          isolated,
+          "POST",
+          "/api/auth/resend-verification",
+          { body: { email } },
+        );
+        expect(allowed.status).toBe(202);
+      }
+
+      const refused = await request(
+        isolated,
+        "POST",
+        "/api/auth/resend-verification",
+        { body: { email } },
+      );
+
+      expect(refused.status).toBe(429);
+      expect(await refused.json()).toMatchObject({ error: "rate_limited" });
+      expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+    } finally {
+      await isolated.close();
+    }
+  });
+
   test("refuses a verification token it has never issued", async () => {
     const response = await request(server, "POST", "/api/auth/verify", {
       body: { token: "not-a-token" },

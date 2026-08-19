@@ -44,6 +44,7 @@ export type RefusalReason =
   | "illegal_transition"
   | "token_used"
   | "token_expired"
+  | "already_verified"
   | "wrong_side"
   | "not_in_event"
   | "registration_not_needed"
@@ -280,6 +281,36 @@ export const authoriseToken = (
   }
   return granted;
 };
+
+/**
+ * Decides whether an account may be sent a fresh verification link.
+ *
+ * The specification's edge case leaves an account whose link was used twice or
+ * used late with an offer to resend, and a token lives a day, so the offer has to
+ * work for any account that is still unverified - pending approval, or even
+ * revoked, since a revocation can be reversed and the address is still theirs.
+ * The one refusal is an address already proved: it needs no new link, and minting
+ * one would mail a live token to an account with no use for it.
+ *
+ * @param account - the account's status, verification and role
+ * @returns the decision
+ * @example
+ * ```ts
+ * const decision = authoriseVerificationResend(account);
+ * if (decision.ok) {
+ *   await mail.send(verificationMessage(config, account.email, token));
+ * }
+ * ```
+ */
+export const authoriseVerificationResend = (
+  account: AccountFacts,
+): AuthorisationDecision =>
+  account.emailVerifiedAt === null
+    ? granted
+    : refuse(
+        "already_verified",
+        "That address is already verified, so no new link is needed.",
+      );
 
 /**
  * Applies an admin's status change to an account.

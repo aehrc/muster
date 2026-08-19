@@ -66,6 +66,38 @@ export const verificationMessage = (
 });
 
 /**
+ * The message that carries a replacement link, when the first one lapsed.
+ *
+ * Distinct wording, because the recipient did not just sign up: they asked for
+ * this, and the message says that any earlier link no longer works - which is
+ * true, since minting this one retired it.
+ *
+ * @param config - the configuration the public URL derives from
+ * @param recipient - the address being proved
+ * @param token - the replacement verification token
+ * @returns the message to send
+ * @example
+ * ```ts
+ * await mail.send(verificationResendMessage(config, account.email, token));
+ * ```
+ */
+export const verificationResendMessage = (
+  config: MusterConfig,
+  recipient: string,
+  token: string,
+): MailMessage => ({
+  to: [recipient],
+  subject: "Your new Muster verification link",
+  text: [
+    "A replacement verification link was asked for, for this Muster address.",
+    "",
+    `Prove the address by opening ${publicUrlFor(config, `/verify?token=${token}`)}`,
+    "",
+    "Any earlier link has stopped working. This one works once and expires within a day.",
+  ].join("\n"),
+});
+
+/**
  * The message telling the admins that someone is waiting (FR-003).
  *
  * @param config - the configuration the public URL derives from

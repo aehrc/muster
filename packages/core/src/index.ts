@@ -14,6 +14,7 @@ export {
   authoriseEventOpen,
   authoriseMembership,
   authoriseToken,
+  authoriseVerificationResend,
   authoriseWrite,
   verificationTokenLifetimeMs,
   type AccountFacts,

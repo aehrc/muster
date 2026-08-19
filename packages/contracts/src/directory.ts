@@ -150,6 +150,36 @@ export const verifyRequestSchema = z.object({ token: z.string().min(1) });
 /** `POST /api/auth/verify`. */
 export type VerifyRequest = z.infer<typeof verifyRequestSchema>;
 
+/**
+ * `POST /api/auth/resend-verification`.
+ *
+ * By address rather than by session, because the person who needs it has just been
+ * told their link is spent or lapsed and is not signed in on that screen. A
+ * signed-in account with an unverified address asks for its own address, which the
+ * console fills in for it.
+ */
+export const resendVerificationRequestSchema = z.object({ email: emailSchema });
+
+/** `POST /api/auth/resend-verification`. */
+export type ResendVerificationRequest = z.infer<
+  typeof resendVerificationRequestSchema
+>;
+
+/**
+ * The answer to `POST /api/auth/resend-verification`.
+ *
+ * The same answer whatever was true of the address, so an anonymous caller cannot
+ * learn from it which addresses hold accounts.
+ */
+export const resendVerificationResponseSchema = z.object({
+  requested: z.literal(true),
+});
+
+/** The answer to `POST /api/auth/resend-verification`. */
+export type ResendVerificationResponse = z.infer<
+  typeof resendVerificationResponseSchema
+>;
+
 /** `POST /api/auth/sign-in`. */
 export const signInRequestSchema = z.object({
   email: emailSchema,

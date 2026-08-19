@@ -310,6 +310,16 @@ type TokenSpend = {
   readonly at: Date;
 };
 
+/** An account's outstanding tokens of one purpose, being retired together. */
+export type TokenSupersede = {
+  /** the account whose tokens are retired */
+  readonly accountId: string;
+  /** the purpose whose tokens are retired; others are left alone */
+  readonly purpose: AccountTokenPurpose;
+  /** when they were retired */
+  readonly at: Date;
+};
+
 /** An organisation to create. */
 type NewOrganisation = {
   /** the name to create it under */
@@ -626,6 +636,39 @@ export const markAccountTokenUsed = async (
 ): Promise<void> => {
   await sql`update account_token set used_at = ${spend.at}, updated_at = now()
     where id = ${spend.id} and used_at is null`;
+};
+
+/**
+ * Retires an account's outstanding tokens of one purpose.
+ *
+ * What makes a resent verification link the only live one: the tokens that were
+ * outstanding are marked spent, so two links are never usable at once. Already
+ * spent tokens keep the instant they were spent at, and another purpose's tokens
+ * are left alone - a password reset is not cancelled by a verification resend.
+ *
+ * @param sql - a connection
+ * @param supersede - the account, the purpose, and when they were retired
+ * @returns how many tokens were outstanding and are now spent
+ * @example
+ * ```ts
+ * await supersedeAccountTokens(sql, {
+ *   accountId: account.id,
+ *   purpose: "emailVerification",
+ *   at: new Date(),
+ * });
+ * ```
+ */
+export const supersedeAccountTokens = async (
+  sql: SQL,
+  supersede: TokenSupersede,
+): Promise<number> => {
+  const rows = await queryRows(sql`update account_token
+    set used_at = ${supersede.at}, updated_at = now()
+    where account_id = ${supersede.accountId}
+      and purpose = ${supersede.purpose}::account_token_purpose
+      and used_at is null
+    returning id`);
+  return rows.length;
 };
 
 /**

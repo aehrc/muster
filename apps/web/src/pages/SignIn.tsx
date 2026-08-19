@@ -1,5 +1,7 @@
 import {
   accountResponseSchema,
+  resendVerificationRequestSchema,
+  resendVerificationResponseSchema,
   sessionViewSchema,
   signInRequestSchema,
   signUpRequestSchema,
@@ -41,6 +43,12 @@ import type { JSX } from "react";
  * edge cases the specification calls out, a link used twice and a link used late,
  * both of which the server answers with wording fit to show.
  *
+ * Those two refusals are the reason for the resend panel below them, and for the
+ * button in the signed-in unverified state: a token lives a day, so without an
+ * offer that works, an account whose link lapsed would be stranded. Anonymously
+ * the address is typed, because the token says nothing about whose it was; signed
+ * in, the account's own address is used.
+ *
  * @author John Grimes
  */
 
@@ -55,6 +63,23 @@ const signingUp = "Creating your account";
 
 /** What verifying is called in its messages. */
 const verifying = "Verifying your address";
+
+/** What asking for a replacement link is called in its messages. */
+const resending = "Sending a new verification link";
+
+/**
+ * What the console says about a resend, whatever the address turned out to be.
+ *
+ * The server answers every caller identically so that nobody can learn which
+ * addresses hold accounts from it, and the console does not pretend to know more
+ * than it was told: the sentence is true of an unknown address, of one already
+ * verified, and of one whose link had lapsed.
+ *
+ * @param email - the address the link was asked for
+ * @returns the sentence to show
+ */
+const resentMessage = (email: string): string =>
+  `If ${email} has an account whose address still needs verifying, a new link is on its way. It replaces any earlier link and expires within a day.`;
 
 /**
  * The sign-in and sign-up screen.
@@ -105,6 +130,31 @@ export function SignIn(): JSX.Element {
         refresh();
       });
   }, [token, setParameters, refresh]);
+
+  // The offer behind the refusal a spent or lapsed link is answered with. Asked
+  // for by address, because whoever needs it is usually not signed in - they
+  // followed a link out of a mail client - and a signed-in account with an
+  // unverified address has its own address filled in for it.
+  const handleResend = async (recipient: string): Promise<void> => {
+    const outcome = parseRequest(resendVerificationRequestSchema, {
+      email: recipient,
+    });
+    setIssues(outcome.ok ? [] : outcome.issues);
+    if (!outcome.ok) {
+      return;
+    }
+    setOperation(pending(resending));
+    const result = await muster.post(
+      "/api/auth/resend-verification",
+      outcome.value,
+      resendVerificationResponseSchema,
+    );
+    setOperation(
+      result.ok
+        ? succeeded(resending, resentMessage(outcome.value.email))
+        : failed(resending, result.failure),
+    );
+  };
 
   const handleSignIn = async (): Promise<void> => {
     const outcome = parseRequest(signInRequestSchema, { email, password });
@@ -225,6 +275,19 @@ export function SignIn(): JSX.Element {
                 My organisation
               </Link>
             ) : null}
+            {session.account.emailVerified ? null : (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={working}
+                onClick={() => {
+                  void handleResend(session.account.email);
+                }}
+              >
+                <MailIcon size={16} />
+                Send a new verification link
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-sm"
@@ -350,11 +413,36 @@ export function SignIn(): JSX.Element {
         </div>
       </div>
 
-      <p className="text-sm text-base-content/70">
-        Verification links arrive by email and land back on this page. A link
-        works once and expires within a day; if it says it has already been used
-        or has expired, sign up again to be sent a new one.
-      </p>
+      <Panel
+        title="Send a new verification link"
+        icon={<MailIcon size={18} />}
+        description="Verification links arrive by email and land back on this page. A link works once and expires within a day; if yours says it has already been used or has expired, ask for a replacement here. The new link supersedes the old one."
+      >
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleResend(email);
+          }}
+        >
+          <TextField
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={setEmail}
+            required
+          />
+          <button
+            type="submit"
+            className="btn btn-sm self-start"
+            disabled={working}
+          >
+            <MailIcon size={16} />
+            Send a new link
+          </button>
+        </form>
+      </Panel>
     </div>
   );
 }

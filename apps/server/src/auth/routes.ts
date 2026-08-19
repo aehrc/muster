@@ -1,10 +1,12 @@
 import {
+  resendVerificationRequestSchema,
   signInRequestSchema,
   signUpRequestSchema,
   verifyRequestSchema,
 } from "@muster/contracts";
 import {
   authoriseToken,
+  authoriseVerificationResend,
   consume,
   emptyWindow,
   verificationTokenLifetimeMs,
@@ -20,6 +22,7 @@ import {
   listNotifiableAdmins,
   markAccountTokenUsed,
   markAccountVerified,
+  supersedeAccountTokens,
 } from "@muster/db";
 import { Hono } from "hono";
 import { getConnInfo } from "hono/bun";
@@ -28,6 +31,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   createOpaqueToken,
   endSession,
+  factsFor,
   hashToken,
   refusalError,
   requireAccount,
@@ -37,6 +41,7 @@ import { accountView } from "../http/views.ts";
 import {
   awaitingApprovalMessage,
   verificationMessage,
+  verificationResendMessage,
 } from "../mail/messages.ts";
 
 import type { AppEnvironment } from "../app.ts";
@@ -54,6 +59,12 @@ import type { z } from "zod";
  * and approval by a track admin is a separate decision that no one taking this
  * route can make for themselves (FR-001, FR-002). Both facts are reported by
  * `/api/auth/me`, so the console can show a member exactly where they are.
+ *
+ * A verification link works once and lives a day, so the resend is what keeps
+ * FR-001's promise reachable after one lapses. It is asked for by address, since
+ * whoever needs it has just been refused on a screen they are not signed in on,
+ * and it answers every caller identically: what differs is only what arrives in
+ * the mailbox.
  *
  * These are the routes an attacker reaches without an account, so they are rate
  * limited by client address and route (FR-035), passwords are hashed with
@@ -200,7 +211,7 @@ const rateLimit =
 export const createAuthRoutes = (): Hono<AppEnvironment> => {
   const routes = new Hono<AppEnvironment>();
 
-  // FR-035: the three routes that take a credential or spend a token, keyed by
+  // FR-035: the routes that take a credential, spend a token or mint one, keyed by
   // address and route and nothing else. A refused attempt is answered with the
   // wait, so a client that backs off is let back in.
   //
@@ -214,6 +225,7 @@ export const createAuthRoutes = (): Hono<AppEnvironment> => {
   routes.use("/sign-up", limiter);
   routes.use("/sign-in", limiter);
   routes.use("/verify", limiter);
+  routes.use("/resend-verification", limiter);
 
   routes.post("/sign-up", async (context) => {
     const body = await parseBody(context, signUpRequestSchema);
@@ -260,6 +272,49 @@ export const createAuthRoutes = (): Hono<AppEnvironment> => {
     }
 
     return context.json({ account: accountView(account) }, 201);
+  });
+
+  // The other half of the spec's edge case: a link used twice or used late fails
+  // with an offer to resend, and this is what the offer does. Answered the same
+  // way whatever was true of the address - no account, an account already
+  // verified, or one still waiting - because an anonymous caller must not learn
+  // from it which addresses hold accounts. What differs is what is sent, which
+  // only the holder of the address ever sees.
+  routes.post("/resend-verification", async (context) => {
+    const body = await parseBody(context, resendVerificationRequestSchema);
+    const sql = context.get("sql");
+    const account = await findAccountByEmail(sql, body.email);
+    const permitted =
+      account === undefined
+        ? undefined
+        : authoriseVerificationResend(factsFor(account));
+    if (account !== undefined && permitted?.ok === true) {
+      // One live link at a time: whatever was outstanding is retired first, so a
+      // resend cannot leave two usable links behind it.
+      const now = new Date();
+      await supersedeAccountTokens(sql, {
+        accountId: account.id,
+        purpose: "emailVerification",
+        at: now,
+      });
+      const token = createOpaqueToken();
+      await insertAccountToken(sql, {
+        accountId: account.id,
+        tokenHash: hashToken(token),
+        purpose: "emailVerification",
+        expiresAt: new Date(now.getTime() + verificationTokenLifetimeMs),
+      });
+      await context
+        .get("mail")
+        .send(
+          verificationResendMessage(
+            context.get("config"),
+            account.email,
+            token,
+          ),
+        );
+    }
+    return context.json({ requested: true } as const, 202);
   });
 
   routes.post("/verify", async (context) => {

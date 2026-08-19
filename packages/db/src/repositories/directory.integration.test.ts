@@ -6,6 +6,7 @@ import {
   deleteSession,
   findAccountByEmail,
   findAccountBySessionToken,
+  findAccountTokenByHash,
   findEnrolledSystem,
   findEnrolment,
   findEnrolmentById,
@@ -29,6 +30,7 @@ import {
   markAccountTokenUsed,
   markAccountVerified,
   reconfirmEnrolment,
+  supersedeAccountTokens,
   updateAccountStatus,
   updateEvent,
   updateSystem,
@@ -254,6 +256,67 @@ describeDatabase("the directory schema and repositories", () => {
 
     const spent = await findAccountByEmail(database.sql, account.email);
     expect(spent?.id).toBe(account.id);
+  });
+
+  // A fresh verification link must be the only live one: a resend supersedes
+  // whatever was outstanding, so two links are never usable at once. Tokens of
+  // another purpose, and tokens of another account, are left alone.
+  test("supersedes an account's outstanding tokens of one purpose", async () => {
+    const account = await arrangeAccount();
+    const other = await arrangeAccount();
+    const expiresAt = new Date("2026-08-15T00:00:00Z");
+    const outstanding = uniqueName("outstanding");
+    const reset = uniqueName("reset");
+    const untouched = uniqueName("untouched");
+    await insertAccountToken(database.sql, {
+      accountId: account.id,
+      tokenHash: outstanding,
+      purpose: "emailVerification",
+      expiresAt,
+    });
+    await insertAccountToken(database.sql, {
+      accountId: account.id,
+      tokenHash: reset,
+      purpose: "passwordReset",
+      expiresAt,
+    });
+    await insertAccountToken(database.sql, {
+      accountId: other.id,
+      tokenHash: untouched,
+      purpose: "emailVerification",
+      expiresAt,
+    });
+
+    const at = new Date("2026-08-14T12:00:00Z");
+    const superseded = await supersedeAccountTokens(database.sql, {
+      accountId: account.id,
+      purpose: "emailVerification",
+      at,
+    });
+
+    expect(superseded).toBe(1);
+    expect(
+      (await findAccountTokenByHash(database.sql, outstanding))?.usedAt,
+    ).toEqual(at);
+    expect(
+      (await findAccountTokenByHash(database.sql, reset))?.usedAt,
+    ).toBeNull();
+    expect(
+      (await findAccountTokenByHash(database.sql, untouched))?.usedAt,
+    ).toBeNull();
+
+    // Superseding again finds nothing outstanding, and does not re-stamp the
+    // token it already spent.
+    expect(
+      await supersedeAccountTokens(database.sql, {
+        accountId: account.id,
+        purpose: "emailVerification",
+        at: new Date("2026-08-14T13:00:00Z"),
+      }),
+    ).toBe(0);
+    expect(
+      (await findAccountTokenByHash(database.sql, outstanding))?.usedAt,
+    ).toEqual(at);
   });
 
   // A session token is held only as a digest, and an expired session is no

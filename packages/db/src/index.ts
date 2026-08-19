@@ -76,6 +76,7 @@ export {
   markAccountTokenUsed,
   markAccountVerified,
   reconfirmEnrolment,
+  supersedeAccountTokens,
   updateAccountStatus,
   updateEvent,
   updateSystem,
@@ -99,6 +100,7 @@ export {
   type StatusDecision,
   type SystemPatch,
   type SystemRow,
+  type TokenSupersede,
 } from "./repositories/directory.ts";
 export {
   findHarnessRun,

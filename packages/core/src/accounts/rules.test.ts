@@ -6,6 +6,7 @@ import {
   authoriseEventOpen,
   authoriseMembership,
   authoriseToken,
+  authoriseVerificationResend,
   authoriseWrite,
   verificationTokenLifetimeMs,
 } from "./rules.ts";
@@ -229,6 +230,42 @@ describe("verification tokens", () => {
   // that a leaked link is not a standing key.
   test("states a verification lifetime of one day", () => {
     expect(verificationTokenLifetimeMs).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("resending a verification link", () => {
+  // The spec's edge case leaves an account whose link lapsed with an offer to
+  // resend, and the token lives a day, so the offer has to work for an account
+  // that is unverified whatever else is true of it - pending approval, or even
+  // revoked, since a revocation can be reversed and the address is still theirs.
+  test("permits a resend for an account whose address is unverified", () => {
+    expect(
+      authoriseVerificationResend(account({ emailVerifiedAt: null })).ok,
+    ).toBe(true);
+    expect(
+      authoriseVerificationResend(
+        account({ emailVerifiedAt: null, status: "pending" }),
+      ).ok,
+    ).toBe(true);
+    expect(
+      authoriseVerificationResend(
+        account({ emailVerifiedAt: null, status: "revoked" }),
+      ).ok,
+    ).toBe(true);
+  });
+
+  // An address already proved needs no new link, and minting one anyway would
+  // mail a live token to an account that has no use for it.
+  test("refuses a resend for an address already verified", () => {
+    const decision = authoriseVerificationResend(account());
+
+    expect(decision.ok).toBe(false);
+    expect(decision.ok === false && decision.refusal.reason).toBe(
+      "already_verified",
+    );
+    expect(decision.ok === false && decision.refusal.detail).toContain(
+      "already verified",
+    );
   });
 });
 
