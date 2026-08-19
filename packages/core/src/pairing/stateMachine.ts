@@ -12,27 +12,27 @@ import type {
  * The pairing state machine.
  *
  * A pairing is a conversation between two organisations, and this decides who may
- * say what, when. The five transitions are the ones `data-model.md` states and
- * there is no sixth: an action with nowhere to land is refused rather than
- * tolerated, because a tracker that quietly accepts an impossible move is worse
- * than no tracker - both parties would then be reading a history that did not
- * happen.
+ * say what, when. The transitions are the ones `data-model.md` states - its five,
+ * plus the trusted-DCR run it describes in prose - and there is no other: an
+ * action with nowhere to land is refused rather than tolerated, because a tracker
+ * that quietly accepts an impossible move is worse than no tracker - both parties
+ * would then be reading a history that did not happen.
  *
  * Everything here is decided from facts passed in. There is no database, no clock
  * and no request, so the rules are the same whether a route handler, the event
  * closing routine or the console is asking.
  *
- * Each action belongs to one side. The client's organisation asks and, after a
- * failed registration attempt, asks again with corrected metadata; the server's
- * organisation answers by issuing an identifier or declining; and the lapse
- * belongs to neither, because an event closing is Muster's own doing.
+ * Each action belongs to one side. The client's organisation asks, runs a trusted
+ * registration, and, after a failed attempt, asks again with corrected metadata;
+ * the server's organisation answers by issuing an identifier or declining; and the
+ * lapse belongs to neither, because an event closing is Muster's own doing.
  *
  * @author John Grimes
  */
 
 /** What moves a pairing. */
 export type PairingAction =
-  "request" | "fulfil" | "decline" | "fail" | "retry" | "lapse";
+  "request" | "fulfil" | "register" | "decline" | "fail" | "retry" | "lapse";
 
 /** One legal move. */
 export type PairingTransition = {
@@ -112,6 +112,21 @@ export const pairingTransitions: readonly PairingTransition[] = [
     requiresOpenEvent: true,
   },
   {
+    // The trusted-DCR run (US5): the app owner presents Muster's vouching to the
+    // server's registration endpoint, and a server that accepts it has registered
+    // the client, so the request is fulfilled with no human on the server's side.
+    // It belongs to the client's side because it is the client being vouched for;
+    // the server's consent is its published registration endpoint.
+    action: "register",
+    from: "requested",
+    to: "fulfilled",
+    side: "client",
+    recordsClientId: true,
+    recordsDeclineReason: false,
+    replacesRegistrationFields: false,
+    requiresOpenEvent: true,
+  },
+  {
     action: "decline",
     from: "requested",
     to: "declined",
@@ -166,6 +181,7 @@ export const openPairingStates: readonly PairingState[] = ["requested"];
 const actionWords: Record<PairingAction, string> = {
   request: "request",
   fulfil: "fulfilment",
+  register: "registration run",
   decline: "decline",
   fail: "failure",
   retry: "retry",

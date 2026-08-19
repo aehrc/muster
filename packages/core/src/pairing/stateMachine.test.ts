@@ -54,9 +54,11 @@ const outcome = (overrides: Partial<PairingActionFacts> = {}): string => {
 };
 
 describe("pairingTransitions", () => {
-  // The transition table is the data model's, exactly: five moves and no more.
-  // Anything else a route might attempt has nowhere to land.
-  test("holds the five transitions the data model states", () => {
+  // The transition table is the data model's, exactly, plus the one move the data
+  // model states in prose rather than in its table: a trusted-DCR run fulfils a
+  // request with no human on the server's side. Anything else a route might
+  // attempt has nowhere to land.
+  test("holds the transitions the data model states", () => {
     const moves = pairingTransitions.map(
       (transition) =>
         `${transition.from ?? "none"} -> ${transition.to} (${transition.action})`,
@@ -65,6 +67,7 @@ describe("pairingTransitions", () => {
     expect(moves).toEqual([
       "none -> requested (request)",
       "requested -> fulfilled (fulfil)",
+      "requested -> fulfilled (register)",
       "requested -> declined (decline)",
       "requested -> failed (fail)",
       "failed -> requested (retry)",
@@ -85,6 +88,7 @@ describe("pairingTransitions", () => {
     expect(sides).toEqual({
       request: "client",
       fulfil: "server",
+      register: "client",
       decline: "server",
       fail: "client",
       retry: "client",
@@ -103,15 +107,15 @@ describe("pairingTransitions", () => {
     expect(replacing).toEqual(["request", "retry"]);
   });
 
-  // The client identifier arrives with the fulfilment and nowhere else; the
-  // reason arrives with the decline and nowhere else.
+  // The client identifier arrives with a fulfilment, by hand or by registration
+  // run, and nowhere else; the reason arrives with the decline and nowhere else.
   test("records the client identifier on fulfilment and the reason on a decline", () => {
     const recording = (key: "recordsClientId" | "recordsDeclineReason") =>
       pairingTransitions
         .filter((transition) => transition[key])
         .map((transition) => transition.action);
 
-    expect(recording("recordsClientId")).toEqual(["fulfil"]);
+    expect(recording("recordsClientId")).toEqual(["fulfil", "register"]);
     expect(recording("recordsDeclineReason")).toEqual(["decline"]);
   });
 
@@ -125,6 +129,7 @@ describe("pairingTransitions", () => {
     expect(needingOpen).toEqual([
       "request",
       "fulfil",
+      "register",
       "decline",
       "fail",
       "retry",
@@ -172,6 +177,44 @@ describe("applyPairingAction", () => {
     expect(
       outcome({ action: "retry", state: "failed", sides: ["client"] }),
     ).toBe("requested");
+  });
+
+  // US5: the app owner drives a trusted-DCR run themselves, and a run the server
+  // accepts fulfils the pairing. The server's consent is standing - it published a
+  // registration endpoint that accepts Muster's vouching - so no member of the
+  // server's organisation has to act.
+  test("fulfils a requested pairing when the client owner runs registration", () => {
+    expect(
+      outcome({ action: "register", state: "requested", sides: ["client"] }),
+    ).toBe("fulfilled");
+  });
+
+  // The run belongs to the client's side, because it is the app owner's client
+  // that is being vouched for.
+  test("refuses a registration run by the server's organisation", () => {
+    expect(
+      outcome({ action: "register", state: "requested", sides: ["server"] }),
+    ).toBe("wrong_side");
+  });
+
+  // FR-011: nothing is vouched for in a closed event.
+  test("refuses a registration run on a closed event", () => {
+    expect(
+      outcome({
+        action: "register",
+        state: "requested",
+        sides: ["client"],
+        eventStatus: "closed",
+      }),
+    ).toBe("event_not_open");
+  });
+
+  // A failed pairing is retried first, which is the transition whose purpose is
+  // corrected metadata; a run straight off a failure has nowhere to land.
+  test("refuses a registration run on a failed pairing", () => {
+    expect(
+      outcome({ action: "register", state: "failed", sides: ["client"] }),
+    ).toBe("illegal_transition");
   });
 
   // A fulfilled pairing is finished. Fulfilling it again is refused rather than
