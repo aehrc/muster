@@ -147,6 +147,9 @@ export const verificationToken = (email: string): string => {
   throw new Error(`No verification link was logged for ${email}`);
 };
 
+/** How many participant addresses have been handed out. */
+let allocated = 0;
+
 /**
  * An address for one participant in this run.
  *
@@ -156,14 +159,20 @@ export const verificationToken = (email: string): string => {
  * address, which is what separate participants at a venue look like to a server
  * behind a proxy.
  *
+ * Handed out in sequence rather than at random, because two files that happened
+ * to draw the same address would share one allowance and the suite would fail
+ * for a reason that had nothing to do with Muster.
+ *
  * @returns a documentation-range address
  * @example
  * ```ts
  * test.use({ extraHTTPHeaders: { "x-forwarded-for": participantAddress() } });
  * ```
  */
-export const participantAddress = (): string =>
-  `198.51.100.${String(Math.floor(Math.random() * 254) + 1)}`;
+export const participantAddress = (): string => {
+  allocated += 1;
+  return `198.51.100.${String(((allocated - 1) % 254) + 1)}`;
+};
 
 /**
  * Builds an address nothing else in this run will use.
