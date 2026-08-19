@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { checkFailureModeSchema } from "./common.ts";
+import { checkFailureModeSchema, harnessVerdictSchema } from "./common.ts";
 
 /**
  * The wire shapes of live verification: what a server was found to advertise,
@@ -115,6 +115,30 @@ export const checkStatusSchema = z.object({
 
 /** An enrolled server's verification status. */
 export type CheckStatus = z.infer<typeof checkStatusSchema>;
+
+/**
+ * An entry's conformance standing: the verdict of its latest harness run.
+ *
+ * Only a `passed` verdict earns the "DCR verified" badge, and any later failing
+ * run replaces it, so the badge is never older than the newest evidence
+ * (FR-030). The identifier is here so a reader can open the report the verdict
+ * came from, which is what makes the badge checkable rather than decorative.
+ *
+ * It lives beside the check status rather than with the harness shapes because
+ * the directory's own shapes carry it, and a conformance module that imported
+ * them while they imported it would be a cycle.
+ */
+export const conformanceStatusSchema = z.object({
+  /** the run the verdict came from */
+  runId: z.string(),
+  /** how it turned out */
+  verdict: harnessVerdictSchema,
+  /** when it ran */
+  ranAt: z.string(),
+});
+
+/** An entry's conformance standing. */
+export type ConformanceStatus = z.infer<typeof conformanceStatusSchema>;
 
 /**
  * The warning a pairing carries when the client asks for scopes the server does

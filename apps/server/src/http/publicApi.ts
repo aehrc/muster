@@ -2,6 +2,7 @@ import { authoriseWrite } from "@muster/core";
 import {
   findCheckStatus,
   findEnrolledSystem,
+  findLatestHarnessRun,
   listCheckResults,
   listEvents,
   listOrganisationContacts,
@@ -13,9 +14,9 @@ import { listEnrolledEntries, requireEvent } from "./lookups.ts";
 import { enrolledSystem, eventDetail, eventSummary } from "./views.ts";
 import { currentAccount, factsFor } from "../auth/sessions.ts";
 
+import type { EnrolledEntry } from "./lookups.ts";
 import type { AppEnvironment } from "../app.ts";
 import type { EnrolledSystem } from "@muster/contracts";
-import type { CheckStatusRow, EnrolledSystemRow } from "@muster/db";
 import type { Context } from "hono";
 
 /**
@@ -53,27 +54,28 @@ const checkHistoryLength = 20;
  * Renders an enrolled system, with contacts only when the reader may see them.
  *
  * @param context - the request being answered
- * @param row - the enrolment joined to its system and organisation
+ * @param entry - the enrolment with its latest check and conformance run
  * @param visible - whether the reader may see contact details
- * @param check - the entry's latest check, when something has checked it
  * @returns the enrolled system
  */
 const renderSystem = async (
   context: Context<AppEnvironment>,
-  row: EnrolledSystemRow,
+  entry: EnrolledEntry,
   visible: boolean,
-  check: CheckStatusRow | undefined,
 ): Promise<EnrolledSystem> =>
-  enrolledSystem(row, {
+  enrolledSystem(entry.row, {
     ...(visible
       ? {
           contacts: await listOrganisationContacts(
             context.get("sql"),
-            row.organisation.id,
+            entry.row.organisation.id,
           ),
         }
       : {}),
-    ...(check === undefined ? {} : { check }),
+    ...(entry.check === undefined ? {} : { check: entry.check }),
+    ...(entry.conformance === undefined
+      ? {}
+      : { conformance: entry.conformance }),
   });
 
 /**
@@ -106,9 +108,7 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
     const visible = await contactsVisible(context);
     const entries = await listEnrolledEntries(context.get("sql"), event.id);
     const systems = await Promise.all(
-      entries.map(({ row, check }) =>
-        renderSystem(context, row, visible, check),
-      ),
+      entries.map((entry) => renderSystem(context, entry, visible)),
     );
     return context.json({ event: eventDetail(event), systems });
   });
@@ -128,6 +128,7 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
       });
     }
     const check = await findCheckStatus(sql, row.enrolmentId);
+    const conformance = await findLatestHarnessRun(sql, row.enrolmentId);
     const history = await listCheckResults(sql, {
       enrolmentId: row.enrolmentId,
       limit: checkHistoryLength,
@@ -144,6 +145,7 @@ export const createPublicRoutes = (): Hono<AppEnvironment> => {
             }
           : {}),
         ...(check === undefined ? {} : { check }),
+        ...(conformance === undefined ? {} : { conformance }),
         history,
       }),
     });

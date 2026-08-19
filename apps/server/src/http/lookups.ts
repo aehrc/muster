@@ -4,6 +4,7 @@ import {
   findSystemById,
   listCheckStatuses,
   listEnrolledSystems,
+  listLatestHarnessRuns,
 } from "@muster/db";
 import { HTTPException } from "hono/http-exception";
 
@@ -12,6 +13,7 @@ import type {
   CheckStatusRow,
   EnrolledSystemRow,
   EventRow,
+  HarnessRunRow,
   PairingRecordRow,
   SystemRow,
 } from "@muster/db";
@@ -103,20 +105,23 @@ export const requirePairingRecord = async (
   return record;
 };
 
-/** One enrolled system, with the latest check of it when there is one. */
+/** One enrolled system, with the latest check and conformance run of it. */
 export type EnrolledEntry = {
   /** the enrolment joined to its system and organisation */
   readonly row: EnrolledSystemRow;
   /** the latest check, absent when nothing has checked the entry */
   readonly check: CheckStatusRow | undefined;
+  /** the latest conformance run, absent when none has been run */
+  readonly conformance: HarnessRunRow | undefined;
 };
 
 /**
- * Lists an event's enrolled systems, each with its latest check.
+ * Lists an event's enrolled systems, each with its latest check and run.
  *
- * Two queries rather than one per entry: the statuses arrive as one set and are
- * matched to the entries here. Both the event view and the brands bundle need
- * exactly this, so neither has to remember how to join them.
+ * Three queries rather than three per entry: the statuses and the conformance
+ * verdicts each arrive as one set and are matched to the entries here. Both the
+ * event view and the brands bundle need exactly this, so neither has to remember
+ * how to join them.
  *
  * @param sql - a connection
  * @param eventId - the event whose enrolments are wanted
@@ -130,12 +135,18 @@ export const listEnrolledEntries = async (
   sql: SQL,
   eventId: string,
 ): Promise<EnrolledEntry[]> => {
-  const [rows, statuses] = await Promise.all([
+  const [rows, statuses, verdicts] = await Promise.all([
     listEnrolledSystems(sql, eventId),
     listCheckStatuses(sql, eventId),
+    listLatestHarnessRuns(sql, eventId),
   ]);
   const checks = new Map(
     statuses.map((status) => [status.latest.enrolmentId, status]),
   );
-  return rows.map((row) => ({ row, check: checks.get(row.enrolmentId) }));
+  const runs = new Map(verdicts.map((run) => [run.enrolmentId, run]));
+  return rows.map((row) => ({
+    row,
+    check: checks.get(row.enrolmentId),
+    conformance: runs.get(row.enrolmentId),
+  }));
 };

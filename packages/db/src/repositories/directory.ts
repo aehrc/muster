@@ -995,6 +995,29 @@ export const findEventBySlug = async (
 };
 
 /**
+ * Finds an event by its identifier.
+ *
+ * The routes addressed to an enrolment rather than to an event start here: an
+ * enrolment names its event by identifier, and the event's status and its grace
+ * days are what decide whether anything may be vouched for in it.
+ *
+ * @param sql - a connection
+ * @param id - the event's identifier
+ * @returns the event, or undefined when there is none
+ * @example
+ * ```ts
+ * const event = await findEventById(sql, enrolment.eventId);
+ * ```
+ */
+export const findEventById = async (
+  sql: SQL,
+  id: string,
+): Promise<EventRow | undefined> => {
+  const rows = await queryRows(sql`select * from event where id = ${id}`);
+  return rows.length === 0 ? undefined : toEvent(rows[0]);
+};
+
+/**
  * Lists the events, the ones starting soonest last.
  *
  * @param sql - a connection

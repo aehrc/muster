@@ -97,6 +97,7 @@ const arrange = (facts: SystemFacts): EnrolledSystem => ({
   enrolmentId: `enrolment-${facts.id}`,
   tags: [],
   confirmedAt: facts.confirmedAt,
+  conformance: null,
   system: {
     id: facts.id,
     organisationId: `organisation-${facts.organisationName}`,

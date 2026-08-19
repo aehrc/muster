@@ -71,24 +71,24 @@ export type StatementClaims = {
   readonly smart_launch_url: string;
 };
 
-/** What deciding and building a mint needs to know. */
-export type StatementMintFacts = {
+/**
+ * What building a statement's claims needs to know.
+ *
+ * Separate from the rest of a mint's facts because the claims are content and the
+ * rest is permission. The conformance harness vouches for a throwaway client of
+ * its own rather than for a pairing, so it builds claims from these facts alone;
+ * having to hand {@link statementClaims} a member and a pairing it does not have
+ * would mean asserting things that are not true in order to produce a document.
+ */
+export type StatementContentFacts = {
   /** the trust anchor's issuer identifier */
   readonly issuer: string;
-  /** the account asking */
-  readonly member: AccountFacts;
-  /** whether that account belongs to the organisation owning the client */
-  readonly ownsClient: boolean;
-  /** the event's status */
-  readonly eventStatus: EventStatus;
   /** the event slug the vouching is scoped to */
   readonly eventSlug: string;
   /** the event's last day, as `YYYY-MM-DD` */
   readonly eventEndsOn: string;
   /** days beyond the event's end that vouching artefacts may live */
   readonly graceDays: number;
-  /** whether the pairing belongs to that event */
-  readonly pairingInEvent: boolean;
   /** Muster's identifier for the client system */
   readonly softwareId: string;
   /** the statement identifier */
@@ -97,6 +97,18 @@ export type StatementMintFacts = {
   readonly fields: RegistrationFields;
   /** the moment of minting */
   readonly now: Date;
+};
+
+/** What deciding and building a mint needs to know. */
+export type StatementMintFacts = StatementContentFacts & {
+  /** the account asking */
+  readonly member: AccountFacts;
+  /** whether that account belongs to the organisation owning the client */
+  readonly ownsClient: boolean;
+  /** the event's status */
+  readonly eventStatus: EventStatus;
+  /** whether the pairing belongs to that event */
+  readonly pairingInEvent: boolean;
 };
 
 /** The outcome of a mint. */
@@ -327,7 +339,9 @@ export const authoriseDirectoryRegistration = (
  * const claims = statementClaims(facts);
  * ```
  */
-export const statementClaims = (facts: StatementMintFacts): StatementClaims => {
+export const statementClaims = (
+  facts: StatementContentFacts,
+): StatementClaims => {
   const expiresAt = vouchingExpiresAt({
     endsOn: facts.eventEndsOn,
     graceDays: facts.graceDays,

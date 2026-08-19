@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { checkResultSchema, checkStatusSchema } from "./checks.ts";
+import {
+  checkResultSchema,
+  checkStatusSchema,
+  conformanceStatusSchema,
+} from "./checks.ts";
 import {
   accountStatusSchema,
   authorizationModeSchema,
@@ -315,6 +319,10 @@ export type EnrolmentView = z.infer<typeof enrolmentViewSchema>;
  * entry or for a server nothing has checked yet: staleness is stated rather than
  * implied (FR-017). `checkHistory` is present only on the system detail, which
  * is where a history belongs.
+ *
+ * `conformance` is the verdict of the entry's latest harness run, and null until
+ * one has been run: the "DCR verified" badge is a claim about evidence, so an
+ * entry with no evidence carries none (FR-030).
  */
 export const enrolledSystemSchema = z.object({
   enrolmentId: z.string(),
@@ -325,6 +333,7 @@ export const enrolledSystemSchema = z.object({
   contacts: z.array(contactSchema).optional(),
   check: checkStatusSchema.nullable(),
   checkHistory: z.array(checkResultSchema).optional(),
+  conformance: conformanceStatusSchema.nullable(),
 });
 
 /** An enrolled system. */

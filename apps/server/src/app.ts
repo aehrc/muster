@@ -9,6 +9,7 @@ import { createDocsRoutes } from "./http/docs.ts";
 import { createJwksRoutes } from "./http/jwks.ts";
 import { createPublicRoutes } from "./http/publicApi.ts";
 import { createDcrRoutes } from "./pairing/dcr.routes.ts";
+import { createHarnessRoutes } from "./pairing/harness.routes.ts";
 import { createPairingRoutes } from "./pairing/routes.ts";
 
 import type { MusterConfig } from "./config.ts";
@@ -117,6 +118,7 @@ export const createApp = (
   app.route("/api", createDirectoryRoutes());
   app.route("/api", createPairingRoutes());
   app.route("/api", createDcrRoutes());
+  app.route("/api", createHarnessRoutes());
   app.route("/api", createPublicRoutes());
   app.route("/api", createBrandsRoutes());
 

@@ -3,6 +3,7 @@ import {
   clientProfileSchema,
   discoveryHighlightsSchema,
   driftFlagSchema,
+  harnessCheckSchema,
   serverProfileSchema,
   systemKinds,
 } from "@muster/contracts";
@@ -12,10 +13,12 @@ import type {
   AccountView,
   CheckResult,
   CheckStatus,
+  ConformanceStatus,
   Contact,
   EnrolledSystem,
   EventDetail,
   EventSummary,
+  HarnessRun,
   SystemRecord,
 } from "@muster/contracts";
 import type {
@@ -24,6 +27,7 @@ import type {
   CheckStatusRow,
   EnrolledSystemRow,
   EventRow,
+  HarnessRunRow,
   SystemRow,
 } from "@muster/db";
 
@@ -136,6 +140,51 @@ export const checkStatus = (row: CheckStatusRow): CheckStatus => ({
   lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
 });
 
+/**
+ * Renders one conformance run, with its evidence.
+ *
+ * The per-check report is parsed against the contract schema on the way out, so a
+ * row written by an older run cannot put a shape on the wire that the console does
+ * not understand - and the evidence in it was redacted before it was ever stored.
+ *
+ * @param row - the run as stored
+ * @returns the run
+ * @throws {Error} when a stored check does not satisfy the contract
+ * @example
+ * ```ts
+ * context.json({ run: harnessRun(row) });
+ * ```
+ */
+export const harnessRun = (row: HarnessRunRow): HarnessRun => ({
+  id: row.id,
+  enrolmentId: row.enrolmentId,
+  ranAt: row.createdAt.toISOString(),
+  verdict: row.verdict,
+  checks: z.array(harnessCheckSchema).parse(row.checks ?? []),
+  cleanup: row.cleanup,
+});
+
+/**
+ * Renders an entry's conformance standing: the verdict of its latest run.
+ *
+ * The verdict travels with the identifier of the run it came from, so a reader
+ * who does not take the badge on trust can open the evidence it was earned with
+ * (FR-030). The per-check report is not here: it belongs to the report route,
+ * which serves it in full to anybody.
+ *
+ * @param row - the latest run as stored
+ * @returns the standing
+ * @example
+ * ```ts
+ * conformanceStatus(latestRun);
+ * ```
+ */
+export const conformanceStatus = (row: HarnessRunRow): ConformanceStatus => ({
+  runId: row.id,
+  verdict: row.verdict,
+  ranAt: row.createdAt.toISOString(),
+});
+
 /** What an enrolled system is rendered with, beyond the row itself. */
 export type EnrolledSystemExtras = {
   /**
@@ -147,6 +196,8 @@ export type EnrolledSystemExtras = {
   readonly check?: CheckStatusRow;
   /** the check history, on the surfaces that show one */
   readonly history?: readonly CheckResultRow[];
+  /** the latest conformance run, when one has been run against the entry */
+  readonly conformance?: HarnessRunRow;
 };
 
 /**
@@ -177,6 +228,10 @@ export const enrolledSystem = (
   ...(extras.history === undefined
     ? {}
     : { checkHistory: extras.history.map(checkResult) }),
+  conformance:
+    extras.conformance === undefined
+      ? null
+      : conformanceStatus(extras.conformance),
 });
 
 /**

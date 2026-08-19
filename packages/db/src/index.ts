@@ -53,6 +53,7 @@ export {
   findEnrolledSystem,
   findEnrolment,
   findEnrolmentById,
+  findEventById,
   findEventBySlug,
   findOrganisationById,
   findSystemById,
@@ -98,6 +99,16 @@ export {
   type SystemPatch,
   type SystemRow,
 } from "./repositories/directory.ts";
+export {
+  findHarnessRun,
+  findLatestHarnessRun,
+  insertHarnessRun,
+  listHarnessRuns,
+  listLatestHarnessRuns,
+  type HarnessRunQuery,
+  type HarnessRunRow,
+  type NewHarnessRun,
+} from "./repositories/harness.ts";
 export {
   findActiveSigningKey,
   findSigningKeyByKid,
