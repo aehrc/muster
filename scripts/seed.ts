@@ -25,13 +25,24 @@ import { loadConfig } from "../apps/server/src/config.ts";
  *
  * Usage: `bun scripts/seed.ts`, with the same environment the server reads.
  * `MUSTER_SEED_ADMIN_EMAIL` and `MUSTER_SEED_ADMIN_PASSWORD` override the
- * defaults, and `MUSTER_SEED_EVENT_SLUG` names the event.
+ * defaults, `MUSTER_SEED_EVENT_SLUG` names the event and
+ * `MUSTER_SEED_PERSONA_SOURCE_URL` names the FHIR server its personas are
+ * curated from.
  *
  * @author John Grimes
  */
 
 /** The event seeded when the environment does not name one. */
 const defaultEventSlug = "sparked-2026-09";
+
+/**
+ * The FHIR server the seeded event curates its personas from.
+ *
+ * The Sparked AU Core reference server, which permits anonymous reads and whose
+ * test patients carry test IHIs (US7). `MUSTER_SEED_PERSONA_SOURCE_URL`
+ * overrides it for a deployment that curates from somewhere else.
+ */
+const defaultPersonaSourceUrl = "https://aucore.aidbox.beda.software/fhir";
 
 /** The capability tags the seeded event defines. */
 const seedCapabilityTags = [
@@ -47,6 +58,8 @@ const adminEmail =
 const adminPassword =
   process.env["MUSTER_SEED_ADMIN_PASSWORD"] ?? "muster-admin-password";
 const eventSlug = process.env["MUSTER_SEED_EVENT_SLUG"] ?? defaultEventSlug;
+const personaSourceUrl =
+  process.env["MUSTER_SEED_PERSONA_SOURCE_URL"] ?? defaultPersonaSourceUrl;
 
 const sql = new SQL(config.migrationDatabaseUrl);
 try {
@@ -88,14 +101,23 @@ try {
       endsOn: "2026-09-03",
       status: "open",
       capabilityTags: seedCapabilityTags,
+      personaSourceUrl,
       graceDays: 7,
     });
     console.log(
       `Created the open event ${event.slug} with tags: ${event.capabilityTags.join(", ")}.`,
     );
-  } else if (existingEvent.status !== "open") {
-    const opened = await updateEvent(sql, eventSlug, { status: "open" });
-    console.log(`Opened the existing event ${String(opened?.slug)}.`);
+  } else if (
+    existingEvent.status !== "open" ||
+    existingEvent.personaSourceUrl !== personaSourceUrl
+  ) {
+    const updated = await updateEvent(sql, eventSlug, {
+      status: "open",
+      personaSourceUrl,
+    });
+    console.log(
+      `Opened the existing event ${String(updated?.slug)} and set its persona source.`,
+    );
   } else {
     console.log(`The open event ${eventSlug} already exists.`);
   }

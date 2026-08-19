@@ -14,4 +14,5 @@ export * from "./directory.ts";
 export * from "./harness.ts";
 export * from "./keys.ts";
 export * from "./pairings.ts";
+export * from "./personas.ts";
 export * from "./statements.ts";

@@ -43,6 +43,7 @@ describe("loadConfig", () => {
       MUSTER_SERVER_DATABASE_PASSWORD: "serving-secret",
       MUSTER_OUTBOUND_TIMEOUT_MS: "5000",
       MUSTER_OUTBOUND_ALLOWLIST: "stub-register:9000, localhost",
+      MUSTER_IHI_SYSTEM: "http://example.org/id/national",
     });
 
     expect(config.publicUrl).toBe("https://muster.example.org");
@@ -64,6 +65,7 @@ describe("loadConfig", () => {
       "stub-register:9000",
       "localhost",
     ]);
+    expect(config.ihiSystem).toBe("http://example.org/id/national");
   });
 
   test("applies the documented defaults when optional variables are absent", () => {
@@ -74,6 +76,20 @@ describe("loadConfig", () => {
     expect(config.serverDatabasePassword).toBeUndefined();
     expect(config.outbound.timeoutMs).toBe(10_000);
     expect(config.outbound.allowedHosts).toEqual([]);
+    // The programme's IHI system, which is what a persona's identifier is
+    // asserted under unless a deployment says otherwise (FR-031).
+    expect(config.ihiSystem).toBe(
+      "http://ns.electronichealth.net.au/id/hi/ihi/1.0",
+    );
+  });
+
+  // The identifier system is configuration rather than a constant in a route,
+  // so a deployment pointed at another programme's source reads that
+  // programme's identifier; a value that is not an absolute URI fails start-up.
+  test("refuses an MUSTER_IHI_SYSTEM that is not an absolute URI", () => {
+    expect(() =>
+      loadConfig({ ...completeEnvironment, MUSTER_IHI_SYSTEM: "ihi" }),
+    ).toThrow(/MUSTER_IHI_SYSTEM/);
   });
 
   // MUSTER_PUBLIC_URL: required, and every public URL in the product is

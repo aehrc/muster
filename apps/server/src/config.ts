@@ -62,7 +62,21 @@ export type MusterConfig = {
   readonly mail: MailDelivery;
   /** outbound request settings */
   readonly outbound: OutboundConfig;
+  /**
+   * the identifier system a persona's IHI is asserted under. Configuration
+   * rather than a constant, so a deployment pointed at another programme's
+   * source server reads that programme's identifier (FR-031).
+   */
+  readonly ihiSystem: string;
 };
+
+/**
+ * The identifier system personas' IHIs are asserted under when unconfigured.
+ *
+ * The Australian IHI namespace, which is what the Sparked programme's test
+ * patients carry.
+ */
+const defaultIhiSystem = "http://ns.electronichealth.net.au/id/hi/ihi/1.0";
 
 /** Milliseconds allowed for one outbound request when unconfigured. */
 const defaultOutboundTimeoutMs = 10_000;
@@ -146,6 +160,13 @@ const environmentSchema = z.object({
     .refine((milliseconds) => milliseconds > 0, "must be greater than zero")
     .optional(),
   MUSTER_OUTBOUND_ALLOWLIST: z.string().optional(),
+  MUSTER_IHI_SYSTEM: z
+    .string()
+    .refine(
+      (value) => URL.canParse(value),
+      "must be an absolute URI identifying the IHI identifier system",
+    )
+    .optional(),
 });
 
 /**
@@ -234,6 +255,7 @@ export const loadConfig = (
       timeoutMs: values.MUSTER_OUTBOUND_TIMEOUT_MS ?? defaultOutboundTimeoutMs,
       allowedHosts,
     },
+    ihiSystem: values.MUSTER_IHI_SYSTEM ?? defaultIhiSystem,
   };
 };
 

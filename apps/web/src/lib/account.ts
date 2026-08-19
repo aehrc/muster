@@ -64,6 +64,9 @@ const headlineForRefusal: Record<RefusalReason, string> = {
   manual_registration: "Registered by hand",
   invalid_metadata: "Details cannot be vouched for",
   vouching_expired: "Vouching window has passed",
+  no_ihi: "No IHI on the source record",
+  not_a_patient: "Not a patient record",
+  duplicate_persona: "Already a persona",
 };
 
 /**

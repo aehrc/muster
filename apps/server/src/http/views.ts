@@ -4,6 +4,7 @@ import {
   discoveryHighlightsSchema,
   driftFlagSchema,
   harnessCheckSchema,
+  personaDisplaySchema,
   serverProfileSchema,
   systemKinds,
 } from "@muster/contracts";
@@ -19,6 +20,8 @@ import type {
   EventDetail,
   EventSummary,
   HarnessRun,
+  Persona,
+  PersonaCoverage,
   SystemRecord,
 } from "@muster/contracts";
 import type {
@@ -28,6 +31,8 @@ import type {
   EnrolledSystemRow,
   EventRow,
   HarnessRunRow,
+  PersonaCoverageRow,
+  PersonaRow,
   SystemRow,
 } from "@muster/db";
 
@@ -251,4 +256,48 @@ export const accountView = (account: AccountRow): AccountView => ({
   status: account.status,
   emailVerified: account.emailVerifiedAt !== null,
   isAdmin: account.isAdmin,
+});
+
+/**
+ * Renders one curated persona.
+ *
+ * The demographics are parsed against the contract schema on the way out, like
+ * every other stored document, so a row written by an earlier curation cannot put
+ * a shape on the wire the console does not understand.
+ *
+ * @param row - the persona as stored
+ * @returns the persona
+ * @throws {Error} when the stored demographics do not satisfy the contract
+ * @example
+ * ```ts
+ * context.json({ persona: persona(row) });
+ * ```
+ */
+export const persona = (row: PersonaRow): Persona => ({
+  id: row.id,
+  patientId: row.patientId,
+  ihi: row.ihi,
+  display: personaDisplaySchema.parse(row.display),
+  sourceUrl: row.sourceUrl,
+  sourceStatus: row.sourceStatus,
+  sourceCheckedAt: row.sourceCheckedAt?.toISOString() ?? null,
+  addedAt: row.createdAt.toISOString(),
+});
+
+/**
+ * Renders one cell of the coverage grid.
+ *
+ * @param row - the observation as stored
+ * @returns the cell
+ * @example
+ * ```ts
+ * context.json({ coverage: rows.map(personaCoverage) });
+ * ```
+ */
+export const personaCoverage = (row: PersonaCoverageRow): PersonaCoverage => ({
+  personaId: row.personaId,
+  enrolmentId: row.enrolmentId,
+  outcome: row.outcome,
+  detail: row.detail,
+  checkedAt: row.checkedAt.toISOString(),
 });

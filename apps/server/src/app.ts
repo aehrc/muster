@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { createDirectoryRoutes } from "./admin/directory.routes.ts";
 import { createMembersRoutes } from "./admin/members.routes.ts";
+import { createPersonaRoutes } from "./admin/personas.routes.ts";
 import { createAuthRoutes } from "./auth/routes.ts";
 import { createBrandsRoutes } from "./http/brands.ts";
 import { createDocsRoutes } from "./http/docs.ts";
@@ -116,6 +117,7 @@ export const createApp = (
   app.route("/api/auth", createAuthRoutes());
   app.route("/api", createMembersRoutes());
   app.route("/api", createDirectoryRoutes());
+  app.route("/api", createPersonaRoutes());
   app.route("/api", createPairingRoutes());
   app.route("/api", createDcrRoutes());
   app.route("/api", createHarnessRoutes());

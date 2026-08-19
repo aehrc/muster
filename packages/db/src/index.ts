@@ -139,6 +139,26 @@ export {
   type PairingStateQuery,
 } from "./repositories/pairings.ts";
 export {
+  findPersonaById,
+  findPersonaByIhi,
+  insertPersona,
+  insertPersonaCoverage,
+  listCoverageTargets,
+  listLatestPersonaCoverage,
+  listPersonaCoverage,
+  listPersonas,
+  listPersonaSourceTargets,
+  updatePersonaSourceStatus,
+  type CoverageTargetRow,
+  type NewPersona,
+  type NewPersonaCoverage,
+  type PersonaCoverageRow,
+  type PersonaKey,
+  type PersonaRow,
+  type SourceStatusChange,
+  type SourceTargetRow,
+} from "./repositories/personas.ts";
+export {
   findLatestStatementForPairing,
   insertSoftwareStatement,
   type NewSoftwareStatement,

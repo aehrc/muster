@@ -2,27 +2,30 @@ import { serverProfileSchema } from "@muster/contracts";
 import { checkDue, evaluateCheck, evaluateCheckFailure } from "@muster/core";
 import { insertCheckResult, listCheckTargets } from "@muster/db";
 
-import { outboundFetch } from "../outbound/outboundFetch.ts";
+import { outboundOverrides, scheduledEventStatuses } from "./dependencies.ts";
+import { runDuePersonaChecks } from "./personas.ts";
+import { fetchJson } from "../outbound/fetchJson.ts";
 
-import type { MusterConfig } from "../config.ts";
-import type {
-  AddressResolver,
-  FetchImplementation,
-} from "../outbound/outboundFetch.ts";
-import type { EventStatus } from "@muster/contracts";
+import type { SchedulerDependencies } from "./dependencies.ts";
+import type { PersonaRunSummary } from "./personas.ts";
 import type { CheckEvaluation, ProbeOutcome } from "@muster/core";
 import type { CheckTargetRow } from "@muster/db";
-import type { SQL } from "bun";
 
 /**
- * The in-process check scheduler: the only thing in Muster that acts without
- * being asked.
+ * The in-process scheduler: the only thing in Muster that acts without being
+ * asked.
  *
- * One interval in one instance, as the constitution requires. There is no queue
- * and no worker, and there does not need to be: at connectathon scale the work
- * is a few dozen servers and two small requests each. Every result is persisted,
- * so the scheduler holds no state a restart could lose - which is also what lets
- * it decide what is due purely from the rows and the clock.
+ * One interval in one instance, as the constitution requires, and it drives both
+ * passes: the liveness and discovery checks in this module, and the persona
+ * coverage and source checks in `./personas.ts`. They share the tick, the
+ * single-flight set and the cadence rule, so adding the persona work did not add
+ * a second thing that acts on its own.
+ *
+ * There is no queue and no worker, and there does not need to be: at
+ * connectathon scale the work is a few dozen servers and a few small requests
+ * each. Every result is persisted, so the scheduler holds no state a restart
+ * could lose - which is also what lets it decide what is due purely from the
+ * rows and the clock.
  *
  * Three rules are worth naming because they are what stop the scheduler being a
  * nuisance. A target is checked once at a time, so a server that has become slow
@@ -39,23 +42,8 @@ import type { SQL } from "bun";
  * @author John Grimes
  */
 
-/** What the scheduler needs in order to run. */
-export type SchedulerDependencies = {
-  /** the connection held by the serving database role */
-  readonly sql: SQL;
-  /** the runtime configuration, which carries the outbound settings */
-  readonly config: MusterConfig;
-  /** the clock, called once per pass; injected by tests */
-  readonly now?: () => Date;
-  /** the fetch implementation, injected by tests */
-  readonly fetchImplementation?: FetchImplementation;
-  /** the address resolver, injected by tests */
-  readonly resolve?: AddressResolver;
-  /** how often to look for due targets, in milliseconds */
-  readonly tickIntervalMs?: number;
-  /** where to write what the scheduler did */
-  readonly log?: (line: string) => void;
-};
+export type { SchedulerDependencies } from "./dependencies.ts";
+export type { PersonaRunSummary } from "./personas.ts";
 
 /** What one pass of the scheduler did. */
 export type CheckRunSummary = {
@@ -69,6 +57,8 @@ export type CheckRunSummary = {
 export type Scheduler = {
   /** runs one pass now */
   readonly runDueChecks: () => Promise<CheckRunSummary>;
+  /** runs one persona pass now */
+  readonly runDuePersonaChecks: () => Promise<PersonaRunSummary>;
   /** starts the interval, with an immediate first pass */
   readonly start: () => void;
   /** stops the interval */
@@ -83,19 +73,6 @@ export type Scheduler = {
  * nothing is due.
  */
 const defaultTickIntervalMs = 60_000;
-
-/**
- * The event statuses whose entries are checked.
- *
- * Every status: a draft event's entries are being prepared and their owners want
- * to know they work, and a closed event's stay readable, so both are checked -
- * on the daily cadence rather than the open one.
- */
-const checkedEventStatuses: readonly EventStatus[] = [
-  "draft",
-  "open",
-  "closed",
-];
 
 /** Where a server publishes its SMART configuration. */
 const discoveryPath = "/.well-known/smart-configuration";
@@ -133,40 +110,31 @@ const probe = async (
   dependencies: SchedulerDependencies,
   url: string,
 ): Promise<ProbeOutcome> => {
-  const result = await outboundFetch(url, {
-    timeoutMs: dependencies.config.outbound.timeoutMs,
-    allowedHosts: dependencies.config.outbound.allowedHosts,
-    request: { headers: { accept: "application/json" } },
-    ...(dependencies.resolve === undefined
-      ? {}
-      : { resolve: dependencies.resolve }),
-    ...(dependencies.fetchImplementation === undefined
-      ? {}
-      : { fetchImplementation: dependencies.fetchImplementation }),
+  const answer = await fetchJson(url, {
+    outbound: dependencies.config.outbound,
+    overrides: outboundOverrides(dependencies),
   });
-  if (!result.ok) {
+  if (!answer.ok) {
     return {
       ok: false,
-      failureMode: result.refusal.failureMode,
-      detail: result.refusal.detail,
+      failureMode: answer.failureMode,
+      detail: answer.detail,
     };
   }
-  if (!result.response.ok) {
-    return {
-      ok: false,
-      failureMode: "invalid",
-      detail: `${url} answered ${String(result.response.status)}`,
-    };
-  }
-  try {
-    return { ok: true, document: await result.response.json() };
-  } catch {
+  if (answer.status < 200 || answer.status > 299) {
     return {
       ok: false,
       failureMode: "invalid",
-      detail: `${url} did not answer with JSON`,
+      detail: `${url} answered ${String(answer.status)}`,
     };
   }
+  return answer.document === undefined
+    ? {
+        ok: false,
+        failureMode: "invalid",
+        detail: `${url} did not answer with JSON`,
+      }
+    : { ok: true, document: answer.document };
 };
 
 /**
@@ -236,7 +204,7 @@ export const createScheduler = (
     const at = now();
     const targets = await listCheckTargets(
       dependencies.sql,
-      checkedEventStatuses,
+      scheduledEventStatuses,
     );
     const due: CheckTargetRow[] = [];
     const skipped: string[] = [];
@@ -302,6 +270,9 @@ export const createScheduler = (
     passRunning = true;
     try {
       await runDueChecks();
+      // The same pass, not a second interval: the constitution allows one
+      // scheduler, and the persona work is the same shape as the checks.
+      await runDuePersonaChecks(dependencies, now(), inFlight);
     } finally {
       passRunning = false;
     }
@@ -309,6 +280,8 @@ export const createScheduler = (
 
   return {
     runDueChecks,
+    runDuePersonaChecks: () =>
+      runDuePersonaChecks(dependencies, now(), inFlight),
     start: () => {
       if (timer !== undefined) {
         return;

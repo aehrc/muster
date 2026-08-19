@@ -163,6 +163,28 @@ export {
   type RegistrationFields,
 } from "./pairings.ts";
 export {
+  createPersonaRequestSchema,
+  ineligibleCandidateSchema,
+  personaCandidateSchema,
+  personaCoverageSchema,
+  personaDisplaySchema,
+  personaResponseSchema,
+  personaSchema,
+  personaSearchResponseSchema,
+  personasResponseSchema,
+  personaSourceStatusSchema,
+  type CreatePersonaRequest,
+  type IneligibleCandidate,
+  type Persona,
+  type PersonaCandidate,
+  type PersonaCoverage,
+  type PersonaDisplay,
+  type PersonaResponse,
+  type PersonaSearchResponse,
+  type PersonasResponse,
+  type PersonaSourceStatus,
+} from "./personas.ts";
+export {
   dcrRunStepSchema,
   dcrStepOutcomeSchema,
   jwksSchema,

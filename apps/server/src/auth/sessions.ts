@@ -102,6 +102,10 @@ const unprocessableReasons = new Set<RefusalReason>([
   "registration_not_needed",
   "invalid_metadata",
   "manual_registration",
+  // A candidate persona the source will not support: the request named a
+  // patient, and what is wrong is the patient rather than the caller.
+  "no_ihi",
+  "not_a_patient",
 ]);
 
 /**
@@ -114,6 +118,7 @@ const conflictReasons = new Set<RefusalReason>([
   "illegal_transition",
   "duplicate_pairing",
   "vouching_expired",
+  "duplicate_persona",
 ]);
 
 /**

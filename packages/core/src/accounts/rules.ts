@@ -50,7 +50,10 @@ export type RefusalReason =
   | "duplicate_pairing"
   | "manual_registration"
   | "invalid_metadata"
-  | "vouching_expired";
+  | "vouching_expired"
+  | "no_ihi"
+  | "not_a_patient"
+  | "duplicate_persona";
 
 /** A refusal, with wording fit to show the person refused. */
 export type Refusal = {

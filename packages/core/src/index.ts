@@ -110,6 +110,27 @@ export {
   type PairingTransitionResult,
 } from "./pairing/stateMachine.ts";
 export {
+  authorisePersonaCuration,
+  evaluateCoverage,
+  evaluateSourcePresence,
+  ihiOf,
+  patientReadUrl,
+  personaCandidates,
+  personaFrom,
+  personaIdentifierSearchUrl,
+  personaSearchUrl,
+  type CoverageEvaluation,
+  type PersonaEligibilityFacts,
+  type PersonaCurationFacts,
+  type PersonaEligibility,
+  type PersonaIdentifierFacts,
+  type PersonaProbe,
+  type PersonaSearchFacts,
+  type PersonaSearchResult,
+  type PersonaSourceFacts,
+  type SourcePresence,
+} from "./personas/coverage.ts";
+export {
   authoriseDirectoryRegistration,
   authoriseStatementMint,
   mintStatement,

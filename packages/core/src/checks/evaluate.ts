@@ -1,3 +1,5 @@
+import { asObject, asText, asTextList } from "../json/reading.ts";
+
 import type {
   CapabilityHighlights,
   CheckFailureMode,
@@ -101,41 +103,6 @@ const unreadable = {
   discovery: "The SMART configuration was not a discovery document",
   capability: "The capability statement was not a CapabilityStatement",
 } as const;
-
-/**
- * Narrows a value to a JSON object.
- *
- * @param value - the value to narrow
- * @returns the object, or undefined when the value is not one
- */
-const asObject = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-
-/**
- * Reads a value that must be a non-blank string.
- *
- * @param value - the value to read
- * @returns the string, or null when it is absent or blank
- */
-const asText = (value: unknown): string | null =>
-  typeof value === "string" && value.trim() !== "" ? value : null;
-
-/**
- * Reads the string entries of a list.
- *
- * A list with a stray number in it is read for the entries that are strings:
- * discarding a whole usable document over one bad entry would tell the reader
- * less, not more.
- *
- * @param value - the value to read
- * @returns its string entries, or an empty list when it is not a list
- */
-const asTextList = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((entry): entry is string => typeof entry === "string")
-    : [];
 
 /**
  * Drops the repeats from a list, keeping the order.
