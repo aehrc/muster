@@ -132,7 +132,9 @@ export function PersonaCuration({
       <OperationAlert operation={loading} />
       <OperationAlert operation={operation} />
 
-      <ul className="flex flex-col gap-2">
+      {/* Each list names itself, so a reader moving between them - and a test
+          driving them - can tell the set from what a search offered. */}
+      <ul aria-label="Curated personas" className="flex flex-col gap-2">
         {(data?.personas ?? []).map((persona) => {
           const notice = sourceNotice(persona);
           return (
@@ -205,7 +207,7 @@ export function PersonaCuration({
           <p className="text-xs text-base-content/60">
             Searched <code className="font-mono">{found.searched}</code>
           </p>
-          <ul className="flex flex-col gap-2">
+          <ul aria-label="Search results" className="flex flex-col gap-2">
             {found.candidates.map((candidate) => (
               <li
                 key={candidate.patientId}
@@ -250,7 +252,10 @@ export function PersonaCuration({
               <h5 className="text-sm font-semibold">
                 Found, and cannot be added
               </h5>
-              <ul className="flex flex-col gap-1">
+              <ul
+                aria-label="Found, and cannot be added"
+                className="flex flex-col gap-1"
+              >
                 {found.ineligible.map((candidate) => (
                   <li
                     key={candidate.patientId}

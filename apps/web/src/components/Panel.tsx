@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import type { JSX, ReactNode } from "react";
 
 /**
@@ -5,6 +7,10 @@ import type { JSX, ReactNode } from "react";
  *
  * Every page in the console is a stack of these, so the surfaces and the spacing
  * are stated once rather than in each page's markup.
+ *
+ * The heading names the section programmatically, not merely visually: a section
+ * with an accessible name is a landmark a screen reader can jump between, and it
+ * is what lets a reader of a screen with four panels tell them apart.
  *
  * @author John Grimes
  */
@@ -34,11 +40,16 @@ export function Panel({
   /** the contents */
   children: ReactNode;
 }>): JSX.Element {
+  const headingId = useId();
+
   return (
-    <section className="card border border-base-300 bg-base-200">
+    <section
+      className="card border border-base-300 bg-base-200"
+      aria-labelledby={headingId}
+    >
       <div className="card-body gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-1">
-          <h2 className="card-title text-lg">
+          <h2 className="card-title text-lg" id={headingId}>
             {icon}
             {title}
           </h2>
