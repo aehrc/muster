@@ -3,7 +3,12 @@ import {
   eventsResponseSchema,
   eventStatusSchema,
 } from "@muster/contracts";
-import { CalendarIcon, PencilIcon, PlusIcon } from "@primer/octicons-react";
+import {
+  CalendarIcon,
+  PencilIcon,
+  PeopleIcon,
+  PlusIcon,
+} from "@primer/octicons-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -17,6 +22,7 @@ import {
 import { IssueList } from "../../components/IssueList.tsx";
 import { OperationAlert } from "../../components/OperationAlert.tsx";
 import { Panel } from "../../components/Panel.tsx";
+import { PersonaCuration } from "../../components/PersonaCuration.tsx";
 import { StandingNotice } from "../../components/StandingNotice.tsx";
 import { standingFor } from "../../lib/account.ts";
 import {
@@ -181,6 +187,9 @@ export function Events(): JSX.Element {
     reload,
   } = useResource("/api/events", eventsResponseSchema, "Loading the events");
   const [form, setForm] = useState<Editing | null>(null);
+  // Curation is its own panel rather than part of the event form: the set is
+  // curated far more often than the dates are edited.
+  const [curating, setCurating] = useState<string | null>(null);
   const [issues, setIssues] = useState<readonly string[]>([]);
   const [operation, setOperation] = useState<Operation>(idle);
 
@@ -279,6 +288,16 @@ export function Events(): JSX.Element {
                     type="button"
                     className="btn btn-ghost btn-xs"
                     onClick={() => {
+                      setCurating(curating === event.slug ? null : event.slug);
+                    }}
+                  >
+                    <PeopleIcon size={14} />
+                    {curating === event.slug ? "Hide personas" : "Personas"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => {
                       setIssues([]);
                       setOperation(idle);
                       if (form?.slug === event.slug) {
@@ -331,6 +350,10 @@ export function Events(): JSX.Element {
                     Save changes
                   </button>
                 </form>
+              ) : null}
+
+              {curating === event.slug ? (
+                <PersonaCuration event={event} />
               ) : null}
             </li>
           ))}

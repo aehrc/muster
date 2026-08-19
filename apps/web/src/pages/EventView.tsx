@@ -3,6 +3,7 @@ import {
   CalendarIcon,
   ChecklistIcon,
   OrganizationIcon,
+  PeopleIcon,
   SearchIcon,
   TagIcon,
 } from "@primer/octicons-react";
@@ -183,6 +184,15 @@ export function EventView(): JSX.Element {
           <span aria-hidden="true">-</span>
           showing {String(shown.length)}
         </p>
+        {/* The event's shared test patients, and which enrolled server holds
+            each of them. Public, like the rest of this page (SC-006). */}
+        <Link
+          to={`/events/${event.slug}/personas`}
+          className="link link-hover flex w-fit items-center gap-1 text-sm"
+        >
+          <PeopleIcon size={14} />
+          Personas and coverage
+        </Link>
       </header>
 
       <OperationAlert operation={operation} />

@@ -21,6 +21,7 @@ import { MyOrganisation } from "./pages/MyOrganisation.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
 import { PairingDetail } from "./pages/PairingDetail.tsx";
 import { Pairings } from "./pages/Pairings.tsx";
+import { Personas } from "./pages/Personas.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { SystemDetail } from "./pages/SystemDetail.tsx";
 import { useSession } from "./session/sessionContext.ts";
@@ -105,6 +106,7 @@ export function App(): JSX.Element {
                   path="/events/:slug/systems/:systemId"
                   element={<SystemDetail />}
                 />
+                <Route path="/events/:slug/personas" element={<Personas />} />
                 <Route
                   path="/enrolments/:enrolmentId/harness"
                   element={<Harness />}

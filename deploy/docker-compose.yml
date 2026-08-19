@@ -56,6 +56,10 @@ services:
       # guard: a deployment leaves this unset, and then no private address is
       # reachable at all.
       MUSTER_OUTBOUND_ALLOWLIST: register-stub:9090
+      # The identifier system an event persona's IHI is asserted under. This is
+      # the default; it is named here so a deployment curating from another
+      # programme's source server can see that it is configuration.
+      MUSTER_IHI_SYSTEM: http://ns.electronichealth.net.au/id/hi/ihi/1.0
     ports:
       - "8080:8080"
     healthcheck:
