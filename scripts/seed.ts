@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { SQL } from "bun";
 
+import { authoriseParticipantEndpoints } from "@muster/core";
 import {
   findAccountByEmail,
   findEventBySlug,
@@ -23,7 +24,9 @@ import { loadConfig } from "../apps/server/src/config.ts";
  * address is verified and its membership approved directly - it is the account
  * that approves everyone else, so nobody is left with a chicken-and-egg problem.
  *
- * Usage: `bun scripts/seed.ts`, with the same environment the server reads.
+ * Usage: `bun run stack:seed` against the compose stack, which reads
+ * `deploy/stack.env`; or `bun scripts/seed.ts` with the same environment the
+ * server reads, against any other database.
  * `MUSTER_SEED_ADMIN_EMAIL` and `MUSTER_SEED_ADMIN_PASSWORD` override the
  * defaults, `MUSTER_SEED_EVENT_SLUG` names the event and
  * `MUSTER_SEED_PERSONA_SOURCE_URL` names the FHIR server its personas are
@@ -60,6 +63,17 @@ const adminPassword =
 const eventSlug = process.env["MUSTER_SEED_EVENT_SLUG"] ?? defaultEventSlug;
 const personaSourceUrl =
   process.env["MUSTER_SEED_PERSONA_SOURCE_URL"] ?? defaultPersonaSourceUrl;
+
+// The same rule the routes apply: a persona source Muster could not fetch is
+// refused here rather than written into an event for a check to trip over later.
+const sourceDecision = authoriseParticipantEndpoints(
+  { personaSourceUrl },
+  config.outbound.allowedHosts,
+);
+if (!sourceDecision.ok) {
+  console.error(sourceDecision.refusal.detail);
+  process.exit(1);
+}
 
 const sql = new SQL(config.migrationDatabaseUrl);
 try {

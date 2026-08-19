@@ -475,9 +475,14 @@ const server = Bun.serve({
 
     // Obligation 6: the accepted types are advertised, and only while they are
     // accepted - which is what Muster's verification checks read.
+    //
+    // Published under the FHIR base as well as at the origin, because SMART puts
+    // the document at `[fhir base]/.well-known/smart-configuration` and that is
+    // where a checker that has been given a base URL will look.
     if (
       request.method === "GET" &&
-      url.pathname === "/.well-known/smart-configuration"
+      (url.pathname === "/.well-known/smart-configuration" ||
+        url.pathname === "/fhir/.well-known/smart-configuration")
     ) {
       return Response.json({
         issuer: url.origin,
@@ -494,6 +499,18 @@ const server = Bun.serve({
 
     if (request.method === "POST" && url.pathname === "/token") {
       return exchange(request);
+    }
+
+    // A search needs authorization, like every read here. Muster's coverage grid
+    // reads that refusal as `unverifiable` rather than as "holds no such
+    // patient", which is the distinction FR-032 turns on: a server that would
+    // not answer has not said anything about what it holds.
+    if (request.method === "GET" && url.pathname === "/fhir/Patient") {
+      return refuse(
+        "invalid_client",
+        "This holder requires authorization to search for patients.",
+        401,
+      );
     }
 
     const read = /^\/fhir\/Patient\/([\w-]+)$/.exec(url.pathname);

@@ -1,8 +1,10 @@
 # Local Muster stack.
 #
 # Muster, its database, the stub registration server that makes trusted dynamic
-# client registration provable without a vendor's server, and the stub data
-# holder that does the same for the permission ticket playground.
+# client registration provable without a vendor's server, the stub data holder
+# that does the same for the permission ticket playground, and the stub persona
+# source that stands in for the programme's own FHIR server so the persona
+# scenarios do not depend on somebody else's uptime.
 #
 # Author: John Grimes
 
@@ -50,12 +52,14 @@ services:
       MUSTER_MASTER_KEY: development-master-key-not-for-deployment
       # Unset MUSTER_SMTP_URL, so mail is written to the log instead of sent.
       #
-      # The stub sits on this compose network, whose addresses are private, and
-      # the address guard refuses private ranges by design. Naming it here is
+      # The stubs sit on this compose network, whose addresses are private, and
+      # the address guard refuses private ranges by design. Naming them here is
       # what lets the stack demonstrate a registration run without weakening the
       # guard: a deployment leaves this unset, and then no private address is
-      # reachable at all.
-      MUSTER_OUTBOUND_ALLOWLIST: register-stub:9090,data-holder-stub:9091
+      # reachable at all. It is also what permits an entry to name an http
+      # endpoint (`authoriseParticipantEndpoints`), which is how the stubs are
+      # reachable without a certificate.
+      MUSTER_OUTBOUND_ALLOWLIST: register-stub:9090,data-holder-stub:9091,persona-source-stub:9092
       # The identifier system an event persona's IHI is asserted under. This is
       # the default; it is named here so a deployment curating from another
       # programme's source server can see that it is configuration.
@@ -86,11 +90,12 @@ services:
       STUB_ISSUER: http://localhost:8080
       STUB_JWKS_URL: http://muster:8080/.well-known/jwks.json
       STUB_MODE: strict
-      # A Muster entry's registration endpoint must be an https URL, as a real
-      # participant's is, so driving a registration run against this stub needs a
-      # certificate here - and, for a self-signed one, a Muster container willing
-      # to accept it. Left out of the committed stack rather than shipping a
-      # private key in the repository:
+      # A participant's registration endpoint is an https URL, and an http one is
+      # accepted only for a host named in MUSTER_OUTBOUND_ALLOWLIST - which this
+      # one is, above. So the stack drives a registration run over plain http,
+      # with no certificate here and no private key in the repository, and
+      # nothing anywhere disables TLS verification. Serving TLS is still
+      # possible for anybody who wants it:
       #   STUB_TLS_CERT: /stubs/tls/cert.pem
       #   STUB_TLS_KEY: /stubs/tls/key.pem
     ports:
@@ -130,6 +135,28 @@ services:
       - "9091:9091"
     healthcheck:
       test: ["CMD", "bun", "-e", "await fetch('http://localhost:9091/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  persona-source-stub:
+    # The recorded persona fixture: a small FHIR server answering the Patient
+    # search and read that persona curation and coverage make of a source. It
+    # holds Charlotte Morris, whom the quickstart curates, and one patient with
+    # no IHI, whom curation must refuse. Enrolled as a server entry as well, it
+    # is the entry a coverage cell reports `found` for.
+    image: oven/bun:1.3-alpine
+    working_dir: /stubs
+    command: ["bun", "run", "personaSource.ts"]
+    volumes:
+      - ./stubs:/stubs:ro
+    environment:
+      STUB_PORT: 9092
+      STUB_IHI_SYSTEM: http://ns.electronichealth.net.au/id/hi/ihi/1.0
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://localhost:9092/healthz')"]
       interval: 10s
       timeout: 5s
       retries: 10

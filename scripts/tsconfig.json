@@ -6,5 +6,9 @@
     "types": ["bun"]
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": "../apps/server" }, { "path": "../packages/db" }]
+  "references": [
+    { "path": "../apps/server" },
+    { "path": "../packages/core" },
+    { "path": "../packages/db" }
+  ]
 }
