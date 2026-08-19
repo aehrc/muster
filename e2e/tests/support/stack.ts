@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Where the stack is, and what is in it.
@@ -31,7 +32,7 @@ const address = (name: string, fallback: string): string => {
 
 /** The repository root, for the commands that are run from it. */
 const repositoryRoot = resolve(
-  dirname(new URL(import.meta.url).pathname),
+  dirname(fileURLToPath(import.meta.url)),
   "..",
   "..",
   "..",
