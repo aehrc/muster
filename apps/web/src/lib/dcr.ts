@@ -1,5 +1,6 @@
 import { failed as failedOperation, succeeded } from "./operation.ts";
 import { mayTake } from "./pairings.ts";
+import { instantDetail } from "./systemDetails.ts";
 
 import type { Operation } from "./operation.ts";
 import type { Detail } from "./systemDetails.ts";
@@ -126,16 +127,8 @@ export const claimDetails = (claims: StatementClaims): readonly Detail[] => [
   { label: "sub", value: claims.sub, mono: true },
   { label: "software_id", value: claims.software_id, mono: true },
   { label: "jti", value: claims.jti, mono: true },
-  {
-    label: "iat",
-    value: new Date(claims.iat * 1000).toISOString(),
-    mono: true,
-  },
-  {
-    label: "exp",
-    value: new Date(claims.exp * 1000).toISOString(),
-    mono: true,
-  },
+  instantDetail("iat", claims.iat),
+  instantDetail("exp", claims.exp),
   { label: "muster_event", value: claims.muster_event, mono: true },
   { label: "client_name", value: claims.client_name },
   { label: "redirect_uris", value: claims.redirect_uris, mono: true },

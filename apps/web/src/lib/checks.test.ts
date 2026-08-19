@@ -9,6 +9,8 @@ import {
   describeCheckedAt,
   driftSentence,
   scopeWarningSentence,
+  ticketSupport,
+  ticketSupportSentence,
 } from "./checks.ts";
 
 import type { CheckVerdict } from "./checks.ts";
@@ -288,5 +290,57 @@ describe("scopeWarningSentence", () => {
         now,
       ),
     ).toContain("patient/Observation.rs and user/Patient.rs");
+  });
+});
+
+describe("permission ticket support", () => {
+  // Acceptance scenario 3: whichever ticket types the server advertised are what
+  // the entry surfaces, and they came from the check rather than from its owner.
+  test("reads the ticket types the latest check observed", () => {
+    expect(
+      ticketSupport(
+        status(
+          check({
+            discovery: {
+              issuer: null,
+              authorizationEndpoint: "https://auth.example.org/authorize",
+              tokenEndpoint: "https://auth.example.org/token",
+              registrationEndpoint: null,
+              scopesSupported: [],
+              capabilities: [],
+              permissionTicketTypesSupported: ["patient-self-access"],
+            },
+          }),
+        ),
+      ),
+    ).toEqual(["patient-self-access"]);
+  });
+
+  // An entry nothing has checked has not said it accepts tickets, and neither has
+  // one whose discovery document could not be read.
+  test("reports no support for an unchecked entry", () => {
+    expect(ticketSupport(null)).toEqual([]);
+  });
+
+  test("reports no support when no document was read", () => {
+    expect(ticketSupport(status(check({ discovery: null })))).toEqual([]);
+  });
+
+  // The sentence names the types, because "supports permission tickets" leaves a
+  // member to guess which shape their client should mint.
+  test("names the types it accepts", () => {
+    expect(ticketSupportSentence(["patient-self-access"])).toBe(
+      "Accepts permission tickets of type patient-self-access.",
+    );
+  });
+
+  test("names several types as a list", () => {
+    expect(
+      ticketSupportSentence(["patient-self-access", "provider-access"]),
+    ).toContain("patient-self-access and provider-access");
+  });
+
+  test("says nothing when nothing was advertised", () => {
+    expect(ticketSupportSentence([])).toBe("");
   });
 });

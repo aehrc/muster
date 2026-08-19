@@ -1,3 +1,5 @@
+import { permissionTicketTypes } from "@muster/core";
+
 import { describeAge } from "./format.ts";
 
 import type { Detail } from "./systemDetails.ts";
@@ -145,6 +147,42 @@ export const driftSentence = (flag: DriftFlag): string =>
   `but advertises ${flag.advertised ?? "none"}.`;
 
 /**
+ * The permission ticket types an entry's latest check observed.
+ *
+ * Asked of `@muster/core` rather than read off the response here, so the console and
+ * the server agree about what counts as support: an entry nothing has checked, and
+ * one whose discovery document could not be read, both support nothing (FR-034).
+ *
+ * @param check - the entry's check status, or null when nothing has checked it
+ * @returns the advertised ticket types, empty when none were observed
+ * @example
+ * ```tsx
+ * {ticketSupport(entry.check).length === 0 ? null : <TicketBadge />}
+ * ```
+ */
+export const ticketSupport = (check: CheckStatus | null): readonly string[] =>
+  permissionTicketTypes(check?.latest.discovery ?? null);
+
+/**
+ * Says which permission ticket types a server accepts.
+ *
+ * The types are named rather than summarised: "supports permission tickets" leaves
+ * a member to guess which shape to mint, and the playground offers a shape.
+ *
+ * @param types - the advertised ticket types
+ * @returns the sentence, or an empty string when nothing was advertised
+ * @example
+ * ```ts
+ * ticketSupportSentence(["patient-self-access"]);
+ * // "Accepts permission tickets of type patient-self-access."
+ * ```
+ */
+export const ticketSupportSentence = (types: readonly string[]): string =>
+  types.length === 0
+    ? ""
+    : `Accepts permission tickets of type ${asPhrase(types)}.`;
+
+/**
  * Describes what a server was found to advertise.
  *
  * A field the server said nothing about is left out rather than shown blank.
@@ -182,6 +220,13 @@ export const advertisedDetails = (check: CheckResult): readonly Detail[] => {
       mono: true,
     },
     { label: "SMART capabilities", value: discovery?.capabilities ?? [] },
+    {
+      // The ticket profile's discovery rule, on the entry a member reads before
+      // minting anything (FR-034).
+      label: "Permission ticket types",
+      value: discovery?.permissionTicketTypesSupported ?? [],
+      mono: true,
+    },
     { label: "FHIR version", value: capability?.fhirVersion ?? "" },
     { label: "Software", value: capability?.software ?? "" },
     {

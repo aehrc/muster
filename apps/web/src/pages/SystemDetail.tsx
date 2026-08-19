@@ -11,7 +11,11 @@ import {
 import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
-import { CheckBadge, CheckNote } from "../components/CheckBadge.tsx";
+import {
+  CheckBadge,
+  CheckNote,
+  EntryTicketBadge,
+} from "../components/CheckBadge.tsx";
 import { ConformanceBadge } from "../components/ConformanceBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
 import { DetailList } from "../components/DetailList.tsx";
@@ -22,6 +26,8 @@ import {
   advertisedDetails,
   checkVerdict,
   checkVerdictMeaning,
+  ticketSupport,
+  ticketSupportSentence,
 } from "../lib/checks.ts";
 import { kindLabel } from "../lib/directory.ts";
 import { describeAge, formatDateRange } from "../lib/format.ts";
@@ -147,6 +153,16 @@ export function SystemDetail(): JSX.Element {
             <CheckBadge verdict={verdict} />
             <span className="text-sm">{checkVerdictMeaning[verdict]}</span>
           </div>
+          {/* Acceptance scenario 3: ticket support as a check observed it, on the
+              entry a member reads before minting one. */}
+          {ticketSupport(entry.check).length === 0 ? null : (
+            <div className="flex flex-wrap items-center gap-2">
+              <EntryTicketBadge entry={entry} />
+              <span className="text-sm">
+                {ticketSupportSentence(ticketSupport(entry.check))}
+              </span>
+            </div>
+          )}
           <CheckNote entry={entry} />
 
           {entry.check === null ? null : (

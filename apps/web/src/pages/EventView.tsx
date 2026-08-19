@@ -2,6 +2,7 @@ import { eventSystemsSchema } from "@muster/contracts";
 import {
   CalendarIcon,
   ChecklistIcon,
+  KeyIcon,
   OrganizationIcon,
   PeopleIcon,
   SearchIcon,
@@ -11,7 +12,11 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { useResource } from "../api/useResource.ts";
-import { CheckNote, EntryCheckBadge } from "../components/CheckBadge.tsx";
+import {
+  CheckNote,
+  EntryCheckBadge,
+  EntryTicketBadge,
+} from "../components/CheckBadge.tsx";
 import { ConformanceBadge } from "../components/ConformanceBadge.tsx";
 import { Contacts } from "../components/Contacts.tsx";
 import { SelectField, TextField } from "../components/Fields.tsx";
@@ -92,6 +97,7 @@ function SystemCard({
             </span>
             <EntryCheckBadge entry={entry} />
             <ConformanceBadge entry={entry} />
+            <EntryTicketBadge entry={entry} />
           </div>
         </div>
 
@@ -192,6 +198,15 @@ export function EventView(): JSX.Element {
         >
           <PeopleIcon size={14} />
           Personas and coverage
+        </Link>
+        {/* The playground mints a permission ticket for one of those personas
+            (US8); members only, and it says so when nobody is signed in. */}
+        <Link
+          to={`/events/${event.slug}/tickets`}
+          className="link link-hover flex w-fit items-center gap-1 text-sm"
+        >
+          <KeyIcon size={14} />
+          Ticket playground
         </Link>
       </header>
 

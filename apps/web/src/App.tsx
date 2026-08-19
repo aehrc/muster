@@ -24,6 +24,7 @@ import { Pairings } from "./pages/Pairings.tsx";
 import { Personas } from "./pages/Personas.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { SystemDetail } from "./pages/SystemDetail.tsx";
+import { TicketPlayground } from "./pages/TicketPlayground.tsx";
 import { useSession } from "./session/sessionContext.ts";
 import { SessionProvider } from "./session/SessionProvider.tsx";
 
@@ -107,6 +108,10 @@ export function App(): JSX.Element {
                   element={<SystemDetail />}
                 />
                 <Route path="/events/:slug/personas" element={<Personas />} />
+                <Route
+                  path="/events/:slug/tickets"
+                  element={<TicketPlayground />}
+                />
                 <Route
                   path="/enrolments/:enrolmentId/harness"
                   element={<Harness />}

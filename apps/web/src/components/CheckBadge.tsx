@@ -1,4 +1,4 @@
-import { AlertIcon, ShieldLockIcon } from "@primer/octicons-react";
+import { AlertIcon, KeyIcon, ShieldLockIcon } from "@primer/octicons-react";
 
 import {
   checkVerdict,
@@ -6,6 +6,8 @@ import {
   checkVerdictWords,
   describeCheckedAt,
   driftSentence,
+  ticketSupport,
+  ticketSupportSentence,
 } from "../lib/checks.ts";
 
 import type { CheckVerdict } from "../lib/checks.ts";
@@ -108,5 +110,39 @@ export function EntryCheckBadge({
 }>): JSX.Element | null {
   return entry.system.serverProfile === null ? null : (
     <CheckBadge verdict={checkVerdict(entry.check)} />
+  );
+}
+
+/**
+ * Renders an entry's permission ticket support, when a check observed any.
+ *
+ * Acceptance scenario 3: a server that advertises ticket types in its
+ * smart-configuration says so on the event view, and it says so on the strength of
+ * a check rather than of its owner's word. An entry that advertises nothing shows
+ * nothing at all - a badge reading "no tickets" on every other entry in the
+ * directory would be noise (FR-034).
+ *
+ * @param props - the enrolled system whose ticket support to show
+ * @returns the badge, or nothing when no support was observed
+ * @example
+ * ```tsx
+ * <EntryTicketBadge entry={entry} />
+ * ```
+ */
+export function EntryTicketBadge({
+  entry,
+}: Readonly<{
+  /** the enrolled system whose ticket support to show */
+  entry: EnrolledSystem;
+}>): JSX.Element | null {
+  const types = ticketSupport(entry.check);
+  return types.length === 0 ? null : (
+    <span
+      className="badge badge-sm badge-info gap-1"
+      title={ticketSupportSentence(types)}
+    >
+      <KeyIcon size={12} />
+      Permission tickets
+    </span>
   );
 }

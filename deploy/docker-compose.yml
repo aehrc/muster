@@ -1,8 +1,8 @@
 # Local Muster stack.
 #
-# Muster, its database, and the stub registration server that makes trusted
-# dynamic client registration provable without a vendor's server. The stub data
-# holder joins this file with the ticket playground (User Story 8).
+# Muster, its database, the stub registration server that makes trusted dynamic
+# client registration provable without a vendor's server, and the stub data
+# holder that does the same for the permission ticket playground.
 #
 # Author: John Grimes
 
@@ -55,7 +55,7 @@ services:
       # what lets the stack demonstrate a registration run without weakening the
       # guard: a deployment leaves this unset, and then no private address is
       # reachable at all.
-      MUSTER_OUTBOUND_ALLOWLIST: register-stub:9090
+      MUSTER_OUTBOUND_ALLOWLIST: register-stub:9090,data-holder-stub:9091
       # The identifier system an event persona's IHI is asserted under. This is
       # the default; it is named here so a deployment curating from another
       # programme's source server can see that it is configuration.
@@ -97,6 +97,39 @@ services:
       - "9090:9090"
     healthcheck:
       test: ["CMD", "bun", "-e", "await fetch('http://localhost:9090/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  data-holder-stub:
+    # A participant's data holder, implementing the presentation half of the
+    # permission ticket profile Muster publishes at /docs/ticket-profile: RFC 8693
+    # token exchange at /token, the accepted types advertised in
+    # /.well-known/smart-configuration, and one patient loaded per IHI so a
+    # ticket's subject resolves to something.
+    image: oven/bun:1.3-alpine
+    working_dir: /stubs
+    command: ["bun", "run", "dataHolder.ts"]
+    volumes:
+      - ./stubs:/stubs:ro
+    environment:
+      STUB_PORT: 9091
+      # The anchor it trusts, and where that anchor publishes its keys. Reached
+      # over the compose network, not through the published port.
+      STUB_ISSUER: http://localhost:8080
+      STUB_JWKS_URL: http://muster:8080/.well-known/jwks.json
+      # The only type in scope. Emptying this switches ticket support off, which
+      # also removes the discovery member Muster's checks read.
+      STUB_TICKET_TYPES: patient-self-access
+      STUB_SCOPES: patient/Patient.rs patient/Observation.rs patient/Condition.rs
+      # The Sparked persona quickstart scenario 7 mints for, so the exchange
+      # resolves rather than refusing for want of a patient.
+      STUB_PATIENTS: 8003608500314687=charlotte-morris
+      STUB_IHI_SYSTEM: http://ns.electronichealth.net.au/id/hi/ihi/1.0
+    ports:
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://localhost:9091/healthz')"]
       interval: 10s
       timeout: 5s
       retries: 10

@@ -53,6 +53,29 @@ const registrationAdvice: Record<RegistrationMode, string> = {
 };
 
 /**
+ * Renders a JWT date claim as the instant it names.
+ *
+ * Shared by the two screens that decode a signed artefact - the registration run and
+ * the ticket playground - because a member checking whether an expiry was capped
+ * cannot read a count of seconds, and both screens would otherwise convert it their
+ * own way.
+ *
+ * @param label - the claim's name, as the profile spells it
+ * @param seconds - the claim's value, in seconds since the epoch
+ * @returns the row to show
+ * @example
+ * ```ts
+ * instantDetail("exp", claims.exp);
+ * // { label: "exp", value: "2026-09-11T00:00:00.000Z", mono: true }
+ * ```
+ */
+export const instantDetail = (label: string, seconds: number): Detail => ({
+  label,
+  value: new Date(seconds * 1000).toISOString(),
+  mono: true,
+});
+
+/**
  * Drops the fields that hold nothing.
  *
  * FR-006's optional fields are genuinely optional, and a row showing a label
