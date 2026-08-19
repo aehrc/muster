@@ -10,21 +10,21 @@
 # deploy/docker-compose.yml's, so that stack (which backs the e2e suite) can
 # run at the same time as this one without colliding.
 #
-# Every line puts bun's own install directory on PATH before running it:
-# overmind's tmux windows other than the first do not inherit it on every
-# machine (some shell setups reset PATH to a bare system default for a new
-# tmux window), while other variables such as BUN_INSTALL and HOME come
-# through untouched. `web` also forces Bun's own runtime with `--bun`, so
-# Vite's `node`-shebang bin never needs `node` on that same reduced PATH.
+# The processes run with bare `bun`: overmind's tmux server is started with
+# .overmind.tmux.conf (see the `dev` script in package.json), which copies the
+# invoking shell's PATH into the tmux global environment. Without it, tmux
+# gives windows after the first a bare system PATH on some setups and bun is
+# not found. `web` forces Bun's own runtime with `--bun`, so Vite's
+# `node`-shebang bin never needs `node` on PATH.
 #
 # Author: John Grimes
 
-server: PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH" bun --watch apps/server/src/index.ts
+server: bun --watch apps/server/src/index.ts
 
-web: PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH" bun --bun --filter @muster/web dev
+web: bun --bun --filter @muster/web dev
 
-register-stub: PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH" STUB_PORT=9190 STUB_ISSUER=http://localhost:8090 STUB_JWKS_URL=http://localhost:8090/.well-known/jwks.json STUB_MODE=strict bun run deploy/stubs/registerServer.ts
+register-stub: STUB_PORT=9190 STUB_ISSUER=http://localhost:8090 STUB_JWKS_URL=http://localhost:8090/.well-known/jwks.json STUB_MODE=strict bun run deploy/stubs/registerServer.ts
 
-data-holder-stub: PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH" STUB_PORT=9191 STUB_ISSUER=http://localhost:8090 STUB_JWKS_URL=http://localhost:8090/.well-known/jwks.json STUB_TICKET_TYPES=patient-self-access STUB_SCOPES="patient/Patient.rs patient/Observation.rs patient/Condition.rs" STUB_PATIENTS=8003608500314687=charlotte-morris STUB_IHI_SYSTEM=http://ns.electronichealth.net.au/id/hi/ihi/1.0 bun run deploy/stubs/dataHolder.ts
+data-holder-stub: STUB_PORT=9191 STUB_ISSUER=http://localhost:8090 STUB_JWKS_URL=http://localhost:8090/.well-known/jwks.json STUB_TICKET_TYPES=patient-self-access STUB_SCOPES="patient/Patient.rs patient/Observation.rs patient/Condition.rs" STUB_PATIENTS=8003608500314687=charlotte-morris STUB_IHI_SYSTEM=http://ns.electronichealth.net.au/id/hi/ihi/1.0 bun run deploy/stubs/dataHolder.ts
 
-persona-source-stub: PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH" STUB_PORT=9192 STUB_IHI_SYSTEM=http://ns.electronichealth.net.au/id/hi/ihi/1.0 bun run deploy/stubs/personaSource.ts
+persona-source-stub: STUB_PORT=9192 STUB_IHI_SYSTEM=http://ns.electronichealth.net.au/id/hi/ihi/1.0 bun run deploy/stubs/personaSource.ts
