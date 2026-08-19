@@ -93,3 +93,36 @@ console.log(
     `checks every ${String(openEventCheckIntervalMs / 60_000)} minutes while an event is open, ` +
     `${consolePresent ? `console served from ${config.webDirectory}` : `no console at ${config.webDirectory}, so the API is served alone`}`,
 );
+
+/** Whether a shutdown is already in progress, so a second signal is ignored. */
+let stopping = false;
+
+/**
+ * Stops serving, then stops the scheduler and lets go of the database.
+ *
+ * A rollout sends SIGTERM and then waits; without this the default action ends
+ * the process at once, dropping whatever request was in flight and leaving the
+ * grace period the deployment asked for unused. Nothing has to be flushed - every
+ * check result is persisted as it is produced - so an orderly stop is only about
+ * the requests already being answered.
+ *
+ * @param signal - the signal that asked for the stop
+ * @returns nothing
+ */
+const shutDown = async (signal: string): Promise<void> => {
+  if (stopping) {
+    return;
+  }
+  stopping = true;
+  console.log(`${signal} received; finishing the requests in flight.`);
+  scheduler.stop();
+  await server.stop();
+  await sql.end();
+  console.log("Muster has stopped.");
+};
+
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    void shutDown(signal);
+  });
+}
