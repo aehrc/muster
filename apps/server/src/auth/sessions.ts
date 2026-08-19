@@ -92,25 +92,27 @@ export const factsFor = (account: AccountRow): AccountFacts => ({
 
 /**
  * The refusals that are about the input rather than the caller's rights: a token
- * that cannot be spent, a record that is not in the event named, and a server
- * that registers nothing.
+ * that cannot be spent, a record that is not in the event named, a server that
+ * registers nothing, and metadata that cannot be vouched for.
  */
 const unprocessableReasons = new Set<RefusalReason>([
   "token_used",
   "token_expired",
   "not_in_event",
   "registration_not_needed",
+  "invalid_metadata",
 ]);
 
 /**
  * The refusals that are about the state of the world rather than the caller's
- * rights: a closed event, a transition that has already happened, and a record
- * that already exists.
+ * rights: a closed event, a transition that has already happened, a record that
+ * already exists, and vouching whose window has passed.
  */
 const conflictReasons = new Set<RefusalReason>([
   "event_not_open",
   "illegal_transition",
   "duplicate_pairing",
+  "vouching_expired",
 ]);
 
 /**

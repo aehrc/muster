@@ -35,6 +35,8 @@ export {
   paginationSchema,
   pairingStateSchema,
   registrationModeSchema,
+  signingKeyStatusSchema,
+  signingPurposeSchema,
   type AccountStatus,
   type AuthorizationMode,
   type CheckFailureMode,
@@ -46,6 +48,8 @@ export {
   type Pagination,
   type PairingState,
   type RegistrationMode,
+  type SigningKeyStatus,
+  type SigningPurpose,
 } from "./common.ts";
 export {
   accountResponseSchema,
@@ -138,3 +142,19 @@ export {
   type PairingSummary,
   type RegistrationFields,
 } from "./pairings.ts";
+export {
+  dcrRunStepSchema,
+  dcrStepOutcomeSchema,
+  jwksSchema,
+  publicJwkSchema,
+  registrationErrorSchema,
+  softwareStatementViewSchema,
+  statementClaimsSchema,
+  type DcrRunStep,
+  type DcrStepOutcome,
+  type Jwks,
+  type PublicJwk,
+  type RegistrationError,
+  type SoftwareStatementView,
+  type StatementClaims,
+} from "./registration.ts";

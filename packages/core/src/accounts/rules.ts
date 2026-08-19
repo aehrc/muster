@@ -47,7 +47,9 @@ export type RefusalReason =
   | "wrong_side"
   | "not_in_event"
   | "registration_not_needed"
-  | "duplicate_pairing";
+  | "duplicate_pairing"
+  | "invalid_metadata"
+  | "vouching_expired";
 
 /** A refusal, with wording fit to show the person refused. */
 export type Refusal = {

@@ -110,6 +110,24 @@ export const registrationModeSchema = z.enum(["open", "manual", "trustedDcr"]);
 export type RegistrationMode = z.infer<typeof registrationModeSchema>;
 
 /**
+ * What a signing key signs. Statements and tickets have separate keys, from the
+ * same machinery, so that compromising one does not implicate the other.
+ */
+export const signingPurposeSchema = z.enum(["statements", "tickets"]);
+
+/** What a signing key signs. */
+export type SigningPurpose = z.infer<typeof signingPurposeSchema>;
+
+/**
+ * Whether a key is the one being signed with, or one kept published so that
+ * artefacts signed before a rotation still verify (FR-024).
+ */
+export const signingKeyStatusSchema = z.enum(["active", "superseded"]);
+
+/** Whether a key is the one being signed with. */
+export type SigningKeyStatus = z.infer<typeof signingKeyStatusSchema>;
+
+/**
  * Why a verification check did not reach a server. `guarded` means the address
  * guard refused it and no request was made.
  */

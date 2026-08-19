@@ -72,3 +72,14 @@ export {
   type PairingTransition,
   type PairingTransitionResult,
 } from "./pairing/stateMachine.ts";
+export {
+  authoriseStatementMint,
+  mintStatement,
+  statementClaims,
+  statementGrantTypes,
+  vouchingExpiresAt,
+  type StatementClaims,
+  type StatementMintFacts,
+  type StatementMintResult,
+  type VouchingWindow,
+} from "./statements/build.ts";
