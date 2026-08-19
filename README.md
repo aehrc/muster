@@ -61,9 +61,9 @@ bun run stack:up
 bun run stack:seed
 ```
 
-The console is then at <http://localhost:8080>, signed in as
-`admin@example.org` with the password `muster-admin-password`. Mail is written
-to the log rather than sent, so a verification link is read with
+The console is then at <http://localhost:8080>. Sign in as the seeded track
+admin, `admin@example.org`, with the password `muster-admin-password`. Mail is
+written to the log rather than sent, so a verification link is read with
 `bun run stack:logs`. `bun run stack:down` removes it all, database included.
 
 The stubs are what make the whole product demonstrable without a vendor's
