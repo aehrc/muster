@@ -147,15 +147,56 @@ describe("the console", () => {
   });
 
   // Nothing outside the served directory is reachable, however the path is
-  // written: the console directory is the whole of what is published.
+  // written: the console directory is the whole of what is published. Most of
+  // these never reach the handler, because parsing the URL normalises them; the
+  // encoded one does, and the containment check is what stops it.
   test.each([
     "/../outside-the-console.txt",
     "/..%2foutside-the-console.txt",
+    "/%2e%2e/outside-the-console.txt",
     "/assets/../../outside-the-console.txt",
+    "/assets/%2e%2e/%2e%2e/outside-the-console.txt",
   ])("refuses to serve %p from outside the directory", async (path) => {
     const response = await app.request(path);
 
-    expect(await response.text()).not.toContain("not the console's");
+    const body = await response.text();
+    expect(body).not.toContain("not the console's");
+    // Either the document or a 404 envelope: never the file, and never a failure.
+    expect([200, 404]).toContain(response.status);
+    if (response.status === 200) {
+      expect(body).toBe(document);
+    }
+  });
+
+  // A path that climbed out and back in is not a content-hashed asset, whatever
+  // it starts with, so it must not be cached as one.
+  test("does not cache a path that only looks like an asset", async () => {
+    const response = await app.request("/assets/..%2findex.html");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-cache");
+  });
+
+  // A browser asked for the document with HEAD - a health checker, a link
+  // preview - is answered as a document rather than as a missing API route.
+  test("answers HEAD for the document", async () => {
+    const response = await app.request("/", { method: "HEAD" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+  });
+
+  // The console and the API share an origin, so the document carries the headers
+  // that keep another site from framing it and a browser from guessing at types.
+  test("serves the document with its security headers", async () => {
+    const response = await app.request("/");
+
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    const policy = response.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain("object-src 'none'");
   });
 
   // A deployment that serves the API alone is a legitimate configuration, and it

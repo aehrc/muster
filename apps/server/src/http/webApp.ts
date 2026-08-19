@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { stat } from "node:fs/promises";
-import { posix, resolve, sep } from "node:path";
+import { posix, relative, resolve, sep } from "node:path";
 
 import type { AppEnvironment } from "../app.ts";
 
@@ -52,8 +52,34 @@ const assetCacheControl = "public, max-age=31536000, immutable";
  */
 const documentCacheControl = "no-cache";
 
-/** The prefix Vite writes content-hashed assets under. */
-const assetPrefix = "/assets/";
+/** The directory Vite writes content-hashed assets into. */
+const assetDirectory = "assets";
+
+/**
+ * The headers every document and asset carries.
+ *
+ * The console and the API share an origin, which is what makes these worth
+ * sending: a policy that allows this origin and nothing else, no framing by
+ * anybody, and no content-type guessing. Inline styles are allowed because React
+ * sets style attributes; inline scripts are not, and the console has none - Vite
+ * emits the whole of it as files.
+ */
+const securityHeaders: Readonly<Record<string, string>> = {
+  "content-security-policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+};
 
 /**
  * Resolves a request path to a file inside the served directory.
@@ -88,6 +114,27 @@ const fileWithin = async (
   } catch {
     return undefined;
   }
+};
+
+/**
+ * Builds the response for a file inside the served directory.
+ *
+ * The cache header is decided by where the file turned out to be rather than by
+ * what the request looked like: `/assets/../index.html` is the document, and a
+ * document cached for a year is a deployment that never takes effect.
+ *
+ * @param file - the absolute path of the file to serve
+ * @param root - the directory being served
+ * @returns the response
+ */
+const serve = (file: string, root: string): Response => {
+  const within = relative(root, file);
+  const cacheControl = within.startsWith(`${assetDirectory}${sep}`)
+    ? assetCacheControl
+    : documentCacheControl;
+  return new Response(Bun.file(file), {
+    headers: { ...securityHeaders, "cache-control": cacheControl },
+  });
 };
 
 /**
@@ -128,15 +175,10 @@ export const createWebAppRoutes = (): Hono<AppEnvironment> => {
     }
 
     const directory = context.get("config").webDirectory;
+    const root = resolve(directory);
     const file = await fileWithin(directory, pathname);
     if (file !== undefined) {
-      return new Response(Bun.file(file), {
-        headers: {
-          "cache-control": pathname.startsWith(assetPrefix)
-            ? assetCacheControl
-            : documentCacheControl,
-        },
-      });
+      return serve(file, root);
     }
     if (looksLikeAFile(pathname)) {
       return next();
@@ -144,12 +186,7 @@ export const createWebAppRoutes = (): Hono<AppEnvironment> => {
 
     // The console's own router owns this path, so it is handed the document.
     const fallback = await fileWithin(directory, `/${documentName}`);
-    if (fallback === undefined) {
-      return next();
-    }
-    return new Response(Bun.file(fallback), {
-      headers: { "cache-control": documentCacheControl },
-    });
+    return fallback === undefined ? next() : serve(fallback, root);
   });
 
   return routes;
