@@ -108,6 +108,14 @@ test("passes every check against the strict endpoint", async ({ page }) => {
   ).toBeVisible();
   // Every check, and nothing reported as failed anywhere in the report.
   await expect(report.getByText("Failed")).toHaveCount(0);
+  // Quickstart scenario 3's tamper check, named rather than implied: the stub
+  // refused the statement Muster re-signed with the wrong key.
+  await expect(
+    report
+      .getByRole("listitem")
+      .filter({ hasText: "A tampered signature is" })
+      .getByText("Passed"),
+  ).toBeVisible();
 });
 
 test("shows the badge on the public event view", async ({ page }) => {
