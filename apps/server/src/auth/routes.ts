@@ -200,10 +200,19 @@ const rateLimit =
 export const createAuthRoutes = (): Hono<AppEnvironment> => {
   const routes = new Hono<AppEnvironment>();
 
-  // FR-035: every credential route, keyed by address and route and nothing
-  // else. A refused attempt is answered with the wait, so a client that backs
-  // off is let back in.
-  routes.use("*", rateLimit({ window: emptyWindow }));
+  // FR-035: the three routes that take a credential or spend a token, keyed by
+  // address and route and nothing else. A refused attempt is answered with the
+  // wait, so a client that backs off is let back in.
+  //
+  // Reading the session and signing out are deliberately not limited. A
+  // connectathon venue is behind one address, and the console asks who the
+  // caller is on every screen it renders: a limit on that would lock a whole
+  // room out of the console between them, while protecting nothing - neither
+  // route accepts a credential.
+  const limiter = rateLimit({ window: emptyWindow });
+  routes.use("/sign-up", limiter);
+  routes.use("/sign-in", limiter);
+  routes.use("/verify", limiter);
 
   routes.post("/sign-up", async (context) => {
     const body = await parseBody(context, signUpRequestSchema);

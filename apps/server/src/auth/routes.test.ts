@@ -316,4 +316,51 @@ describeDatabase("the auth routes", () => {
       await isolated.close();
     }
   });
+
+  // FR-035 names three endpoints, and reading your own session is not one of
+  // them. It matters because a connectathon venue is behind one address: the
+  // console asks who the caller is on every screen it renders, and a limit on
+  // that would lock a whole room out of the console after a few page loads
+  // between them.
+  test("does not rate limit reading the session", async () => {
+    const isolated = await startTestServer("authmelimit");
+    try {
+      const member = await signUpAndSignIn(isolated, address());
+      const statuses = [];
+      for (
+        let attempt = 0;
+        attempt < authRateLimitPolicy.limit * 2;
+        attempt += 1
+      ) {
+        const response = await request(isolated, "GET", "/api/auth/me", {
+          cookie: member.cookie,
+        });
+        statuses.push(response.status);
+      }
+
+      expect(statuses.every((status) => status === 200)).toBeTrue();
+    } finally {
+      await isolated.close();
+    }
+  });
+
+  // Nor is signing out, for the same reason: it spends no credential.
+  test("does not rate limit signing out", async () => {
+    const isolated = await startTestServer("authsignoutlimit");
+    try {
+      const statuses = [];
+      for (
+        let attempt = 0;
+        attempt < authRateLimitPolicy.limit + 2;
+        attempt += 1
+      ) {
+        const response = await request(isolated, "POST", "/api/auth/sign-out");
+        statuses.push(response.status);
+      }
+
+      expect(statuses.every((status) => status === 200)).toBeTrue();
+    } finally {
+      await isolated.close();
+    }
+  });
 });
