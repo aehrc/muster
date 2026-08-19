@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   authoriseDirectoryRegistration,
+  authoriseRegistrationMode,
   authoriseStatementMint,
   mintStatement,
   statementGrantTypes,
@@ -237,6 +238,36 @@ describe("minting a statement", () => {
     expect(authoriseStatementMint(facts).ok).toBe(true);
     expect(authoriseStatementMint({ ...facts, ownsClient: false }).ok).toBe(
       false,
+    );
+  });
+});
+
+describe("authorising a registration mode", () => {
+  // The mode on its own, asked without an endpoint: this is all a reader of the
+  // directory knows about a server, and it is enough to decide whether a trusted
+  // registration is a thing that could happen at that server at all.
+  test("permits a server that asked to be trusted", () => {
+    expect(authoriseRegistrationMode("trustedDcr").ok).toBe(true);
+  });
+
+  // A manual server's own organisation issues the identifier, and the refusal says
+  // so in words fit to show whoever was hoping otherwise.
+  test("refuses a server that registers by hand, saying who issues instead", () => {
+    const decision = authoriseRegistrationMode("manual");
+
+    expect(decision.ok).toBe(false);
+    expect(decision.ok ? "" : decision.refusal.reason).toBe(
+      "manual_registration",
+    );
+    expect(decision.ok ? "" : decision.refusal.detail).toContain("by hand");
+  });
+
+  // FR-016: a server that needs no registration has nothing to register at.
+  test("refuses a server that needs no registration", () => {
+    const decision = authoriseRegistrationMode("open");
+
+    expect(decision.ok ? "" : decision.refusal.reason).toBe(
+      "registration_not_needed",
     );
   });
 });

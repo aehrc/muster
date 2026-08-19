@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  acceptsVouching,
   claimDetails,
   describeRun,
   mayRegister,
   runOperation,
   stepClass,
+  whyNoRun,
 } from "./dcr.ts";
 
 import type {
@@ -18,8 +20,10 @@ import type {
  * What the registration screen decides before it renders.
  *
  * Two things are being kept honest here. The screen offers the run only when the
- * server would accept one, which it asks the shared state machine rather than
- * restating; and a run whose server refused is reported as a failure even though
+ * server would accept one - which takes both the shared state machine and the
+ * server's registration mode, since a server that registers by hand refuses a
+ * vouched registration whatever state the pairing is in; and a run whose server
+ * refused is reported as a failure even though
  * the request that carried it succeeded, because the operation the member started
  * was "register this client", not "send a request" (FR-037).
  */
@@ -130,6 +134,60 @@ describe("mayRegister", () => {
   // FR-011: a closed event vouches for nothing, so the screen does not offer it.
   test("withholds the run once the event has closed", () => {
     expect(mayRegister(pairing({ eventStatus: "closed" }))).toBe(false);
+  });
+
+  // The state machine has no registration-mode dimension, so asking it alone
+  // offers a run at a server that registers by hand - which the server route
+  // refuses, and whose own organisation issues the identifier. The mode is asked
+  // as well, of the same rule the route asks.
+  test("withholds the run from a server that registers by hand", () => {
+    expect(mayRegister(pairing({ registrationMode: "manual" }))).toBe(false);
+  });
+
+  // FR-016: a server that needs no registration has nothing to register at.
+  test("withholds the run from a server that needs no registration", () => {
+    expect(mayRegister(pairing({ registrationMode: "open" }))).toBe(false);
+  });
+});
+
+describe("acceptsVouching", () => {
+  // The registration screen is about a server that takes what Muster vouches for.
+  // For any other server there is nothing on that screen that is true, so the
+  // screen refuses instead of describing a run that cannot happen - including when
+  // it is reached by its address rather than by the link.
+  test("holds for a server that asked to be trusted", () => {
+    expect(acceptsVouching(pairing())).toBe(true);
+    expect(acceptsVouching(pairing({ state: "fulfilled" }))).toBe(true);
+  });
+
+  test("fails for a server that registers by hand or needs no registration", () => {
+    expect(acceptsVouching(pairing({ registrationMode: "manual" }))).toBe(
+      false,
+    );
+    expect(acceptsVouching(pairing({ registrationMode: "open" }))).toBe(false);
+  });
+});
+
+describe("whyNoRun", () => {
+  // The reason a manual pairing has no run is the server's mode, not the
+  // pairing's state, and the wording is the rule's own so the console and the
+  // route say the same thing.
+  test("blames the server's mode when it registers by hand", () => {
+    expect(whyNoRun(pairing({ registrationMode: "manual" }))).toContain(
+      "by hand",
+    );
+  });
+
+  test("blames the server's mode when it needs no registration", () => {
+    expect(whyNoRun(pairing({ registrationMode: "open" }))).toContain(
+      "nothing to register",
+    );
+  });
+
+  // A trusted-DCR pairing that has already settled has no run for a different
+  // reason, and says which state it is in.
+  test("blames the state when the server would have accepted a run", () => {
+    expect(whyNoRun(pairing({ state: "fulfilled" }))).toContain("fulfilled");
   });
 });
 

@@ -19,13 +19,14 @@ import { OperationAlert } from "../components/OperationAlert.tsx";
 import { PairingHeading } from "../components/PairingHeading.tsx";
 import { Panel } from "../components/Panel.tsx";
 import {
+  acceptsVouching,
   claimDetails,
   mayRegister,
   runOperation,
   stepClass,
+  whyNoRun,
 } from "../lib/dcr.ts";
 import { busy, failed, idle, pending } from "../lib/operation.ts";
-import { pairingStateWords } from "../lib/pairings.ts";
 import { clientDetails } from "../lib/systemDetails.ts";
 
 import type { Operation } from "../lib/operation.ts";
@@ -42,6 +43,10 @@ import type { JSX } from "react";
  * member watching a spinner deserves to know which one they are waiting for
  * (FR-037). After it: the decoded statement, the identifier the server issued,
  * and - once, and only here - the client secret.
+ *
+ * The screen exists only for a server that accepts what Muster vouches for. Reached
+ * by its address for any other, it says so and sends the reader back to the pairing,
+ * rather than describing a run that the route would refuse.
  *
  * The secret panel is the one place in Muster where a credential is on screen. It
  * says so plainly, because it will not be shown again: it is never stored, never
@@ -187,6 +192,34 @@ export function DcrRun(): JSX.Element {
     );
   }
 
+  // Reached by its address rather than by the link, for a server that never
+  // accepts a registration Muster vouches for: nothing else on this screen would
+  // be true of it, so it says what is true and sends the reader back. The route
+  // refuses such a run as well; this is so nobody has to be refused to find out.
+  if (!acceptsVouching(pairing)) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PairingHeading
+          title={`Register ${pairing.client.systemName} at ${pairing.server.systemName}`}
+          pairing={pairing}
+        >
+          <p className="text-sm text-base-content/70">{whyNoRun(pairing)}</p>
+        </PairingHeading>
+        <div role="status" className="alert alert-soft alert-warning">
+          <UnverifiedIcon size={16} />
+          <span>
+            Muster has no registration to run here. Follow the pairing itself:
+            the server&apos;s organisation records the identifier it issues.
+          </span>
+        </div>
+        <Link to={`/pairings/${pairing.id}`} className="btn btn-sm self-start">
+          <ArrowLeftIcon size={16} />
+          The pairing
+        </Link>
+      </div>
+    );
+  }
+
   const statement = run?.statement ?? pairing.statement;
 
   return (
@@ -264,8 +297,7 @@ export function DcrRun(): JSX.Element {
           <div className="flex flex-col gap-4">
             {run === null ? (
               <p className="text-sm text-base-content/70">
-                This pairing is {pairingStateWords[pairing.state].toLowerCase()}
-                , so there is no registration to run.
+                {whyNoRun(pairing)}
               </p>
             ) : null}
             <RunSteps run={run} running={false} />

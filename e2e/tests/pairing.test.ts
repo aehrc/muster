@@ -122,6 +122,25 @@ test("requests a pairing with the fields prefilled from the client", async ({
   await expect(card.getByText("Requested")).toBeVisible();
 });
 
+// The trusted-DCR panel is for servers that asked to be trusted. This server
+// registers by hand, so the pairing offers no run - and the registration screen
+// reached by its own address says why rather than offering one the route refuses.
+test("offers no vouched registration at a server that registers by hand", async ({
+  page,
+}) => {
+  await signIn(page, appOwner.email);
+  await openPairing(page);
+  await expect(
+    panel(page, "Register with no human on the server's side"),
+  ).toHaveCount(0);
+
+  await page.goto(`${page.url()}/register`);
+  await expect(page.getByText("registers clients by hand")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Register at the server" }),
+  ).toHaveCount(0);
+});
+
 test("tells the server owner, who records the identifier it issued", async ({
   page,
 }) => {

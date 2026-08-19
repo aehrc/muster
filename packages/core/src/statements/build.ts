@@ -288,12 +288,45 @@ export type DirectoryRegistrationFacts = {
 };
 
 /**
- * Decides whether Muster may present a statement to a server at all.
+ * Decides whether a server's registration mode admits a trusted registration.
  *
  * A server that registers by hand has not asked to be trusted, and one that needs
- * no registration has nothing to be registered at. A trusted-DCR entry with no
- * endpoint is an incomplete entry: deny by default, because the alternative is
- * guessing at a URL and posting a signed statement to it.
+ * no registration has nothing to be registered at. This half of the decision needs
+ * only the mode, which is what a reader of the directory holds - the console asks
+ * it so that it cannot offer a button the server route would refuse.
+ *
+ * @param mode - how the server says it registers clients
+ * @returns the decision, refusing with wording fit to show the reader
+ * @example
+ * ```ts
+ * const decision = authoriseRegistrationMode(pairing.registrationMode);
+ * ```
+ */
+export const authoriseRegistrationMode = (
+  mode: RegistrationMode,
+): AuthorisationDecision => {
+  if (mode === "open") {
+    return refuse(
+      "registration_not_needed",
+      "That server needs no registration, so there is nothing to register.",
+    );
+  }
+  if (mode === "manual") {
+    return refuse(
+      "manual_registration",
+      "That server registers clients by hand, so its own organisation issues the client identifier rather than Muster.",
+    );
+  }
+  return { ok: true };
+};
+
+/**
+ * Decides whether Muster may present a statement to a server at all.
+ *
+ * The mode decides most of it, and the endpoint decides the rest: a trusted-DCR
+ * entry with no endpoint is an incomplete entry, and deny by default applies,
+ * because the alternative is guessing at a URL and posting a signed statement to
+ * it.
  *
  * @param facts - the server's registration mode and endpoint
  * @returns the decision
@@ -308,17 +341,9 @@ export type DirectoryRegistrationFacts = {
 export const authoriseDirectoryRegistration = (
   facts: DirectoryRegistrationFacts,
 ): AuthorisationDecision => {
-  if (facts.registrationMode === "open") {
-    return refuse(
-      "registration_not_needed",
-      "That server needs no registration, so there is nothing to register.",
-    );
-  }
-  if (facts.registrationMode === "manual") {
-    return refuse(
-      "manual_registration",
-      "That server registers clients by hand, so its own organisation issues the client identifier rather than Muster.",
-    );
+  const mode = authoriseRegistrationMode(facts.registrationMode);
+  if (!mode.ok) {
+    return mode;
   }
   if (facts.registrationEndpoint === null) {
     return refuse(

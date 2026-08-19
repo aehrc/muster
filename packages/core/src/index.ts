@@ -139,6 +139,7 @@ export {
 } from "./personas/coverage.ts";
 export {
   authoriseDirectoryRegistration,
+  authoriseRegistrationMode,
   authoriseStatementMint,
   mintStatement,
   statementClaims,

@@ -1,5 +1,7 @@
+import { authoriseRegistrationMode } from "@muster/core";
+
 import { failed as failedOperation, succeeded } from "./operation.ts";
-import { mayTake } from "./pairings.ts";
+import { mayTake, pairingStateWords } from "./pairings.ts";
 import { instantDetail } from "./systemDetails.ts";
 
 import type { Operation } from "./operation.ts";
@@ -14,9 +16,11 @@ import type {
 /**
  * What the registration screen decides before it renders anything.
  *
- * Whether to offer the run is asked of the shared state machine rather than
- * restated here, so the console cannot offer a button the server would refuse or
- * withhold one it would allow.
+ * Whether to offer the run is asked of the shared rules rather than restated here -
+ * the state machine for what the pairing may do next, and the registration rule for
+ * whether this server accepts a registration Muster vouches for at all - so the
+ * console cannot offer a button the server would refuse or withhold one it would
+ * allow.
  *
  * How to report a finished run is the other half. A run whose server refused the
  * statement is a failure, even though the HTTP request that carried it succeeded:
@@ -35,11 +39,35 @@ const stepClasses: Record<DcrStepOutcome, string> = {
 };
 
 /**
+ * Whether the pairing's server takes a registration Muster vouches for at all.
+ *
+ * Separate from whether a run may be started right now, because the registration
+ * screen has nothing true to say about a server that registers by hand: it is not
+ * a screen with a disabled button on it, it is the wrong screen. The mode is asked
+ * of `@muster/core`, the same rule the route asks.
+ *
+ * @param pairing - the pairing as the console received it
+ * @returns true when the server's mode admits a vouched registration
+ * @example
+ * ```tsx
+ * if (!acceptsVouching(pairing)) {
+ *   return <Refusal reason={whyNoRun(pairing)} />;
+ * }
+ * ```
+ */
+export const acceptsVouching = (pairing: PairingSummary): boolean =>
+  authoriseRegistrationMode(pairing.registrationMode).ok;
+
+/**
  * Whether the reader may run a trusted registration on a pairing.
  *
- * Two states qualify, and both are the state machine's answer rather than this
- * module's: a request can be registered, and a failed attempt can be retried -
- * which the server does by retrying the pairing and presenting a fresh statement.
+ * Two questions, both answered by rules in `@muster/core` rather than restated
+ * here. The server's registration mode has to admit a trusted registration at
+ * all: a server that registers by hand has not asked Muster to vouch for anyone,
+ * and the state machine has no mode dimension, so asking it alone would offer a
+ * run that the server route refuses. Then the state has to allow one - a request
+ * can be registered, and a failed attempt can be retried, which the server does
+ * by retrying the pairing and presenting a fresh statement.
  *
  * @param pairing - the pairing as the console received it
  * @returns true when a run would be accepted
@@ -49,7 +77,30 @@ const stepClasses: Record<DcrStepOutcome, string> = {
  * ```
  */
 export const mayRegister = (pairing: PairingSummary): boolean =>
-  mayTake(pairing, "register") || mayTake(pairing, "retry");
+  acceptsVouching(pairing) &&
+  (mayTake(pairing, "register") || mayTake(pairing, "retry"));
+
+/**
+ * Says why a pairing has no registration to run.
+ *
+ * Two different reasons, and the difference matters to whoever is reading it:
+ * this server never accepts a registration Muster vouches for, or it would have
+ * but the pairing is past the point of one. The first is the rule's own wording,
+ * so the console and the route give the same account of the same refusal.
+ *
+ * @param pairing - the pairing as the console received it
+ * @returns the sentence to show in place of the run
+ * @example
+ * ```tsx
+ * {mayRegister(pairing) ? <RunPanel /> : <p>{whyNoRun(pairing)}</p>}
+ * ```
+ */
+export const whyNoRun = (pairing: PairingSummary): string => {
+  const mode = authoriseRegistrationMode(pairing.registrationMode);
+  return mode.ok
+    ? `This pairing is ${pairingStateWords[pairing.state].toLowerCase()}, so there is no registration to run.`
+    : mode.refusal.detail;
+};
 
 /**
  * The class that colours one step's outcome.
