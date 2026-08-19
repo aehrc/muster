@@ -118,6 +118,7 @@ export {
 } from "./directory.ts";
 export {
   createPairingRequestSchema,
+  dcrRunResponseSchema,
   declinePairingRequestSchema,
   fulfilPairingRequestSchema,
   pairingConflictSchema,
@@ -131,6 +132,7 @@ export {
   pairingSummarySchema,
   registrationFieldsSchema,
   type CreatePairingRequest,
+  type DcrRunResponse,
   type DeclinePairingRequest,
   type FulfilPairingRequest,
   type PairingConflict,

@@ -2,6 +2,7 @@ import {
   pairingEventDetailSchema,
   registrationFieldsSchema,
   serverProfileSchema,
+  statementClaimsSchema,
 } from "@muster/contracts";
 
 import type {
@@ -11,11 +12,13 @@ import type {
   PairingSide,
   PairingSummary,
   ScopeWarning,
+  SoftwareStatementView,
 } from "@muster/contracts";
 import type {
   PairingEventRow,
   PairingPartyRow,
   PairingRecordRow,
+  SoftwareStatementRow,
 } from "@muster/db";
 
 /**
@@ -128,6 +131,31 @@ const pairingEvent = (row: PairingEventRow): PairingEvent => ({
 });
 
 /**
+ * Renders a minted statement for either party.
+ *
+ * The claims, the key and where to fetch the artefact - and nothing else. The
+ * client secret a server issued in exchange for it is not part of the record and
+ * so cannot be part of this shape (the constitution).
+ *
+ * @param row - the statement as stored
+ * @returns the statement as both parties read it
+ * @throws {Error} when the stored claims do not satisfy the profile's contract
+ * @example
+ * ```ts
+ * const view = statementView(statement);
+ * ```
+ */
+export const statementView = (
+  row: SoftwareStatementRow,
+): SoftwareStatementView => ({
+  jti: row.jti,
+  keyId: row.keyId,
+  expiresAt: row.expiresAt.toISOString(),
+  claims: statementClaimsSchema.parse(row.claims),
+  downloadPath: `/api/pairings/${row.pairingId}/statement`,
+});
+
+/**
  * Renders a pairing in full.
  *
  * @param record - the pairing and its two sides
@@ -135,11 +163,15 @@ const pairingEvent = (row: PairingEventRow): PairingEvent => ({
  * @param timeline - the pairing's transitions, oldest first
  * @param warning - the scope warning, when the server's advertised set does not
  *   cover what the client asked for; the same value for both parties (FR-019)
+ * @param statement - the newest software statement minted for the pairing, when
+ *   one has been
  * @returns the detail
  * @throws {Error} when the stored field set does not satisfy the contract
  * @example
  * ```ts
- * context.json({ pairing: pairingDetail(record, sides, timeline, warning) });
+ * context.json({
+ *   pairing: pairingDetail(record, sides, timeline, warning, statement),
+ * });
  * ```
  */
 export const pairingDetail = (
@@ -147,6 +179,7 @@ export const pairingDetail = (
   sides: readonly PairingSide[],
   timeline: readonly PairingEventRow[],
   warning: ScopeWarning | undefined,
+  statement: SoftwareStatementRow | undefined,
 ): PairingDetail => ({
   ...pairingSummary(record, sides),
   registrationFields: registrationFieldsSchema.parse(
@@ -154,4 +187,5 @@ export const pairingDetail = (
   ),
   timeline: timeline.map(pairingEvent),
   scopeWarning: warning ?? null,
+  statement: statement === undefined ? null : statementView(statement),
 });

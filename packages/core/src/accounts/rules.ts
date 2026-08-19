@@ -48,6 +48,7 @@ export type RefusalReason =
   | "not_in_event"
   | "registration_not_needed"
   | "duplicate_pairing"
+  | "manual_registration"
   | "invalid_metadata"
   | "vouching_expired";
 

@@ -61,6 +61,7 @@ const headlineForRefusal: Record<RefusalReason, string> = {
   not_in_event: "Not enrolled in this event",
   registration_not_needed: "No registration needed",
   duplicate_pairing: "Already requested",
+  manual_registration: "Registered by hand",
   invalid_metadata: "Details cannot be vouched for",
   vouching_expired: "Vouching window has passed",
 };

@@ -52,6 +52,17 @@ export type FetchImplementation = (
   init: RequestInit,
 ) => Promise<Response>;
 
+/**
+ * The two collaborators a suite replaces: nothing else about the guard is
+ * injectable, because the guard is what is being tested.
+ */
+export type OutboundOverrides = {
+  /** address resolver; injected by tests and by the compose stack's suites */
+  readonly resolve?: AddressResolver;
+  /** fetch implementation; injected by tests */
+  readonly fetchImplementation?: FetchImplementation;
+};
+
 /** How to make the request. */
 export type OutboundFetchOptions = {
   /** deadline for the whole exchange, in milliseconds; defaults to 10 seconds */

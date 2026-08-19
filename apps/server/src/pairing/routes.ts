@@ -15,6 +15,7 @@ import {
 import {
   findCheckStatus,
   findEnrolmentById,
+  findLatestStatementForPairing,
   findPairingByKey,
   findPairingRecord,
   findSystemById,
@@ -149,7 +150,7 @@ const requireSide = async (
  * @param account - the account acting
  * @returns the organisation identifiers
  */
-const organisationsOf = async (
+export const organisationsOf = async (
   context: Context<AppEnvironment>,
   account: AccountRow,
 ): Promise<string[]> => {
@@ -169,7 +170,7 @@ const organisationsOf = async (
  * @returns the sides, client before server
  * @throws {HTTPException} 403 when the caller is on neither side
  */
-const requireSides = async (
+export const requireSides = async (
   context: Context<AppEnvironment>,
   record: PairingRecordRow,
   account: AccountRow,
@@ -224,12 +225,19 @@ const scopeWarningFor = async (
 /**
  * Renders a pairing with its timeline, as both parties read it.
  *
+ * Shared with the trusted registration routes, so a pairing reads the same
+ * whichever route answered for it.
+ *
  * @param context - the request being answered
  * @param record - the pairing and its two sides
  * @param sides - the sides the caller is on
  * @returns the detail
+ * @example
+ * ```ts
+ * return context.json({ pairing: await detailOf(context, record, sides) });
+ * ```
  */
-const detailOf = async (
+export const detailOf = async (
   context: Context<AppEnvironment>,
   record: PairingRecordRow,
   sides: readonly PairingSide[],
@@ -239,6 +247,7 @@ const detailOf = async (
     sides,
     await listPairingEvents(context.get("sql"), record.pairing.id),
     await scopeWarningFor(context, record),
+    await findLatestStatementForPairing(context.get("sql"), record.pairing.id),
   );
 
 /**
@@ -253,7 +262,7 @@ const detailOf = async (
  * @param compose - builds the message from the addresses to send it to
  * @returns nothing
  */
-const notify = async (
+export const notify = async (
   context: Context<AppEnvironment>,
   organisationId: string,
   compose: (recipients: readonly string[]) => MailMessage,

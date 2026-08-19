@@ -9,6 +9,11 @@ import {
 } from "./common.ts";
 import { clientProfileSchema, organisationSummarySchema } from "./directory.ts";
 import { maximumTextLength } from "./fields.ts";
+import {
+  dcrRunStepSchema,
+  registrationErrorSchema,
+  softwareStatementViewSchema,
+} from "./registration.ts";
 
 /**
  * The pairing tracker's wire shapes: the registration field set, a pairing as
@@ -127,6 +132,15 @@ export const pairingDetailSchema = pairingSummarySchema.extend({
   registrationFields: registrationFieldsSchema,
   timeline: z.array(pairingEventSchema),
   scopeWarning: scopeWarningSchema.nullable(),
+  /**
+   * The newest software statement minted for the pairing, when one has been.
+   *
+   * Both parties see it: it is what Muster vouched for, and the server's
+   * organisation has as much reason to read that as the app's owner. It carries
+   * no secret - the secret a server issues in exchange is never part of any
+   * record.
+   */
+  statement: softwareStatementViewSchema.nullable(),
 });
 
 /** A pairing in full. */
@@ -179,3 +193,28 @@ export const pairingConflictSchema = errorEnvelopeSchema.extend({
 
 /** The refusal of a duplicate request. */
 export type PairingConflict = z.infer<typeof pairingConflictSchema>;
+
+/**
+ * `POST /api/pairings/{id}/register`: the report of one trusted-DCR run.
+ *
+ * The whole run in one answer, because the run is the operation and its parts are
+ * what the member is watching (FR-037): the steps say what happened in order, the
+ * pairing says where it left the record, and `serverError` carries the server's
+ * own refusal when it refused.
+ *
+ * `clientSecret` is present exactly once, in the response to the run that
+ * obtained it, and is never stored (the constitution). Its absence from every
+ * other shape in this file is deliberate.
+ */
+export const dcrRunResponseSchema = z.object({
+  pairing: pairingDetailSchema,
+  statement: softwareStatementViewSchema,
+  steps: z.array(dcrRunStepSchema),
+  clientId: z.string().nullable(),
+  clientSecret: z.string().optional(),
+  registeredMetadata: z.record(z.string(), z.unknown()).nullable(),
+  serverError: registrationErrorSchema.nullable(),
+});
+
+/** The report of one trusted-DCR run. */
+export type DcrRunResponse = z.infer<typeof dcrRunResponseSchema>;

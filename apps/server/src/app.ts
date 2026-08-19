@@ -5,11 +5,15 @@ import { createDirectoryRoutes } from "./admin/directory.routes.ts";
 import { createMembersRoutes } from "./admin/members.routes.ts";
 import { createAuthRoutes } from "./auth/routes.ts";
 import { createBrandsRoutes } from "./http/brands.ts";
+import { createDocsRoutes } from "./http/docs.ts";
+import { createJwksRoutes } from "./http/jwks.ts";
 import { createPublicRoutes } from "./http/publicApi.ts";
+import { createDcrRoutes } from "./pairing/dcr.routes.ts";
 import { createPairingRoutes } from "./pairing/routes.ts";
 
 import type { MusterConfig } from "./config.ts";
 import type { MailTransport } from "./mail/transport.ts";
+import type { OutboundOverrides } from "./outbound/outboundFetch.ts";
 import type { ErrorEnvelope } from "@muster/contracts";
 import type { SQL } from "bun";
 
@@ -37,6 +41,12 @@ export type AppDependencies = {
   readonly mail: MailTransport;
   /** the connection held by the serving database role */
   readonly sql: SQL;
+  /**
+   * overrides for the guarded outbound fetch; empty in a deployment, and the
+   * only way a suite drives a route that reaches a participant's server without
+   * a network.
+   */
+  readonly outbound?: OutboundOverrides;
 };
 
 /** The Hono environment every Muster route is written against. */
@@ -49,6 +59,8 @@ export type AppEnvironment = {
     mail: MailTransport;
     /** the connection held by the serving database role */
     sql: SQL;
+    /** overrides for the guarded outbound fetch; empty in a deployment */
+    outbound: OutboundOverrides;
   };
 };
 
@@ -89,6 +101,7 @@ export const createApp = (
     context.set("config", dependencies.config);
     context.set("mail", dependencies.mail);
     context.set("sql", dependencies.sql);
+    context.set("outbound", dependencies.outbound ?? {});
     await next();
   });
 
@@ -103,8 +116,14 @@ export const createApp = (
   app.route("/api", createMembersRoutes());
   app.route("/api", createDirectoryRoutes());
   app.route("/api", createPairingRoutes());
+  app.route("/api", createDcrRoutes());
   app.route("/api", createPublicRoutes());
   app.route("/api", createBrandsRoutes());
+
+  // Not under /api: the key set is published where the profile says it is, and
+  // the documentation is published where an implementer would look for it.
+  app.route("/", createJwksRoutes());
+  app.route("/", createDocsRoutes());
 
   app.notFound((context) =>
     context.json(

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  authoriseDirectoryRegistration,
   authoriseStatementMint,
   mintStatement,
   statementGrantTypes,
@@ -237,5 +238,55 @@ describe("minting a statement", () => {
     expect(authoriseStatementMint({ ...facts, ownsClient: false }).ok).toBe(
       false,
     );
+  });
+});
+
+describe("authorising a directory-initiated registration", () => {
+  // The ceiling of the pairing workflow: a server that published a registration
+  // endpoint and asked to be trusted.
+  test("permits a trusted-DCR server with a registration endpoint", () => {
+    expect(
+      authoriseDirectoryRegistration({
+        registrationMode: "trustedDcr",
+        registrationEndpoint: "https://stub.example.org/register",
+      }).ok,
+    ).toBe(true);
+  });
+
+  // A server that registers clients by hand has not asked to be trusted, and
+  // Muster does not decide on its behalf that it has.
+  test("refuses a server that registers by hand", () => {
+    const decision = authoriseDirectoryRegistration({
+      registrationMode: "manual",
+      registrationEndpoint: null,
+    });
+
+    expect(decision.ok).toBe(false);
+    expect(decision.ok ? "" : decision.refusal.reason).toBe(
+      "manual_registration",
+    );
+  });
+
+  // FR-016: a server that needs no registration has nothing to register at.
+  test("refuses a server that needs no registration", () => {
+    const decision = authoriseDirectoryRegistration({
+      registrationMode: "open",
+      registrationEndpoint: null,
+    });
+
+    expect(decision.ok ? "" : decision.refusal.reason).toBe(
+      "registration_not_needed",
+    );
+  });
+
+  // Deny by default: a trusted-DCR entry with no endpoint is an incomplete entry,
+  // not an invitation to guess where the endpoint is.
+  test("refuses a trusted-DCR server with no registration endpoint", () => {
+    const decision = authoriseDirectoryRegistration({
+      registrationMode: "trustedDcr",
+      registrationEndpoint: null,
+    });
+
+    expect(decision.ok ? "" : decision.refusal.reason).toBe("invalid_metadata");
   });
 });

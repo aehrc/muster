@@ -247,3 +247,41 @@ export const pairingDeclinedMessage = (
     `The pairing, with its history: ${pairingUrl(config, notice)}`,
   ].join("\n"),
 });
+
+/**
+ * The message telling a server's organisation that a client registered itself
+ * (FR-026).
+ *
+ * Sent because nobody on the server's side did anything: their entry says the
+ * server accepts trusted registration, Muster vouched, and a client now exists
+ * that they did not create. An organisation finding that out from its own logs
+ * would be a worse directory than one that emails them.
+ *
+ * @param config - the configuration the public URL derives from
+ * @param recipients - the server organisation's members
+ * @param notice - the pairing being reported on
+ * @param clientId - the identifier the server itself issued
+ * @returns the message to send
+ * @example
+ * ```ts
+ * await mail.send(pairingRegisteredMessage(config, emails, notice, clientId));
+ * ```
+ */
+export const pairingRegisteredMessage = (
+  config: MusterConfig,
+  recipients: readonly string[],
+  notice: PairingNotice,
+  clientId: string,
+): MailMessage => ({
+  to: [...recipients],
+  subject: `${notice.clientName} has registered itself with ${notice.serverName}`,
+  text: [
+    `${notice.serverName} accepted Muster's software statement for ${notice.clientName}`,
+    `and registered it for ${notice.eventName}. Nobody in your organisation had to`,
+    "act: your entry says the server accepts trusted registration.",
+    "",
+    `The client identifier your server issued: ${clientId}`,
+    "",
+    `What Muster vouched for, and the history: ${pairingUrl(config, notice)}`,
+  ].join("\n"),
+});

@@ -49,6 +49,13 @@ export {
   type ScopeWarningFacts,
 } from "./checks/evaluate.ts";
 export {
+  findProfileDocument,
+  profileDocuments,
+  type DocBlock,
+  type DocSection,
+  type ProfileDocument,
+} from "./docs/profiles.ts";
+export {
   consume,
   emptyWindow,
   pruneWindow,
@@ -73,11 +80,13 @@ export {
   type PairingTransitionResult,
 } from "./pairing/stateMachine.ts";
 export {
+  authoriseDirectoryRegistration,
   authoriseStatementMint,
   mintStatement,
   statementClaims,
   statementGrantTypes,
   vouchingExpiresAt,
+  type DirectoryRegistrationFacts,
   type StatementClaims,
   type StatementMintFacts,
   type StatementMintResult,

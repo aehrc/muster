@@ -6,6 +6,7 @@ import { createMailTransport } from "../mail/transport.ts";
 
 import type { AppEnvironment } from "../app.ts";
 import type { MusterConfig } from "../config.ts";
+import type { OutboundOverrides } from "../outbound/outboundFetch.ts";
 import type { MigratedSchema } from "@muster/db/test/harness";
 import type { Hono } from "hono";
 import type { z } from "zod";
@@ -70,6 +71,8 @@ const testConfig = (databaseUrl: string): MusterConfig =>
  * limiter in one test from refusing requests in another.
  *
  * @param prefix - a lower-case prefix identifying the suite
+ * @param outbound - replacements for the guarded fetch's collaborators, for a
+ *   suite that drives a route which reaches a participant's server
  * @returns the application, its mail, its database and the teardown
  * @throws {Error} when `MUSTER_TEST_DATABASE_URL` is not set
  * @example
@@ -79,7 +82,10 @@ const testConfig = (databaseUrl: string): MusterConfig =>
  * await server.close();
  * ```
  */
-export const startTestServer = async (prefix: string): Promise<TestServer> => {
+export const startTestServer = async (
+  prefix: string,
+  outbound: OutboundOverrides = {},
+): Promise<TestServer> => {
   const database = await createMigratedSchema(prefix);
   const config = testConfig(
     process.env["MUSTER_TEST_DATABASE_URL"] ?? "postgresql://unset/unset",
@@ -87,6 +93,7 @@ export const startTestServer = async (prefix: string): Promise<TestServer> => {
   const sentMail: string[] = [];
   const app = createApp({
     config,
+    outbound,
     sql: database.sql,
     mail: createMailTransport({
       from: config.mailFrom,

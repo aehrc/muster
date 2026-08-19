@@ -101,6 +101,7 @@ const unprocessableReasons = new Set<RefusalReason>([
   "not_in_event",
   "registration_not_needed",
   "invalid_metadata",
+  "manual_registration",
 ]);
 
 /**

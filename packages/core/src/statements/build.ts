@@ -9,7 +9,11 @@ import type {
   AuthorisationDecision,
   Refusal,
 } from "../accounts/rules.ts";
-import type { EventStatus, RegistrationFields } from "@muster/contracts";
+import type {
+  EventStatus,
+  RegistrationFields,
+  RegistrationMode,
+} from "@muster/contracts";
 
 /**
  * The software statement: what it claims, and when Muster will mint one.
@@ -258,6 +262,56 @@ export const authoriseStatementMint = (
     return refuse(
       "vouching_expired",
       `Vouching for ${facts.eventSlug} ended on ${expiresAt.toISOString().slice(0, 10)}, so a statement minted now would already have expired.`,
+    );
+  }
+  return { ok: true };
+};
+
+/** What deciding a directory-initiated registration needs to know. */
+export type DirectoryRegistrationFacts = {
+  /** how the server says it registers clients */
+  readonly registrationMode: RegistrationMode;
+  /** where it registers them, when it declares an endpoint */
+  readonly registrationEndpoint: string | null;
+};
+
+/**
+ * Decides whether Muster may present a statement to a server at all.
+ *
+ * A server that registers by hand has not asked to be trusted, and one that needs
+ * no registration has nothing to be registered at. A trusted-DCR entry with no
+ * endpoint is an incomplete entry: deny by default, because the alternative is
+ * guessing at a URL and posting a signed statement to it.
+ *
+ * @param facts - the server's registration mode and endpoint
+ * @returns the decision
+ * @example
+ * ```ts
+ * const decision = authoriseDirectoryRegistration({
+ *   registrationMode: profile.registrationMode,
+ *   registrationEndpoint: profile.registrationEndpoint ?? null,
+ * });
+ * ```
+ */
+export const authoriseDirectoryRegistration = (
+  facts: DirectoryRegistrationFacts,
+): AuthorisationDecision => {
+  if (facts.registrationMode === "open") {
+    return refuse(
+      "registration_not_needed",
+      "That server needs no registration, so there is nothing to register.",
+    );
+  }
+  if (facts.registrationMode === "manual") {
+    return refuse(
+      "manual_registration",
+      "That server registers clients by hand, so its own organisation issues the client identifier rather than Muster.",
+    );
+  }
+  if (facts.registrationEndpoint === null) {
+    return refuse(
+      "invalid_metadata",
+      "That server accepts trusted registration but declares no registration endpoint.",
     );
   }
   return { ok: true };
