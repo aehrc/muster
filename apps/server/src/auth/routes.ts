@@ -205,10 +205,11 @@ export const createAuthRoutes = (): Hono<AppEnvironment> => {
   // wait, so a client that backs off is let back in.
   //
   // Reading the session and signing out are deliberately not limited. A
-  // connectathon venue is behind one address, and the console asks who the
-  // caller is on every screen it renders: a limit on that would lock a whole
-  // room out of the console between them, while protecting nothing - neither
-  // route accepts a credential.
+  // connectathon venue is behind one address, and the console asks who the caller
+  // is on every screen it renders: a limit on that would lock a whole room out of
+  // the console between them. Neither route accepts a password or spends a
+  // single-use token, which is what a limit is for; the session cookie they do
+  // read is a 256-bit opaque token that is not worth guessing at.
   const limiter = rateLimit({ window: emptyWindow });
   routes.use("/sign-up", limiter);
   routes.use("/sign-in", limiter);

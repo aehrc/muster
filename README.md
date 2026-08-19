@@ -77,7 +77,9 @@ endpoint can be recorded.
 ### From source
 
 Serving the console from the server needs it built first, and the two directories
-default to where the image holds them, so both are given here:
+default to where the image holds them, so both are given here. One database role
+does for development; the stack and the chart use the two roles this repository
+otherwise insists on, an owning one to migrate and a serving one to serve:
 
 ```sh
 export MUSTER_PUBLIC_URL=http://localhost:8080
@@ -93,9 +95,15 @@ bun apps/server/src/index.ts
 ```
 
 The server applies its migrations at start-up and states what it started with,
-including whether it found a console to serve. For working on the console
-itself, `bun --filter @muster/web dev` serves it from Vite on port 5173 and
-proxies the API to 8080.
+including whether it found a console to serve, and it stops on `SIGTERM` after
+finishing the requests in flight. For working on the console itself,
+`bun --filter @muster/web dev` serves it from Vite on port 5173 and proxies the
+API to 8080.
+
+Note that variables exported like this stay exported: `bun run stack:seed` reads
+`deploy/stack.env` but leaves anything the shell already set alone, so it would
+seed the database above rather than the stack's. It says which database it is
+seeding for that reason.
 
 ## The stack
 
