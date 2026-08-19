@@ -15,6 +15,13 @@ console and the in-process scheduler, as one container behind one service.
 - Probes read `/healthz`, which needs no configuration and touches nothing.
 - Migrations are applied by the container at start-up, by the owning database
   role, before it serves with the non-owning one.
+- The defaults satisfy the `restricted` Pod Security Standard: non-root by uid,
+  no privilege escalation, a read-only root file system, every capability
+  dropped, and the default seccomp profile. No service account token is mounted,
+  because Muster does not talk to the Kubernetes API.
+- A change to `secretConfig` restarts the pod, because the Deployment carries a
+  checksum of it; a change to the Secret named by `existingSecret` does not, and
+  is applied by restarting the deployment yourself.
 
 ## Prerequisites
 
@@ -77,7 +84,7 @@ helm template muster deploy/helm/muster --set muster.publicUrl=https://muster.ex
 | `muster.service.port`                  | Port the service and the container listen on                                                          | `8080`                                                            |
 | `muster.terminationGracePeriodSeconds` | Time the container is given to stop                                                                   | `30`                                                              |
 | `muster.resources`                     | Container resource requests and limits                                                                | `{}`                                                              |
-| `muster.podSecurityContext`            | Pod-level security context                                                                            | `{runAsNonRoot: true}`                                            |
+| `muster.podSecurityContext`            | Pod-level security context                                                                            | non-root as uid/gid 1000, `seccompProfile: RuntimeDefault`        |
 | `muster.securityContext`               | Container-level security context                                                                      | no privilege escalation, read-only root, all capabilities dropped |
 | `muster.nodeSelector`                  | Node selector for the pod                                                                             | `{}`                                                              |
 | `muster.tolerations`                   | Tolerations for the pod                                                                               | `[]`                                                              |
@@ -162,7 +169,14 @@ muster:
 The container applies any new migrations at start-up, so an upgrade is an image
 change. The strategy is `Recreate`, so the old pod stops before the new one
 starts and there is a short outage; that is deliberate, because two instances
-would run two schedulers.
+would run two schedulers. The server stops on `SIGTERM` after finishing the
+requests in flight, within `terminationGracePeriodSeconds`.
+
+A change to the Secret named by `existingSecret` needs a restart to take effect:
+
+```bash
+kubectl rollout restart deployment/muster-deployment
+```
 
 Because signing keys are encrypted under `MUSTER_MASTER_KEY`, an upgrade must
 keep the same value in the Secret. A release that changes it starts, but the keys

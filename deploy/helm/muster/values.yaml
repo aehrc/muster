@@ -48,8 +48,16 @@ muster:
     #   cpu: "500m"
 
   # The image runs as an unprivileged user and writes nothing to its file system.
+  # The user is given by number rather than by name, because a kubelet asked to
+  # enforce runAsNonRoot cannot verify a named one and refuses to start the
+  # container; 1000 is the uid the image's USER declares. Together with the
+  # seccomp profile this satisfies the restricted Pod Security Standard.
   podSecurityContext:
     runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true

@@ -37,7 +37,16 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
+      {{- if $muster.secretConfig }}
+      annotations:
+        # A credential change in the values must restart the pod; without this the
+        # Deployment is unchanged and the old value stays in the running container.
+        muster/secret-checksum: {{ toJson $muster.secretConfig | sha256sum }}
+      {{- end }}
     spec:
+      # Muster does not talk to the Kubernetes API, so it is given no token to do
+      # it with.
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: {{ $muster.terminationGracePeriodSeconds }}
       securityContext: {{ toJson $muster.podSecurityContext }}
       nodeSelector: {{ toJson $muster.nodeSelector }}

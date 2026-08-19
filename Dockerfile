@@ -44,6 +44,10 @@ COPY --from=build /build/apps/web/dist/ ./web/
 
 ENV MUSTER_PORT=8080
 EXPOSE 8080
-USER bun
+
+# By number as well as by name: a kubelet asked to enforce runAsNonRoot cannot
+# verify a user given only as a name, and refuses to start the container. 1000 is
+# the uid the base image gives `bun`.
+USER 1000:1000
 
 ENTRYPOINT ["bun", "run", "/app/server.js"]
