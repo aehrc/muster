@@ -138,12 +138,19 @@ test("enrols a server that holds her and one that will not say", async ({
 test("reports found for the server that holds her", async ({ request }) => {
   const coverageFor = async (name: string): Promise<string | undefined> => {
     const response = await request.get(`/api/events/${eventSlug}/personas`);
+    // Inside a poll, so an answer that is not the grid is another attempt rather
+    // than a verdict.
+    if (!response.ok()) {
+      return undefined;
+    }
     const body = (await response.json()) as {
-      servers: { enrolmentId: string; system: { name: string } }[];
-      coverage: { enrolmentId: string; outcome: string }[];
+      servers?: { enrolmentId: string; system: { name: string } }[];
+      coverage?: { enrolmentId: string; outcome: string }[];
     };
-    const server = body.servers.find((held) => held.system.name === name);
-    return body.coverage.find(
+    const server = (body.servers ?? []).find(
+      (held) => held.system.name === name,
+    );
+    return (body.coverage ?? []).find(
       (cell) => cell.enrolmentId === server?.enrolmentId,
     )?.outcome;
   };

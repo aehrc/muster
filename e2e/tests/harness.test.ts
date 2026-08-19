@@ -41,8 +41,18 @@ const brokenName = `Stub Auth lax ${unique("server")}`;
 
 let serverOwner: Account;
 
+/**
+ * How long a run may take.
+ *
+ * The harness mints four statements and presents five registration requests, each
+ * through the guarded fetch with its own deadline, so a run is the slowest thing
+ * a member can ask for. The file's timeout has to exceed what an assertion waits
+ * for, or the test ends before the wait does.
+ */
+const runTimeout = 60_000;
+
 test.use({ extraHTTPHeaders: { "x-forwarded-for": participantAddress() } });
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "serial", timeout: runTimeout + 60_000 });
 
 /**
  * Opens the harness screen for one of this file's entries.
@@ -102,7 +112,7 @@ test("passes every check against the strict endpoint", async ({ page }) => {
     .click();
 
   const report = page.getByRole("region", { name: /^Run of / });
-  await expect(report).toBeVisible({ timeout: 60_000 });
+  await expect(report).toBeVisible({ timeout: runTimeout });
   await expect(
     report.getByText("This entry carries the DCR verified badge."),
   ).toBeVisible();
@@ -138,7 +148,7 @@ test("fails the tampered-signature check against the broken endpoint", async ({
     .click();
 
   const report = page.getByRole("region", { name: /^Run of / });
-  await expect(report).toBeVisible({ timeout: 60_000 });
+  await expect(report).toBeVisible({ timeout: runTimeout });
   await expect(
     report.getByText(
       "This entry carries no verified badge until a run passes every check.",

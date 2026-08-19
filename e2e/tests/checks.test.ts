@@ -97,13 +97,19 @@ const checkOf = async (
   name: string,
 ): Promise<EntryCheck | null> => {
   const response = await request.get(`/api/events/${eventSlug}/systems`);
+  // An answer that is not the event's systems is worth another attempt rather
+  // than an immediate failure: this runs inside a poll, and throwing here would
+  // turn a moment's trouble into a verdict about the scheduler.
+  if (!response.ok()) {
+    return null;
+  }
   const body = (await response.json()) as {
-    systems: {
+    systems?: {
       system: { name: string };
       check: { latest: EntryCheck } | null;
     }[];
   };
-  const entry = body.systems.find((held) => held.system.name === name);
+  const entry = (body.systems ?? []).find((held) => held.system.name === name);
   return entry?.check?.latest ?? null;
 };
 
