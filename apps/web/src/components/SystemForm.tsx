@@ -147,6 +147,26 @@ export function SystemForm({
             }}
           />
           <TextField
+            label="Authorization endpoint"
+            type="url"
+            hint="What this server says it is. A check compares it with the server's own smart-configuration and flags a difference."
+            placeholder="https://auth.example.org/authorize"
+            value={values.authorizationEndpoint}
+            onChange={(value) => {
+              change("authorizationEndpoint", value);
+            }}
+          />
+          <TextField
+            label="Token endpoint"
+            type="url"
+            hint="As above: declaring it is what lets Muster tell you when it has moved."
+            placeholder="https://auth.example.org/token"
+            value={values.tokenEndpoint}
+            onChange={(value) => {
+              change("tokenEndpoint", value);
+            }}
+          />
+          <TextField
             label="Registration endpoint"
             type="url"
             hint="Required for trusted dynamic client registration."

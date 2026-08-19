@@ -69,6 +69,43 @@ describe("buildSystemRequest", () => {
     });
   });
 
+  // FR-018: drift is detected against what an entry declares, so the console has
+  // to be able to declare it. Both endpoints are optional and are omitted when
+  // blank rather than sent as empty strings.
+  test("carries the declared authorization and token endpoints", () => {
+    const outcome = buildSystemRequest({
+      ...serverForm,
+      authorizationEndpoint: "https://auth.example.org/authorize",
+      tokenEndpoint: "https://auth.example.org/token",
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      throw new Error(outcome.issues.join("; "));
+    }
+    expect(outcome.value.serverProfile).toMatchObject({
+      authorizationEndpoint: "https://auth.example.org/authorize",
+      tokenEndpoint: "https://auth.example.org/token",
+    });
+  });
+
+  test("omits the endpoints that were left blank", () => {
+    const outcome = buildSystemRequest({
+      ...serverForm,
+      authorizationEndpoint: "  ",
+      tokenEndpoint: "",
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      throw new Error(outcome.issues.join("; "));
+    }
+    expect(outcome.value.serverProfile).not.toHaveProperty(
+      "authorizationEndpoint",
+    );
+    expect(outcome.value.serverProfile).not.toHaveProperty("tokenEndpoint");
+  });
+
   test("reads the redirect URIs and scopes as lists", () => {
     const outcome = buildSystemRequest(clientForm);
 
@@ -216,6 +253,8 @@ describe("systemFormFrom", () => {
         fhirBaseUrl: "https://fhir.example.org",
         authorizationMode: "open",
         registrationMode: "trustedDcr",
+        authorizationEndpoint: "https://auth.example.org/authorize",
+        tokenEndpoint: "https://auth.example.org/token",
         registrationEndpoint: "https://auth.example.org/register",
         notes: "Notes.",
       },

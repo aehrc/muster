@@ -46,6 +46,10 @@ export type SystemFormValues = {
   readonly authorizationMode: AuthorizationMode;
   /** how the server registers clients */
   readonly registrationMode: RegistrationMode;
+  /** where the server says it authorises, for drift detection */
+  readonly authorizationEndpoint: string;
+  /** where the server says it issues tokens, for drift detection */
+  readonly tokenEndpoint: string;
   /** where a trusted-DCR server accepts registrations */
   readonly registrationEndpoint: string;
   /** anything a person registering needs to know */
@@ -73,6 +77,8 @@ export const emptySystemForm: SystemFormValues = {
   fhirBaseUrl: "",
   authorizationMode: "smart",
   registrationMode: "manual",
+  authorizationEndpoint: "",
+  tokenEndpoint: "",
   registrationEndpoint: "",
   notes: "",
   launchUrl: "",
@@ -110,6 +116,8 @@ export const systemFormFrom = (system: SystemRecord): SystemFormValues => ({
         fhirBaseUrl: system.serverProfile.fhirBaseUrl,
         authorizationMode: system.serverProfile.authorizationMode,
         registrationMode: system.serverProfile.registrationMode,
+        authorizationEndpoint: system.serverProfile.authorizationEndpoint ?? "",
+        tokenEndpoint: system.serverProfile.tokenEndpoint ?? "",
         registrationEndpoint: system.serverProfile.registrationEndpoint ?? "",
         notes: system.serverProfile.notes,
       }),
@@ -143,6 +151,14 @@ const systemPayload = (values: SystemFormValues): unknown => ({
         fhirBaseUrl: values.fhirBaseUrl,
         authorizationMode: values.authorizationMode,
         registrationMode: values.registrationMode,
+        // Each optional endpoint is omitted when blank rather than sent as an
+        // empty string: what a member has not declared is not a declaration.
+        ...(values.authorizationEndpoint.trim() === ""
+          ? {}
+          : { authorizationEndpoint: values.authorizationEndpoint.trim() }),
+        ...(values.tokenEndpoint.trim() === ""
+          ? {}
+          : { tokenEndpoint: values.tokenEndpoint.trim() }),
         ...(values.registrationEndpoint.trim() === ""
           ? {}
           : { registrationEndpoint: values.registrationEndpoint.trim() }),
