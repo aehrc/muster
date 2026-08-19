@@ -62,7 +62,12 @@ test("refuses the superseded link, and offers a replacement", async ({
 }) => {
   await page.goto(`/verify?token=${firstToken}`);
 
-  await expect(page.getByText("already been used")).toBeVisible();
+  // Scoped to the alert: the resend panel's own description mentions a link that
+  // has already been used, so an unscoped match finds both and says nothing about
+  // which of them reported the refusal.
+  await expect(
+    page.getByRole("alert").filter({ hasText: "already been used" }),
+  ).toBeVisible();
   // The refusal is not a dead end: the offer is on the same screen.
   await expect(panel(page, "Send a new verification link")).toBeVisible();
 });
