@@ -1,0 +1,94 @@
+{{- /*
+The Muster deployment.
+
+replicas is 1 and is not configurable. Scheduled work - the liveness and
+discovery checks, and persona coverage - runs on an in-process interval in the
+server, with no queue and no worker. A second replica would run a second copy of
+that interval, doubling every participant's inbound traffic and racing to write
+the same result rows. Nothing is lost by there being only one: every result is
+persisted as it is produced, so a restart resumes rather than repeats. Do not
+raise this without first replacing the scheduler with something that tolerates
+more than one instance.
+
+The strategy is Recreate for the same reason: a rolling update would briefly run
+the old pod and the new one together, which is the two-scheduler case again.
+
+Author: John Grimes
+*/ -}}
+{{- $muster := .Values.muster -}}
+{{- $publicUrl := required "muster.publicUrl is required: every URL Muster advertises derives from it." $muster.publicUrl -}}
+{{- if and (not $muster.existingSecret) (not $muster.secretConfig) -}}
+{{- fail "Muster needs its credentials: set muster.existingSecret to a Secret holding MUSTER_MASTER_KEY, MUSTER_DATABASE_URL and MUSTER_MIGRATION_DATABASE_URL, or put them in muster.secretConfig." -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      terminationGracePeriodSeconds: {{ $muster.terminationGracePeriodSeconds }}
+      securityContext: {{ toJson $muster.podSecurityContext }}
+      nodeSelector: {{ toJson $muster.nodeSelector }}
+      tolerations: {{ toJson $muster.tolerations }}
+      affinity: {{ toJson $muster.affinity }}
+      containers:
+        - name: muster
+          image: {{ $muster.image | quote }}
+          imagePullPolicy: {{ $muster.imagePullPolicy | quote }}
+          securityContext: {{ toJson $muster.securityContext }}
+          resources: {{ toJson $muster.resources }}
+          ports:
+            - name: http
+              containerPort: {{ $muster.service.port }}
+          env:
+            - name: MUSTER_PUBLIC_URL
+              value: {{ $publicUrl | quote }}
+            - name: MUSTER_PORT
+              value: {{ $muster.service.port | quote }}
+            {{- range $name, $value := $muster.config }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          envFrom:
+            {{- if $muster.existingSecret }}
+            - secretRef:
+                name: {{ $muster.existingSecret | quote }}
+            {{- end }}
+            {{- if $muster.secretConfig }}
+            - secretRef:
+                name: {{ .Release.Name }}-secret
+            {{- end }}
+          # Start-up applies the migrations and bootstraps the serving role, so
+          # the first answer on /healthz is later than the process starting. The
+          # probes all read the same path, which needs no configuration and
+          # touches nothing.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3

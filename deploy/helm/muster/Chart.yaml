@@ -1,0 +1,19 @@
+# The Muster chart: one deployment, one service, one instance.
+#
+# Author: John Grimes
+
+apiVersion: v2
+name: muster
+description: Muster, the connectathon participant directory
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/aehrc/muster
+keywords:
+  - fhir
+  - connectathon
+  - directory
+  - smart-on-fhir
+maintainers:
+  - name: John Grimes
+    email: John.Grimes@csiro.au

@@ -1,0 +1,62 @@
+# Values for the Muster chart. See README.md for what each one does.
+#
+# Author: John Grimes
+
+muster:
+  image: "muster:latest"
+  imagePullPolicy: "Always"
+
+  # The externally reachable base URL, without a trailing slash. Required: every
+  # URL Muster mints or advertises derives from it - the issuer identifier in
+  # signed artefacts, the JWKS address, the links in email - so there is no
+  # default that could be right, and a release without it does not render.
+  publicUrl: ~
+
+  # Name of an existing Secret whose every key becomes an environment variable.
+  # This is where the credentials belong: MUSTER_MASTER_KEY,
+  # MUSTER_DATABASE_URL, MUSTER_MIGRATION_DATABASE_URL and, when mail is sent
+  # rather than logged, MUSTER_SMTP_URL. Kept out of the chart's own values so
+  # that no credential is ever written into a release.
+  existingSecret: ~
+
+  # Sensitive environment variables for the chart to hold in a Secret it creates.
+  # A convenience for a trial install; a deployment uses existingSecret, because
+  # anything in here is stored in the release and visible to anybody who can read
+  # it.
+  secretConfig: {}
+
+  # Non-sensitive environment variables, passed to the container as given. The
+  # variables Muster reads are listed in README.md; MUSTER_PUBLIC_URL is set from
+  # publicUrl above and must not be repeated here.
+  config: {}
+
+  service:
+    type: "ClusterIP"
+    port: 8080
+
+  # How long the container is given to finish what it is doing. The in-process
+  # scheduler's results are persisted as they are produced, so nothing is lost by
+  # stopping mid-round.
+  terminationGracePeriodSeconds: 30
+
+  resources: {}
+    # requests:
+    #   memory: "256Mi"
+    #   cpu: "100m"
+    # limits:
+    #   memory: "512Mi"
+    #   cpu: "500m"
+
+  # The image runs as an unprivileged user and writes nothing to its file system.
+  podSecurityContext:
+    runAsNonRoot: true
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

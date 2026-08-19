@@ -113,21 +113,54 @@ jobs:
     name: Helm lint and render
     runs-on: ubuntu-latest
 
+    strategy:
+      # Both supported lines, because the chart is installed with whichever one
+      # an operator happens to have.
+      matrix:
+        helm-version: ["v3.19.4", "v4.2.4"]
+
+    env:
+      RELEASE: >-
+        --set muster.publicUrl=https://muster.example.org
+        --set muster.existingSecret=muster-credentials
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: azure/setup-helm@v4
+        with:
+          version: ${{ matrix.helm-version }}
 
-      # The chart arrives with the polish phase; until then this job states
-      # plainly that there is nothing to lint rather than pretending to pass.
-      - name: Lint and render the chart
+      - name: Lint the chart
+        run: helm lint deploy/helm/muster $RELEASE
+
+      - name: Render the chart
+        run: helm template muster deploy/helm/muster $RELEASE
+
+      # The constitution pins a single replica, because the scheduler runs in
+      # process. A chart that rendered two would break that silently, so the
+      # rendered output is asserted rather than trusted.
+      - name: Check the render pins one replica
         run: |
-          if [ -d deploy/helm/muster ]; then
-            helm lint deploy/helm/muster
-            helm template muster deploy/helm/muster \
-              --set config.publicUrl=https://muster.example.org
-          else
-            echo "No chart at deploy/helm/muster yet (task T070); nothing to lint."
+          helm template muster deploy/helm/muster $RELEASE > rendered.yaml
+          grep -qx "  replicas: 1" rendered.yaml
+          grep -q "type: Recreate" rendered.yaml
+          grep -q "muster-credentials" rendered.yaml
+          test "$(grep -c 'replicas:' rendered.yaml)" = 1
+
+      # Configuration is deny by default in the chart as well as in the server: a
+      # release with no public URL, or with no credentials, must not render at
+      # all.
+      - name: Check the chart refuses an incomplete release
+        run: |
+          if helm template muster deploy/helm/muster; then
+            echo "The chart rendered without a public URL"
+            exit 1
+          fi
+          if helm template muster deploy/helm/muster \
+            --set muster.publicUrl=https://muster.example.org; then
+            echo "The chart rendered without any credentials"
+            exit 1
           fi
 
   e2e:
