@@ -22,6 +22,13 @@
       "when": 1787085079242,
       "tag": "0002_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787090839647,
+      "tag": "0003_keys_and_statements",
+      "breakpoints": true
     }
   ]
 }

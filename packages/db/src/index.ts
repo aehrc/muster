@@ -9,6 +9,12 @@
  */
 
 export {
+  ciphertextVersion,
+  currentCiphertextVersion,
+  decryptUnderMasterKey,
+  encryptUnderMasterKey,
+} from "./crypto/masterKey.ts";
+export {
   isCheckViolation,
   isUniqueViolation,
   postgresErrorCode,
@@ -93,6 +99,15 @@ export {
   type SystemRow,
 } from "./repositories/directory.ts";
 export {
+  findActiveSigningKey,
+  findSigningKeyByKid,
+  insertSigningKey,
+  listPublishableSigningKeys,
+  supersedeSigningKey,
+  type NewSigningKey,
+  type SigningKeyRow,
+} from "./repositories/keys.ts";
+export {
   findPairingByKey,
   findPairingRecord,
   insertPairing,
@@ -112,4 +127,10 @@ export {
   type PairingStateChange,
   type PairingStateQuery,
 } from "./repositories/pairings.ts";
+export {
+  findLatestStatementForPairing,
+  insertSoftwareStatement,
+  type NewSoftwareStatement,
+  type SoftwareStatementRow,
+} from "./repositories/statements.ts";
 export { bootstrapServerRole, type ServerRoleOptions } from "./roles.ts";

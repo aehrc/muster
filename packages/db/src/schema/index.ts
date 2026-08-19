@@ -11,4 +11,6 @@
 
 export * from "./checks.ts";
 export * from "./directory.ts";
+export * from "./keys.ts";
 export * from "./pairings.ts";
+export * from "./statements.ts";

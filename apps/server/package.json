@@ -11,6 +11,7 @@
     "@muster/core": "workspace:*",
     "@muster/db": "workspace:*",
     "hono": "^4.13.2",
+    "jose": "6.2.9",
     "nodemailer": "^9.0.5",
     "zod": "^4.4.3"
   },
