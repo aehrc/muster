@@ -172,7 +172,11 @@ export function MembersPanel({
             onChange={setEmail}
           />
         </div>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={working}>
+        <button
+          type="submit"
+          className="btn btn-primary btn-sm"
+          disabled={working}
+        >
           <PersonAddIcon size={16} />
           Add
         </button>

@@ -194,7 +194,10 @@ export function TicketPlayground(): JSX.Element {
         its grace period.
       </p>
       <p className="text-sm">
-        <Link to="/docs/ticket-profile" className="link flex items-center gap-2">
+        <Link
+          to="/docs/ticket-profile"
+          className="link flex items-center gap-2"
+        >
           <BookIcon size={14} /> What a data holder checks
         </Link>
       </p>
@@ -252,7 +255,9 @@ export function TicketPlayground(): JSX.Element {
           )}
 
           <fieldset className="flex flex-col gap-1">
-            <legend className="label font-medium mb-2">Scope constraints</legend>
+            <legend className="label font-medium mb-2">
+              Scope constraints
+            </legend>
             <div className="flex flex-col gap-1 sm:grid sm:grid-cols-2">
               {offeredScopes.map((scope) => (
                 <CheckboxField

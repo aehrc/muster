@@ -205,7 +205,10 @@ export function Docs(): JSX.Element {
           icon={<BookIcon size={18} />}
           description={document.summary}
         >
-          <Link to={`/docs/${document.slug}`} className="btn btn-primary btn-sm self-start">
+          <Link
+            to={`/docs/${document.slug}`}
+            className="btn btn-primary btn-sm self-start"
+          >
             Read the profile
           </Link>
         </Panel>
