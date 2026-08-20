@@ -252,7 +252,7 @@ export function TicketPlayground(): JSX.Element {
           )}
 
           <fieldset className="flex flex-col gap-1">
-            <legend className="label font-medium">Scope constraints</legend>
+            <legend className="label font-medium mb-2">Scope constraints</legend>
             <div className="flex flex-col gap-1 sm:grid sm:grid-cols-2">
               {offeredScopes.map((scope) => (
                 <CheckboxField
@@ -265,7 +265,7 @@ export function TicketPlayground(): JSX.Element {
                 />
               ))}
             </div>
-            <p className="text-xs text-base-content/60">
+            <p className="text-xs text-base-content/60 mt-2">
               Patient compartment reads only: a self-access ticket authorises
               the patient&apos;s own record, and nothing else.
             </p>

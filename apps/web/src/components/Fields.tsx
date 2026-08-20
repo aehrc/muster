@@ -219,7 +219,7 @@ export function CheckboxField(
         <input
           id={id}
           type="checkbox"
-          className="checkbox"
+          className="checkbox checkbox-primary checkbox-sm"
           checked={props.checked}
           onChange={(event) => {
             props.onChange(event.currentTarget.checked);
