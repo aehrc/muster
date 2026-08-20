@@ -1,3 +1,8 @@
+/*
+ * Copyright © 2026 Commonwealth Scientific and Industrial Research Organisation
+ * (CSIRO) ABN 41 687 119 230. Licensed under the Apache License, Version 2.0.
+ */
+
 /* eslint-disable no-restricted-globals -- this module is the only permitted caller of fetch */
 import { allowlistedHost } from "@muster/core";
 import { lookup } from "node:dns/promises";

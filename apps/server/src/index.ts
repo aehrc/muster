@@ -1,3 +1,8 @@
+/*
+ * Copyright © 2026 Commonwealth Scientific and Industrial Research Organisation
+ * (CSIRO) ABN 41 687 119 230. Licensed under the Apache License, Version 2.0.
+ */
+
 import { openEventCheckIntervalMs } from "@muster/core";
 import { bootstrapServerRole, runMigrations } from "@muster/db";
 import { SQL } from "bun";
