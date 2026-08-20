@@ -194,7 +194,7 @@ export function TicketPlayground(): JSX.Element {
         its grace period.
       </p>
       <p className="text-sm">
-        <Link to="/docs/ticket-profile" className="link">
+        <Link to="/docs/ticket-profile" className="link flex items-center gap-2">
           <BookIcon size={14} /> What a data holder checks
         </Link>
       </p>
