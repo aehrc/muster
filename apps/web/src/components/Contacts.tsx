@@ -65,7 +65,7 @@ export function Contacts({
           <PersonIcon size={16} />
           <span>{contact.displayName}</span>
           <a
-            className="link link-primary inline-flex items-center gap-1 font-mono text-xs"
+            className="link link-accent inline-flex items-center gap-1 font-mono text-xs"
             href={`mailto:${contact.email}`}
           >
             <MailIcon size={14} />

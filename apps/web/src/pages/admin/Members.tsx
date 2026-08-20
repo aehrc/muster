@@ -158,7 +158,7 @@ export function Members(): JSX.Element {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-soft badge-sm">
+                    <span className="badge badge-accent badge-soft badge-sm">
                       {account.status}
                     </span>
                   </td>
@@ -166,7 +166,7 @@ export function Members(): JSX.Element {
                     {account.status === "approved" ? (
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
+                        className="btn btn-soft btn-error btn-xs"
                         disabled={busy(operation)}
                         onClick={() => {
                           void decide(

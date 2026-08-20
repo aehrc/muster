@@ -12,6 +12,7 @@ import {
   ShieldCheckIcon,
   SignInIcon,
   SignOutIcon,
+  SyncIcon,
 } from "@primer/octicons-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -122,9 +123,9 @@ export function SignIn(): JSX.Element {
           result.ok
             ? succeeded(
                 verifying,
-                "Your address is verified. A track admin approves accounts before they can create anything; you can sign in now and watch for that.",
+                "Your address is verified. A track admin approves accounts before they can create anything; you can sign in now and watch for that."
               )
-            : failed(verifying, result.failure),
+            : failed(verifying, result.failure)
         );
         setParameters(new URLSearchParams(), { replace: true });
         refresh();
@@ -147,12 +148,12 @@ export function SignIn(): JSX.Element {
     const result = await muster.post(
       "/api/auth/resend-verification",
       outcome.value,
-      resendVerificationResponseSchema,
+      resendVerificationResponseSchema
     );
     setOperation(
       result.ok
         ? succeeded(resending, resentMessage(outcome.value.email))
-        : failed(resending, result.failure),
+        : failed(resending, result.failure)
     );
   };
 
@@ -166,16 +167,13 @@ export function SignIn(): JSX.Element {
     const result = await muster.post(
       "/api/auth/sign-in",
       outcome.value,
-      sessionViewSchema,
+      sessionViewSchema
     );
     if (result.ok) {
       adopt(result.data);
       setPassword("");
       setOperation(
-        succeeded(
-          signingIn,
-          `Signed in as ${result.data.account.displayName}.`,
-        ),
+        succeeded(signingIn, `Signed in as ${result.data.account.displayName}.`)
       );
       return;
     }
@@ -196,15 +194,15 @@ export function SignIn(): JSX.Element {
     const result = await muster.post(
       "/api/auth/sign-up",
       outcome.value,
-      accountResponseSchema,
+      accountResponseSchema
     );
     setOperation(
       result.ok
         ? succeeded(
             signingUp,
-            `Account created for ${result.data.account.email}. Open the verification link Muster has emailed to that address; the account cannot create anything until the address is verified and a track admin approves it.`,
+            `Account created for ${result.data.account.email}. Open the verification link Muster has emailed to that address; the account cannot create anything until the address is verified and a track admin approves it.`
           )
-        : failed(signingUp, result.failure),
+        : failed(signingUp, result.failure)
     );
   };
 
@@ -213,7 +211,7 @@ export function SignIn(): JSX.Element {
     const result = await muster.post(
       "/api/auth/sign-out",
       {},
-      signOutResponseSchema,
+      signOutResponseSchema
     );
     if (result.ok) {
       adopt(null);
@@ -290,7 +288,7 @@ export function SignIn(): JSX.Element {
             )}
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-error btn-sm"
               disabled={working}
               onClick={() => {
                 void handleSignOut();
@@ -305,6 +303,7 @@ export function SignIn(): JSX.Element {
               disabled={working}
               onClick={refresh}
             >
+              <SyncIcon size={16} />
               Check again
             </button>
           </div>

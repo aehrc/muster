@@ -139,13 +139,12 @@ export function MyOrganisation(): JSX.Element {
       >
         <IssueList issues={issues} />
         <form
-          className="flex flex-col gap-2 sm:flex-row sm:items-end"
           onSubmit={(event) => {
             event.preventDefault();
             void handleCreate();
           }}
         >
-          <div className="flex-1">
+          <div className="mb-4">
             <TextField
               label="Organisation name"
               placeholder="ACME Health"

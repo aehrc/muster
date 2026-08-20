@@ -92,7 +92,7 @@ function SystemCard({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1">
-            <span className="badge badge-soft badge-sm">
+            <span className="badge badge-accent badge-sm">
               {kindLabel(entry.system.kinds)}
             </span>
             <EntryCheckBadge entry={entry} />
@@ -109,7 +109,7 @@ function SystemCard({
           <ul className="flex flex-wrap gap-1">
             {entry.tags.map((tag) => (
               <li key={tag}>
-                <span className="badge badge-outline badge-sm gap-1">
+                <span className="badge badge-accent badge-soft badge-sm gap-1">
                   <TagIcon size={12} />
                   {tag}
                 </span>

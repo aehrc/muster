@@ -115,6 +115,13 @@ named by `muster.existingSecret`.
 | `MUSTER_SERVER_DATABASE_PASSWORD` | Password to set on the serving role when bootstrapping it              | unset, secret                                     |
 | `MUSTER_SMTP_URL`                 | Where mail is sent. Unset writes messages to the log instead           | unset, secret                                     |
 
+`MUSTER_SMTP_URL` is in the secret group because it usually embeds a user and
+password. A relay that authenticates by source address instead - the CSIRO
+internal relay, for one - gives a URL with no credential in it, and that one can
+go in `muster.config`. Add `?requireTLS=true` when the relay offers STARTTLS, so
+that a relay which stopped offering it fails the send rather than sending in the
+clear.
+
 `MUSTER_OUTBOUND_ALLOWLIST` names hosts the SSRF guard will not check, and it is
 also what permits a participant entry to name an `http` endpoint. Both
 relaxations exist for the local stack's stubs. A deployment leaves it unset, and

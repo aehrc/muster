@@ -276,7 +276,7 @@ export function SystemsPanel({
       ) : (
         <button
           type="button"
-          className="btn btn-sm self-start"
+          className="btn btn-primary btn-sm self-start"
           onClick={() => {
             openForm(null);
           }}

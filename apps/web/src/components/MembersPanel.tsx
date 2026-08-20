@@ -137,7 +137,7 @@ export function MembersPanel({
               </span>
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="btn btn-error btn-soft btn-xs"
                 disabled={working}
                 onClick={() => {
                   void handleRemove(contact.accountId);
@@ -158,13 +158,12 @@ export function MembersPanel({
 
       <IssueList issues={issues} />
       <form
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
         onSubmit={(event) => {
           event.preventDefault();
           void handleInvite();
         }}
       >
-        <div className="flex-1">
+        <div className="mb-4">
           <TextField
             label="Add a member"
             type="email"
@@ -173,7 +172,7 @@ export function MembersPanel({
             onChange={setEmail}
           />
         </div>
-        <button type="submit" className="btn btn-sm" disabled={working}>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={working}>
           <PersonAddIcon size={16} />
           Add
         </button>
