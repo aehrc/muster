@@ -44,10 +44,10 @@ import type { JSX } from "react";
  * The screen is deliberately in three parts, in the order the member needs them.
  * Before the run: what Muster will vouch for, taken from the pairing's own
  * snapshot, so nobody is asked to authorise something they cannot see. During the
- * run: the steps, because minting, presenting and recording are three things and a
- * member watching a spinner deserves to know which one they are waiting for
- * (FR-037). After it: the decoded statement, the identifier the server issued,
- * and - once, and only here - the client secret.
+ * run: the steps, because minting, presenting, recording and notifying are four
+ * things and a member watching a spinner deserves to know which one they are
+ * waiting for (FR-037). After it: the decoded statement, the identifier the
+ * server issued, and - once, and only here - the client secret.
  *
  * The screen exists only for a server that accepts what Muster vouches for. Reached
  * by its address for any other, it says so and sends the reader back to the pairing,
@@ -79,6 +79,7 @@ function RunSteps({
     "Mint the software statement",
     "Present it to the server",
     "Record the outcome",
+    "Tell the server's organisation",
   ];
   return (
     <ol className="flex flex-col gap-3">

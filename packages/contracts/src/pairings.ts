@@ -183,8 +183,27 @@ export const pairingsResponseSchema = z.object({
   pairings: z.array(pairingSummarySchema),
 });
 
-/** `GET /api/pairings/{id}`, and every pairing mutation. */
+/** `GET /api/pairings/{id}`. */
 export const pairingResponseSchema = z.object({ pairing: pairingDetailSchema });
+
+/**
+ * Every pairing mutation: the updated resource, and whether the members on the
+ * other side could be told about it.
+ *
+ * The transition is committed before the notification is attempted, so a mail
+ * server that refuses the message cannot be allowed to fail the request - the
+ * caller would be left unable to tell whether anything was written. It is
+ * reported instead: `notificationFailure` is absent when nothing went wrong, and
+ * carries what the mail server said when something did.
+ */
+export const pairingMutationResponseSchema = pairingResponseSchema.extend({
+  notificationFailure: z.string().optional(),
+});
+
+/** Every pairing mutation. */
+export type PairingMutationResponse = z.infer<
+  typeof pairingMutationResponseSchema
+>;
 
 /**
  * The refusal of a duplicate request (FR-015).

@@ -53,6 +53,7 @@ import type { MailMessage } from "../mail/transport.ts";
 import type {
   PairingConflict,
   PairingDetail,
+  PairingMutationResponse,
   PairingSide,
   ScopeWarning,
 } from "@muster/contracts";
@@ -256,8 +257,33 @@ export const detailOf = async (
     await findLatestStatementForPairing(context.get("sql"), record.pairing.id),
   );
 
+/** Whether the members who needed telling were told. */
+export type NotificationOutcome =
+  | {
+      /** the message was handed over, to this many addresses */
+      readonly ok: true;
+      /** how many addresses it went to; zero when the organisation has none */
+      readonly recipients: number;
+    }
+  | {
+      /** the message could not be handed over */
+      readonly ok: false;
+      /** what the mail server said, for the member to read */
+      readonly detail: string;
+    };
+
+/** How much of a mail server's complaint is quoted back to the member. */
+const maximumMailFailureLength = 200;
+
 /**
  * Tells an organisation's members what has happened to a pairing.
+ *
+ * Never throws. Every caller has already committed the transition it is
+ * reporting, so a mail server that refuses the message must not turn a completed
+ * action into a failed request - least of all a registration run, whose response
+ * carries the only copy of a client secret that nothing in Muster can retrieve
+ * again. The failure is returned for the caller to report alongside the result
+ * (the constitution: every user-visible operation says what happened).
  *
  * An organisation with no members is left un-notified rather than treated as an
  * error: the specification's edge case is that an orphaned organisation's records
@@ -266,22 +292,54 @@ export const detailOf = async (
  * @param context - the request being answered
  * @param organisationId - the organisation to tell
  * @param compose - builds the message from the addresses to send it to
- * @returns nothing
+ * @returns whether the message was handed over, and what stopped it if not
+ * @example
+ * ```ts
+ * const told = await notify(context, record.server.organisationId, compose);
+ * return context.json({ pairing, ...notificationFailureOf(told) });
+ * ```
  */
 export const notify = async (
   context: Context<AppEnvironment>,
   organisationId: string,
   compose: (recipients: readonly string[]) => MailMessage,
-): Promise<void> => {
+): Promise<NotificationOutcome> => {
   const contacts = await listOrganisationContacts(
     context.get("sql"),
     organisationId,
   );
   if (contacts.length === 0) {
-    return;
+    return { ok: true, recipients: 0 };
   }
-  await context.get("mail").send(compose(contacts.map((one) => one.email)));
+  try {
+    await context.get("mail").send(compose(contacts.map((one) => one.email)));
+    return { ok: true, recipients: contacts.length };
+  } catch (cause) {
+    // Logged as well as returned: one member reading one response is not how an
+    // operator finds out that mail is broken for everybody. No address and no
+    // credential goes in the line - only what the mail server said.
+    const detail =
+      cause instanceof Error ? cause.message : "The mail server refused it.";
+    console.warn(
+      `Could not notify organisation ${organisationId}: ${detail.slice(0, maximumMailFailureLength)}`,
+    );
+    return { ok: false, detail: detail.slice(0, maximumMailFailureLength) };
+  }
 };
+
+/**
+ * Renders a notification outcome as the members a mutation response carries.
+ *
+ * Absent when nothing went wrong, so a member is never shown a warning about a
+ * message that was sent.
+ *
+ * @param outcome - what the notification did
+ * @returns the response members to spread
+ */
+export const notificationFailureOf = (
+  outcome: NotificationOutcome,
+): { readonly notificationFailure?: string } =>
+  outcome.ok ? {} : { notificationFailure: outcome.detail };
 
 /**
  * Applies a fulfilment or a decline.
@@ -358,15 +416,19 @@ const movePairing = async (
 
   const notice = noticeFor(record);
   const config = context.get("config");
-  await notify(context, record.client.organisationId, (recipients) =>
-    move.action === "fulfil"
-      ? pairingFulfilledMessage(config, recipients, notice, move.clientId)
-      : pairingDeclinedMessage(config, recipients, notice, move.reason),
+  const told = await notify(
+    context,
+    record.client.organisationId,
+    (recipients) =>
+      move.action === "fulfil"
+        ? pairingFulfilledMessage(config, recipients, notice, move.clientId)
+        : pairingDeclinedMessage(config, recipients, notice, move.reason),
   );
 
   return context.json({
     pairing: await detailOf(context, { ...record, pairing: updated }, sides),
-  });
+    ...notificationFailureOf(told),
+  } satisfies PairingMutationResponse);
 };
 
 /**
@@ -503,12 +565,17 @@ export const createPairingRoutes = (): Hono<AppEnvironment> => {
     }
     const notice = noticeFor(record);
     const config = context.get("config");
-    await notify(context, server.system.organisationId, (recipients) =>
-      pairingRequestedMessage(config, recipients, notice),
+    const told = await notify(
+      context,
+      server.system.organisationId,
+      (recipients) => pairingRequestedMessage(config, recipients, notice),
     );
 
     return context.json(
-      { pairing: await detailOf(context, record, sides) },
+      {
+        pairing: await detailOf(context, record, sides),
+        ...notificationFailureOf(told),
+      } satisfies PairingMutationResponse,
       201,
     );
   });

@@ -459,24 +459,41 @@ export const createDcrRoutes = (): Hono<AppEnvironment> => {
       detail:
         outcome.clientId === null
           ? "The pairing is marked failed, with the server's error, for both organisations to read."
-          : `The pairing is fulfilled with ${outcome.clientId}, and ${record.server.organisationName} has been told.`,
+          : `The pairing is fulfilled with ${outcome.clientId}, for both organisations to read.`,
     });
 
-    if (outcome.clientId !== null) {
-      await notify(context, record.server.organisationId, (recipients) =>
-        pairingRegisteredMessage(
-          config,
-          recipients,
-          {
-            pairingId: record.pairing.id,
-            eventName: record.eventName,
-            clientName: record.client.systemName,
-            serverName: record.server.systemName,
-          },
-          outcome.clientId ?? "",
-        ),
-      );
-    }
+    // Its own step, because the record above is already committed: a mail server
+    // that refuses the message must not fail the run and take the one copy of the
+    // client secret with it. The member is told that the registration stands and
+    // that the other organisation has not heard about it.
+    const told =
+      outcome.clientId === null
+        ? null
+        : await notify(context, record.server.organisationId, (recipients) =>
+            pairingRegisteredMessage(
+              config,
+              recipients,
+              {
+                pairingId: record.pairing.id,
+                eventName: record.eventName,
+                clientName: record.client.systemName,
+                serverName: record.server.systemName,
+              },
+              outcome.clientId ?? "",
+            ),
+          );
+    steps.push({
+      name: `Tell ${record.server.organisationName}`,
+      outcome: told === null ? "skipped" : told.ok ? "succeeded" : "failed",
+      detail:
+        told === null
+          ? "Nothing was registered, so there is nothing to tell."
+          : told.ok
+            ? told.recipients === 0
+              ? `${record.server.organisationName} has no members to tell.`
+              : `${record.server.organisationName} has been told that ${outcome.clientId} was issued.`
+            : `The registration stands, but ${record.server.organisationName} could not be told: ${told.detail}`,
+    });
 
     return context.json({
       pairing: await detailOf(context, { ...record, pairing: updated }, sides),

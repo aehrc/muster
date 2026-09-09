@@ -3,7 +3,10 @@
  * (CSIRO) ABN 41 687 119 230. Licensed under the Apache License, Version 2.0.
  */
 
-import { pairingResponseSchema } from "@muster/contracts";
+import {
+  pairingMutationResponseSchema,
+  pairingResponseSchema,
+} from "@muster/contracts";
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -123,8 +126,12 @@ type ActionProps = {
   readonly body: (value: string) => unknown;
   /** where to send it */
   readonly path: string;
-  /** called with the pairing the server answered with */
-  readonly onDone: (pairing: Pairing) => void;
+  /**
+   * Called with what to report once the action has been taken. The panel holding
+   * this form unmounts as soon as the pairing has moved, so the outcome is
+   * reported by the screen rather than here or it would never be read.
+   */
+  readonly onDone: (outcome: Operation) => void;
 };
 
 /**
@@ -152,20 +159,24 @@ function PairingActionForm(props: Readonly<ActionProps>): JSX.Element {
     const result = await muster.post(
       props.path,
       props.body(value.trim()),
-      pairingResponseSchema,
+      pairingMutationResponseSchema,
     );
     if (!result.ok) {
       setOperation(failed(props.what, result.failure));
       return;
     }
     setValue("");
-    setOperation(
-      succeeded(
-        props.what,
-        `This pairing is now ${pairingStateWords[result.data.pairing.state].toLowerCase()}. The app's owner has been told.`,
-      ),
+    const settled = `This pairing is now ${pairingStateWords[result.data.pairing.state].toLowerCase()}.`;
+    // The action is recorded either way, so a message that could not be sent is
+    // said as the caveat it is rather than as a failure of the action.
+    const outcome = succeeded(
+      props.what,
+      result.data.notificationFailure === undefined
+        ? `${settled} The app's owner has been told.`
+        : `${settled} The app's owner could not be told: ${result.data.notificationFailure}`,
     );
-    props.onDone(result.data.pairing);
+    setOperation(outcome);
+    props.onDone(outcome);
   };
 
   return (
@@ -218,6 +229,14 @@ export function PairingDetail(): JSX.Element {
     pairingResponseSchema,
     "Loading the pairing",
   );
+  // Held here rather than in the form: the panel the form sits in unmounts as
+  // soon as the pairing has moved, so an outcome reported inside it would flash
+  // and vanish (the constitution: every action produces a perceptible response).
+  const [taken, setTaken] = useState<Operation>(idle);
+  const handleDone = (outcome: Operation): void => {
+    setTaken(outcome);
+    reload();
+  };
 
   if (data === null) {
     return (
@@ -269,6 +288,7 @@ export function PairingDetail(): JSX.Element {
       </PairingHeading>
 
       <OperationAlert operation={operation} />
+      <OperationAlert operation={taken} />
 
       {pairing.clientId === null ? null : (
         <div role="status" className="alert alert-soft alert-success">
@@ -403,7 +423,7 @@ export function PairingDetail(): JSX.Element {
             icon={<CheckCircleIcon size={16} />}
             body={(clientId) => ({ clientId })}
             path={`/api/pairings/${pairing.id}/fulfil`}
-            onDone={reload}
+            onDone={handleDone}
           />
         </Panel>
       ) : null}
@@ -423,7 +443,7 @@ export function PairingDetail(): JSX.Element {
             icon={<XCircleIcon size={16} />}
             body={(reason) => ({ reason })}
             path={`/api/pairings/${pairing.id}/decline`}
-            onDone={reload}
+            onDone={handleDone}
           />
         </Panel>
       ) : null}

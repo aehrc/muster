@@ -73,6 +73,7 @@ describeDatabase("the trusted registration routes", () => {
   beforeEach(() => {
     calls = [];
     answer = () => registrationSuccess();
+    server.failMail(null);
   });
 
   afterAll(async () => {
@@ -415,6 +416,7 @@ describeDatabase("the trusted registration routes", () => {
       "succeeded",
       "succeeded",
       "succeeded",
+      "succeeded",
     ]);
     expect(run.registeredMetadata).toMatchObject({
       client_name: "Smart Forms",
@@ -472,6 +474,31 @@ describeDatabase("the trusted registration routes", () => {
     expect(run.pairing.state).toBe("fulfilled");
   });
 
+  // The registration is committed before anybody is told about it, so a mail
+  // server that refuses the notification must not turn a completed run into a
+  // failed request. It is reported as its own failed step, and the response still
+  // carries the identifier - and the one copy of the client secret, which nothing
+  // in Muster can retrieve afterwards.
+  test("reports a failed notification without failing the registration", async () => {
+    const stage = await arrangeStage();
+    server.failMail("554 Message rejected: Email address is not verified");
+
+    const response = await runRegistration(stage);
+
+    expect(response.status).toBe(200);
+    const run = await readJson(response, dcrRunResponseSchema);
+    expect(run.pairing.state).toBe("fulfilled");
+    expect(run.clientId).toBe("stub-client-1");
+    expect(run.clientSecret).toBe("s3cret-from-the-server");
+    expect(run.steps.map((step) => step.outcome)).toEqual([
+      "succeeded",
+      "succeeded",
+      "succeeded",
+      "failed",
+    ]);
+    expect(run.steps.at(-1)?.detail).toContain("554");
+  });
+
   // Failure ----------------------------------------------------------------
 
   // Acceptance scenario 3: the pairing records the failure with the server's own
@@ -500,6 +527,7 @@ describeDatabase("the trusted registration routes", () => {
       "succeeded",
       "failed",
       "succeeded",
+      "skipped",
     ]);
     expect(run.steps[1]?.detail).toContain("invalid_client_metadata");
 

@@ -5,12 +5,13 @@
 
 import {
   pairingConflictSchema,
+  pairingMutationResponseSchema,
   pairingResponseSchema,
   pairingsResponseSchema,
 } from "@muster/contracts";
 import { insertCheckResult, updateAccountStatus } from "@muster/db";
 import { describeDatabase, uniqueName } from "@muster/db/test/harness";
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 
 import {
   readJson,
@@ -40,6 +41,10 @@ describeDatabase("the pairing routes", () => {
   beforeAll(async () => {
     server = await startTestServer("pairing");
     admin = await arrangeMember(true);
+  });
+
+  beforeEach(() => {
+    server.failMail(null);
   });
 
   afterAll(async () => {
@@ -562,6 +567,73 @@ describeDatabase("the pairing routes", () => {
     const notification = server.sentMail.at(-1) ?? "";
     expect(notification).toContain(`To: ${stage.appOwner.email}`);
     expect(notification).toContain("not on our allowed list");
+  });
+
+  // The request is written before the server's organisation is told about it, so
+  // a mail server that refuses the notification must not lose the pairing. The
+  // resource is returned, and the response says what could not be sent, rather
+  // than a 500 that leaves the caller unable to tell whether anything was
+  // written.
+  test("creates a pairing and reports a notification that could not be sent", async () => {
+    const stage = await arrangeStage();
+    server.failMail("554 Message rejected: Email address is not verified");
+
+    const response = await requestPairing(stage);
+
+    expect(response.status).toBe(201);
+    const created = await readJson(response, pairingMutationResponseSchema);
+    expect(created.pairing.state).toBe("requested");
+    expect(created.notificationFailure).toContain("554");
+
+    // And the pairing is there to be read, not rolled back with the message.
+    const reread = await readJson(
+      await request(server, "GET", `/api/pairings/${created.pairing.id}`, {
+        cookie: stage.appOwner.cookie,
+      }),
+      pairingResponseSchema,
+    );
+    expect(reread.pairing.id).toBe(created.pairing.id);
+  });
+
+  // The same for the answer: the identifier the server issued is recorded and
+  // returned whether or not the app owner could be told about it.
+  test("fulfils a pairing and reports a notification that could not be sent", async () => {
+    const stage = await arrangeStage();
+    const pairingId = await arrangePairing(stage);
+    server.failMail("554 Message rejected: Email address is not verified");
+
+    const response = await request(
+      server,
+      "POST",
+      `/api/pairings/${pairingId}/fulfil`,
+      {
+        body: { clientId: "smart-forms-test-2" },
+        cookie: stage.serverOwner.cookie,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const moved = await readJson(response, pairingMutationResponseSchema);
+    expect(moved.pairing.state).toBe("fulfilled");
+    expect(moved.pairing.clientId).toBe("smart-forms-test-2");
+    expect(moved.notificationFailure).toContain("554");
+  });
+
+  // Nothing failed, so there is nothing to report: the member is not shown a
+  // warning about a message that was sent.
+  test("reports no notification failure when the message was sent", async () => {
+    const stage = await arrangeStage();
+    const pairingId = await arrangePairing(stage);
+
+    const moved = await readJson(
+      await request(server, "POST", `/api/pairings/${pairingId}/fulfil`, {
+        body: { clientId: "smart-forms-test-3" },
+        cookie: stage.serverOwner.cookie,
+      }),
+      pairingMutationResponseSchema,
+    );
+
+    expect(moved.notificationFailure).toBeUndefined();
   });
 
   // FR-014: the identifier comes from the server's organisation, so the app owner

@@ -39,6 +39,11 @@ export type TestServer = {
   readonly config: MusterConfig;
   /** drops the schema and closes the connections */
   readonly close: () => Promise<void>;
+  /**
+   * Makes every subsequent send fail with the given message, as an SMTP server
+   * refusing the message does; `null` restores delivery.
+   */
+  readonly failMail: (detail: string | null) => void;
 };
 
 /** A signed-in account, with the cookie to act as it. */
@@ -119,6 +124,7 @@ export const startTestServer = async (
     environment,
   );
   const sentMail: string[] = [];
+  let mailFailure: string | null = null;
   const app = createApp({
     config,
     outbound,
@@ -126,7 +132,12 @@ export const startTestServer = async (
     mail: createMailTransport({
       from: config.mailFrom,
       delivery: { kind: "console" },
-      log: (line) => sentMail.push(line),
+      log: (line) => {
+        if (mailFailure !== null) {
+          throw new Error(mailFailure);
+        }
+        sentMail.push(line);
+      },
     }),
   });
   return {
@@ -135,6 +146,9 @@ export const startTestServer = async (
     database,
     config,
     close: () => database.close(),
+    failMail: (detail) => {
+      mailFailure = detail;
+    },
   };
 };
 

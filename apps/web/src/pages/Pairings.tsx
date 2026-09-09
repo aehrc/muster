@@ -6,7 +6,7 @@
 import {
   eventsResponseSchema,
   eventSystemsSchema,
-  pairingResponseSchema,
+  pairingMutationResponseSchema,
   pairingsResponseSchema,
 } from "@muster/contracts";
 import {
@@ -216,7 +216,7 @@ export function Pairings(): JSX.Element {
     const result = await muster.post(
       "/api/pairings",
       outcome.value,
-      pairingResponseSchema,
+      pairingMutationResponseSchema,
     );
     if (!result.ok) {
       setOperation(failed(requesting, result.failure));
@@ -224,10 +224,15 @@ export function Pairings(): JSX.Element {
       return;
     }
     setValues(emptyPairingForm);
+    const asked = `${result.data.pairing.server.systemName} has been asked to register ${result.data.pairing.client.systemName}`;
+    // The pairing exists either way, so a message that could not be sent is a
+    // caveat on a request that was made, not a failed request.
     setOperation(
       succeeded(
         requesting,
-        `${result.data.pairing.server.systemName} has been asked to register ${result.data.pairing.client.systemName}, and its members have been notified.`,
+        result.data.notificationFailure === undefined
+          ? `${asked}, and its members have been notified.`
+          : `${asked}, but its members could not be notified: ${result.data.notificationFailure}`,
       ),
     );
     pairings.reload();
