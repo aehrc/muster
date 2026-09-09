@@ -15,6 +15,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { decodeProtectedHeader, importJWK, jwtVerify } from "jose";
 
 import {
+  dayFromToday,
   readJson,
   request,
   signUpAndSignIn,
@@ -52,8 +53,11 @@ describeDatabase("the permission ticket routes", () => {
   /** The persona the tickets in this suite are minted for. */
   let persona: PersonaRow;
 
+  /** The event's first day. */
+  const startsOn = dayFromToday(-1);
+
   /** The event's last day, which caps every ticket the suite mints. */
-  const endsOn = "2026-09-03";
+  const endsOn = dayFromToday(1);
 
   /** The grace period the seeded event allows beyond its last day. */
   const graceDays = 7;
@@ -102,7 +106,7 @@ describeDatabase("the permission ticket routes", () => {
       body: {
         slug: created,
         name: "Sparked connectathon",
-        startsOn: "2026-09-01",
+        startsOn,
         endsOn,
         status: "open",
         capabilityTags: [],
@@ -231,7 +235,9 @@ describeDatabase("the permission ticket routes", () => {
   // Acceptance scenario 5: the validity cannot exceed the event's end plus its
   // grace period, whatever was asked for.
   test("caps the validity at the event's end plus its grace days", async () => {
-    const response = await mint({ validUntil: "2027-01-01T00:00:00.000Z" });
+    const response = await mint({
+      validUntil: `${dayFromToday(365)}T00:00:00.000Z`,
+    });
 
     const { ticket } = await readJson(response, ticketResponseSchema);
     const ceiling = vouchingExpiresAt({ endsOn, graceDays });
@@ -242,10 +248,11 @@ describeDatabase("the permission ticket routes", () => {
   // A shorter validity is honoured, because the cap is a ceiling rather than a
   // fixed lifetime.
   test("honours a validity that ends before the ceiling", async () => {
-    const response = await mint({ validUntil: "2026-09-02T09:00:00.000Z" });
+    const validUntil = `${dayFromToday(1)}T09:00:00.000Z`;
+    const response = await mint({ validUntil });
 
     const { ticket } = await readJson(response, ticketResponseSchema);
-    expect(ticket.expiresAt).toBe("2026-09-02T09:00:00.000Z");
+    expect(ticket.expiresAt).toBe(validUntil);
   });
 
   // The record ---------------------------------------------------------------

@@ -55,6 +55,19 @@ export type SignedIn = {
 export const testPassword = "correct horse battery staple";
 
 /**
+ * A calendar day relative to today, as `YYYY-MM-DD`.
+ *
+ * The vouching routes read the real clock, so a suite that seeds an event with a
+ * fixed date starts being refused the day its grace period runs out. Dating the
+ * event from today keeps the window open whenever the suite runs.
+ *
+ * @param offsetDays - days from today; negative for the past
+ * @returns the day in UTC
+ */
+export const dayFromToday = (offsetDays: number): string =>
+  new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+
+/**
  * Builds the configuration the suites run against.
  *
  * @param databaseUrl - the scratch schema's connection URL

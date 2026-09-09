@@ -16,6 +16,7 @@ import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { decodeProtectedHeader, importJWK, jwtVerify } from "jose";
 
 import {
+  dayFromToday,
   readJson,
   request,
   signUpAndSignIn,
@@ -152,8 +153,11 @@ describeDatabase("the trusted registration routes", () => {
     needsIntrospection: false,
   };
 
+  /** The event's first day. */
+  const startsOn = dayFromToday(-1);
+
   /** The event's last day, which caps every statement the suite mints. */
-  const endsOn = "2026-09-03";
+  const endsOn = dayFromToday(1);
 
   /** The grace period the seeded event allows beyond its last day. */
   const graceDays = 7;
@@ -213,7 +217,7 @@ describeDatabase("the trusted registration routes", () => {
       body: {
         slug,
         name: "Sparked connectathon",
-        startsOn: "2026-09-01",
+        startsOn,
         endsOn,
         status: "open",
         capabilityTags: [],

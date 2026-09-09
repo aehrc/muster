@@ -61,6 +61,18 @@ const seedCapabilityTags = [
   "data holder",
 ];
 
+/**
+ * A calendar day relative to today, as `YYYY-MM-DD`.
+ *
+ * The seeded event is dated from the day it is seeded, so vouching for it never
+ * lapses on a stack that was set up from an old checkout.
+ *
+ * @param offsetDays - days from today
+ * @returns the day in UTC
+ */
+const dayFromToday = (offsetDays: number): string =>
+  new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+
 const config = loadConfig(process.env);
 const adminEmail =
   process.env["MUSTER_SEED_ADMIN_EMAIL"] ?? "admin@example.org";
@@ -124,9 +136,9 @@ try {
   if (existingEvent === undefined) {
     const event = await insertEvent(sql, {
       slug: eventSlug,
-      name: "Sparked FHIR Connectathon, September 2026",
-      startsOn: "2026-09-01",
-      endsOn: "2026-09-03",
+      name: "Sparked FHIR Connectathon",
+      startsOn: dayFromToday(0),
+      endsOn: dayFromToday(2),
       status: "open",
       capabilityTags: seedCapabilityTags,
       personaSourceUrl,
