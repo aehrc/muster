@@ -43,6 +43,7 @@ import {
   pairingFormFor,
   pairingStateClass,
   pairingStateWords,
+  refusalNotice,
 } from "../lib/pairings.ts";
 import { useSession } from "../session/sessionContext.ts";
 
@@ -95,6 +96,7 @@ function PairingCard({
   /** the pairing to show */
   pairing: PairingSummary;
 }>): JSX.Element {
+  const refusal = refusalNotice(pairing);
   return (
     <li className="flex flex-col gap-2 rounded-box border border-base-300 bg-base-100 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -125,10 +127,8 @@ function PairingCard({
           <code className="font-mono">{pairing.clientId}</code>
         </p>
       )}
-      {pairing.declineReason === null ? null : (
-        <p className="text-sm text-base-content/70">
-          Declined: {pairing.declineReason}
-        </p>
+      {refusal === null ? null : (
+        <p className="text-sm text-base-content/70">{refusal}</p>
       )}
     </li>
   );

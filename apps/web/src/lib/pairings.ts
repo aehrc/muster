@@ -255,6 +255,35 @@ export const filterPairings = (
     : pairings.filter((pairing) => pairing.state === state);
 
 /**
+ * Says how a pairing was refused, when it was.
+ *
+ * The stored reason belongs to the state rather than to the pairing, so it is
+ * read only in the two states that carry one. A pairing that failed and then
+ * succeeded on a retry is fulfilled, and saying the server refused it would
+ * contradict the identifier shown beside it.
+ *
+ * A decline and a failure are different things, and are worded differently: a
+ * decline is a person at the server's organisation saying no, while a failure is
+ * its registration endpoint refusing what Muster presented.
+ *
+ * @param pairing - the pairing being read
+ * @returns the sentence, or null when nothing was refused
+ * @example
+ * ```tsx
+ * const notice = refusalNotice(pairing);
+ * {notice === null ? null : <div className="alert">{notice}</div>}
+ * ```
+ */
+export const refusalNotice = (pairing: PairingSummary): string | null =>
+  pairing.declineReason === null
+    ? null
+    : pairing.state === "declined"
+      ? `${pairing.server.systemName} declined: ${pairing.declineReason}`
+      : pairing.state === "failed"
+        ? `The registration at ${pairing.server.systemName} failed: ${pairing.declineReason}`
+        : null;
+
+/**
  * Finds the pairing that already joins a client and a server, if any.
  *
  * FR-015: the console offers the existing pairing rather than a request that would

@@ -467,8 +467,13 @@ export const listPairingsInState = async (
  * Moves a pairing to a new state.
  *
  * A value the transition does not carry leaves the stored one alone, so declining
- * a pairing does not erase an identifier and a retry does not erase the reason a
- * previous attempt failed.
+ * a pairing does not erase the identifier a previous fulfilment recorded.
+ *
+ * The refusal reason is the exception, because it belongs to the state rather
+ * than to the pairing: only a declined or a failed pairing has one. A transition
+ * out of both drops it, so a registration that fails and then succeeds on a retry
+ * does not leave the first attempt's error behind for the console to read as a
+ * refusal of a pairing that is fulfilled. The timeline keeps every attempt.
  *
  * @param sql - a connection
  * @param change - the pairing, the state it moves to, and what the transition
@@ -490,7 +495,11 @@ export const updatePairingState = async (
   const rows = await queryRows(sql`update pairing set
       state = ${change.state}::pairing_state,
       client_id = coalesce(${change.clientId ?? null}, client_id),
-      decline_reason = coalesce(${change.declineReason ?? null}, decline_reason),
+      decline_reason = case
+        when ${change.state}::pairing_state in ('declined', 'failed')
+          then coalesce(${change.declineReason ?? null}, decline_reason)
+        else null
+      end,
       registration_fields = coalesce(
         ${jsonParameter(change.registrationFields)}::jsonb, registration_fields),
       updated_at = now()

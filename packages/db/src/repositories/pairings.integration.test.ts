@@ -336,6 +336,58 @@ describeDatabase("the pairing schema and repositories", () => {
     );
   });
 
+  // The reason belongs to a pairing that is declined or failed, and to no other.
+  // A retry, or a registration that succeeds on a second attempt, must not leave
+  // the previous attempt's reason behind: the console reads the column to decide
+  // whether to tell the reader that the server refused, so a stale value shows a
+  // fulfilled pairing as a refused one.
+  test("clears the reason when a pairing leaves the state that carried it", async () => {
+    const arranged = await arrangePairing();
+    await updatePairingState(database.sql, {
+      id: arranged.pairing.id,
+      state: "failed",
+      declineReason: "not_found: This endpoint does not accept registration.",
+    });
+
+    // The retry a re-run performs.
+    const retried = await updatePairingState(database.sql, {
+      id: arranged.pairing.id,
+      state: "requested",
+    });
+    expect(retried?.declineReason).toBeNull();
+
+    // And the attempt that then succeeds.
+    const fulfilled = await updatePairingState(database.sql, {
+      id: arranged.pairing.id,
+      state: "fulfilled",
+      clientId: "distil-rgff5zms",
+    });
+    expect(fulfilled?.state).toBe("fulfilled");
+    expect(fulfilled?.declineReason).toBeNull();
+  });
+
+  // A transition that records no new reason while the pairing stays in a state
+  // that carries one leaves the stored reason alone, so the column is not the
+  // narrower record the timeline is.
+  test("keeps the reason while a pairing stays failed", async () => {
+    const arranged = await arrangePairing();
+    await updatePairingState(database.sql, {
+      id: arranged.pairing.id,
+      state: "failed",
+      declineReason:
+        "invalid_software_statement: The signature did not verify.",
+    });
+
+    const again = await updatePairingState(database.sql, {
+      id: arranged.pairing.id,
+      state: "failed",
+    });
+
+    expect(again?.declineReason).toBe(
+      "invalid_software_statement: The signature did not verify.",
+    );
+  });
+
   // A retry after a failure resubmits the metadata, so the snapshot is replaced
   // rather than accumulated.
   test("replaces the registration field snapshot when it is resubmitted", async () => {

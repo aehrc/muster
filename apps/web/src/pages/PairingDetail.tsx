@@ -37,6 +37,7 @@ import {
   pairingStateClass,
   pairingStateMeaning,
   pairingStateWords,
+  refusalNotice,
 } from "../lib/pairings.ts";
 import { clientDetails } from "../lib/systemDetails.ts";
 
@@ -230,6 +231,7 @@ export function PairingDetail(): JSX.Element {
 
   const { pairing } = data;
   const fields = pairing.registrationFields;
+  const refusal = refusalNotice(pairing);
 
   return (
     <div className="flex flex-col gap-6">
@@ -297,12 +299,10 @@ export function PairingDetail(): JSX.Element {
         </div>
       )}
 
-      {pairing.declineReason === null ? null : (
+      {refusal === null ? null : (
         <div role="status" className="alert alert-soft alert-warning">
           <XCircleIcon size={16} />
-          <span>
-            {pairing.server.systemName} declined: {pairing.declineReason}
-          </span>
+          <span>{refusal}</span>
         </div>
       )}
 

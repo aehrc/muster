@@ -14,6 +14,7 @@ import {
   ownClients,
   pairableServers,
   pairingFormFor,
+  refusalNotice,
 } from "./pairings.ts";
 
 import type {
@@ -95,6 +96,7 @@ const pairing = (
     readonly state?: PairingState;
     readonly sides?: readonly ("client" | "server")[];
     readonly eventStatus?: "draft" | "open" | "closed";
+    readonly declineReason?: string;
   } = {},
 ): PairingSummary => ({
   id: "pairing-1",
@@ -115,7 +117,7 @@ const pairing = (
   },
   registrationMode: "manual",
   clientId: null,
-  declineReason: null,
+  declineReason: overrides.declineReason ?? null,
   requestedAt: "2026-08-18T00:00:00.000Z",
   updatedAt: "2026-08-18T00:00:00.000Z",
   sides: [...(overrides.sides ?? ["server"])],
@@ -136,6 +138,52 @@ describe("pairableServers", () => {
       "A manual server",
       "A trustedDcr server",
     ]);
+  });
+});
+
+describe("refusalNotice", () => {
+  // Acceptance scenario 3: the reason the server gave is what the app owner has
+  // to act on, so it is said in the server's own words.
+  test("says the server declined, with its reason", () => {
+    expect(
+      refusalNotice(
+        pairing({
+          state: "declined",
+          declineReason: "That redirect URI is not on our allowed list.",
+        }),
+      ),
+    ).toBe(
+      "MediRecords FHIR declined: That redirect URI is not on our allowed list.",
+    );
+  });
+
+  // A failed registration is not a decline: nobody at the server's organisation
+  // refused anything, its registration endpoint did.
+  test("says the registration failed, with the server's error", () => {
+    expect(
+      refusalNotice(
+        pairing({
+          state: "failed",
+          declineReason: "invalid_client_metadata: redirect_uri is loopback",
+        }),
+      ),
+    ).toBe(
+      "The registration at MediRecords FHIR failed: invalid_client_metadata: redirect_uri is loopback",
+    );
+  });
+
+  // A pairing that failed once and then succeeded is fulfilled, and saying the
+  // server refused it would contradict the identifier shown beside it.
+  test("says nothing about a pairing that is neither declined nor failed", () => {
+    expect(
+      refusalNotice(
+        pairing({ state: "fulfilled", declineReason: "A previous attempt." }),
+      ),
+    ).toBeNull();
+  });
+
+  test("says nothing when no reason was recorded", () => {
+    expect(refusalNotice(pairing({ state: "declined" }))).toBeNull();
   });
 });
 
