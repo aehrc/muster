@@ -26,6 +26,12 @@ const importOrder = [
       ["parent", "sibling", "index"],
       "type",
     ],
+    // Workspace packages publish their types from .tsbuild, which only exists
+    // after a typecheck, so the resolver classifies them differently depending
+    // on whether that output is present. Pin them by name to the group the
+    // codebase already uses for them.
+    pathGroups: [{ pattern: "@muster/**", group: "external" }],
+    pathGroupsExcludedImportTypes: ["builtin", "type"],
     "newlines-between": "always",
     alphabetize: { order: "asc", caseInsensitive: true },
   },

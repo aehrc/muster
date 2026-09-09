@@ -4,8 +4,6 @@
  * (CSIRO) ABN 41 687 119 230. Licensed under the Apache License, Version 2.0.
  */
 
-import { SQL } from "bun";
-
 import { authoriseParticipantEndpoints } from "@muster/core";
 import {
   describeConnection,
@@ -18,6 +16,7 @@ import {
   updateAccountStatus,
   updateEvent,
 } from "@muster/db";
+import { SQL } from "bun";
 
 import { loadConfig } from "../apps/server/src/config.ts";
 

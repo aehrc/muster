@@ -4,9 +4,8 @@
  * (CSIRO) ABN 41 687 119 230. Licensed under the Apache License, Version 2.0.
  */
 
-import { SQL } from "bun";
-
 import { quoteIdentifier, quoteLiteral } from "@muster/db";
+import { SQL } from "bun";
 
 /**
  * Bootstraps the native dev database: idempotent, safe to run on every checkout.
