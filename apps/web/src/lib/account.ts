@@ -68,6 +68,7 @@ const headlineForRefusal: Record<RefusalReason, string> = {
   registration_not_needed: "No registration needed",
   duplicate_pairing: "Already requested",
   manual_registration: "Registered by hand",
+  trusted_registration: "Registered by Muster",
   invalid_metadata: "Details cannot be vouched for",
   vouching_expired: "Vouching window has passed",
   no_ihi: "No IHI on the source record",

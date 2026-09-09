@@ -7,6 +7,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   applyPairingAction,
+  authoriseHandFulfilment,
   authorisePairingRequest,
   openPairingStates,
   pairingTransitions,
@@ -412,6 +413,38 @@ describe("authorisePairingRequest", () => {
     expect(decision.ok).toBe(false);
     if (!decision.ok) {
       expect(decision.refusal.reason).toBe("not_in_event");
+    }
+  });
+});
+
+describe("authoriseHandFulfilment", () => {
+  // US2: a manual server's own organisation issues the identifier, so recording
+  // it by hand is the whole workflow.
+  test("permits a hand fulfilment at a server that registers by hand", () => {
+    expect(authoriseHandFulfilment("manual").ok).toBe(true);
+  });
+
+  // US5: a trusted-DCR pairing needs no human on the server's side, and Muster
+  // records the identifier the server's own endpoint issued. A member typing one
+  // in instead would have Muster assert a registration that never happened, so
+  // the refusal says who registers and how.
+  test("refuses a hand fulfilment at a trusted-DCR server", () => {
+    const decision = authoriseHandFulfilment("trustedDcr");
+
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) {
+      expect(decision.refusal.reason).toBe("trusted_registration");
+      expect(decision.refusal.detail).toContain("vouches");
+    }
+  });
+
+  // FR-016: a server that needs no registration has no identifier to record.
+  test("refuses a hand fulfilment at a server that needs no registration", () => {
+    const decision = authoriseHandFulfilment("open");
+
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) {
+      expect(decision.refusal.reason).toBe("registration_not_needed");
     }
   });
 });

@@ -305,3 +305,47 @@ export const authorisePairingRequest = (
   }
   return granted;
 };
+
+/**
+ * Decides whether a member of the server's organisation may record an issued
+ * client identifier by hand.
+ *
+ * The condition the transition table cannot see: which of the two registration
+ * workflows this pairing is in. A manual server's own organisation issues the
+ * identifier, so recording it is the workflow (FR-014). A trusted-DCR server
+ * needs no human on its side (US5) - its endpoint issues the identifier and
+ * Muster records what came back - so a member typing one in would have Muster
+ * assert a registration that nothing performed, which is a worse record than
+ * none. A server that needs no registration has no identifier at all (FR-016).
+ *
+ * The mirror of `authoriseRegistrationMode`, which decides the other workflow's
+ * action, and asked in the same two places: the route that would apply the
+ * fulfilment, and the console, so that it cannot offer a form the route refuses.
+ *
+ * @param mode - how the server says it registers clients
+ * @returns the decision, refusing with wording fit to show the reader
+ * @example
+ * ```ts
+ * const decision = authoriseHandFulfilment(profile.registrationMode);
+ * if (!decision.ok) {
+ *   throw refusalError(decision.refusal);
+ * }
+ * ```
+ */
+export const authoriseHandFulfilment = (
+  mode: RegistrationMode,
+): AuthorisationDecision => {
+  if (mode === "open") {
+    return refuse(
+      "registration_not_needed",
+      "That server needs no registration, so there is no client identifier to record.",
+    );
+  }
+  if (mode === "trustedDcr") {
+    return refuse(
+      "trusted_registration",
+      "That server accepts registrations Muster vouches for, so the app's owner runs the registration and Muster records the identifier the server issues. Recording one by hand would say a registration happened that Muster never made.",
+    );
+  }
+  return granted;
+};

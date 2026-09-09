@@ -13,6 +13,7 @@ import {
 } from "@muster/contracts";
 import {
   applyPairingAction,
+  authoriseHandFulfilment,
   authorisePairingRequest,
   normaliseRegistrationFields,
   scopeWarning,
@@ -294,7 +295,8 @@ export const notify = async (
  * @param move - the action and what it records
  * @returns the updated pairing
  * @throws {HTTPException} 403 when the caller is on the wrong side, 404 when there
- *   is no such pairing, 409 when the pairing cannot move that way
+ *   is no such pairing, 409 when the pairing cannot move that way, 422 when the
+ *   server's registration mode does not admit the action
  */
 const movePairing = async (
   context: Context<AppEnvironment>,
@@ -314,6 +316,19 @@ const movePairing = async (
   });
   if (!result.ok) {
     throw refusalError(result.refusal);
+  }
+
+  // Which workflow the pairing is in, which the transition table cannot see: at a
+  // trusted-DCR server the run records the identifier the endpoint issued, so a
+  // hand-recorded one would be Muster asserting a registration it never made.
+  // Asked after the transition, so a settled pairing is reported as settled.
+  if (move.action === "fulfil") {
+    const byHand = authoriseHandFulfilment(
+      serverProfileSchema.parse(record.serverProfile).registrationMode,
+    );
+    if (!byHand.ok) {
+      throw refusalError(byHand.refusal);
+    }
   }
 
   const updated = await updatePairingState(sql, {

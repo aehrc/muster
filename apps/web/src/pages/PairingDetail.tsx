@@ -33,9 +33,10 @@ import { describeAge } from "../lib/format.ts";
 import { busy, failed, idle, pending, succeeded } from "../lib/operation.ts";
 import {
   describeTimelineEntry,
+  mayFulfilByHand,
   mayTake,
   pairingStateClass,
-  pairingStateMeaning,
+  pairingStateSentence,
   pairingStateWords,
   refusalNotice,
 } from "../lib/pairings.ts";
@@ -53,7 +54,9 @@ import type { JSX } from "react";
  * for which organisation - so neither has to ask the other how the registration
  * went. The two actions appear only for the party entitled to take them, and only
  * while the pairing and its event can still take them, because that is what
- * `mayTake` asks the state machine.
+ * `mayTake` asks the state machine - and the fulfilment appears only where the
+ * identifier is the server organisation's to issue, which is the one thing the
+ * state machine cannot see.
  *
  * @author John Grimes
  */
@@ -250,7 +253,7 @@ export function PairingDetail(): JSX.Element {
         pairing={pairing}
       >
         <p className="text-sm text-base-content/70">
-          {pairingStateMeaning[pairing.state]}
+          {pairingStateSentence(pairing)}
         </p>
         <p className="text-sm text-base-content/70">
           Requested {describeAge(pairing.requestedAt, new Date())}, in{" "}
@@ -385,7 +388,7 @@ export function PairingDetail(): JSX.Element {
         </Panel>
       )}
 
-      {mayTake(pairing, "fulfil") ? (
+      {mayFulfilByHand(pairing) ? (
         <Panel
           title="Register the client"
           icon={<CheckCircleIcon size={18} />}

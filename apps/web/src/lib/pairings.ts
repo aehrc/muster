@@ -4,7 +4,11 @@
  */
 
 import { createPairingRequestSchema } from "@muster/contracts";
-import { applyPairingAction, prefillRegistrationFields } from "@muster/core";
+import {
+  applyPairingAction,
+  authoriseHandFulfilment,
+  prefillRegistrationFields,
+} from "@muster/core";
 
 import { joinList, parseRequest, splitList } from "./forms.ts";
 
@@ -62,6 +66,29 @@ export const pairingStateMeaning: Record<PairingState, string> = {
   failed: "An automated registration attempt was refused by the server.",
   lapsed: "The event closed while this request was still open.",
 };
+
+/**
+ * What a pairing's state means for whoever is reading it.
+ *
+ * Only `requested` depends on more than the state: a request at a manual server
+ * waits for that organisation to act, and one at a trusted-DCR server waits for
+ * nobody there, because its endpoint has already said it accepts what Muster
+ * vouches for. Saying the server's organisation is holding it up would be false,
+ * and it is what invites a member of that organisation to record an identifier by
+ * hand instead of leaving the run to the app's owner.
+ *
+ * @param pairing - the pairing as the console received it
+ * @returns the sentence to show under the state
+ * @example
+ * ```tsx
+ * <p>{pairingStateSentence(pairing)}</p>
+ * ```
+ */
+export const pairingStateSentence = (pairing: PairingSummary): string =>
+  pairing.state === "requested" &&
+  !authoriseHandFulfilment(pairing.registrationMode).ok
+    ? "Waiting for the app's owner to run the registration Muster vouches for; nobody at the server's end need act."
+    : pairingStateMeaning[pairing.state];
 
 /** Every field of the pairing request form, as text and checkboxes. */
 export type PairingFormValues = {
@@ -234,6 +261,27 @@ export const mayTake = (
     sides: pairing.sides,
     eventStatus: pairing.eventStatus,
   }).ok;
+
+/**
+ * Whether the reader may record an issued client identifier by hand.
+ *
+ * `mayTake` alone is not enough, because the state machine has no
+ * registration-mode dimension: at a trusted-DCR server the run records what the
+ * endpoint issued, so offering the form would invite a member to assert a
+ * registration nothing performed - and settle the pairing, leaving the run
+ * impossible for ever. The mirror of `mayRegister`, which gates the other
+ * workflow's action the same way.
+ *
+ * @param pairing - the pairing as the console received it
+ * @returns true when the form would be accepted
+ * @example
+ * ```tsx
+ * {mayFulfilByHand(pairing) ? <FulfilForm /> : null}
+ * ```
+ */
+export const mayFulfilByHand = (pairing: PairingSummary): boolean =>
+  authoriseHandFulfilment(pairing.registrationMode).ok &&
+  mayTake(pairing, "fulfil");
 
 /**
  * Narrows a list of pairings to one state.

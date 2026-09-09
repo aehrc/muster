@@ -113,6 +113,7 @@ export {
 } from "./pairing/registrationFields.ts";
 export {
   applyPairingAction,
+  authoriseHandFulfilment,
   authorisePairingRequest,
   openPairingStates,
   pairingTransitions,

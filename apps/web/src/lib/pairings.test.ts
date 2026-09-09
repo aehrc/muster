@@ -10,10 +10,12 @@ import {
   describeTimelineEntry,
   existingPairing,
   filterPairings,
+  mayFulfilByHand,
   mayTake,
   ownClients,
   pairableServers,
   pairingFormFor,
+  pairingStateSentence,
   refusalNotice,
 } from "./pairings.ts";
 
@@ -97,6 +99,7 @@ const pairing = (
     readonly sides?: readonly ("client" | "server")[];
     readonly eventStatus?: "draft" | "open" | "closed";
     readonly declineReason?: string;
+    readonly registrationMode?: RegistrationMode;
   } = {},
 ): PairingSummary => ({
   id: "pairing-1",
@@ -115,7 +118,7 @@ const pairing = (
     systemName: "MediRecords FHIR",
     organisation: { id: "org-medirecords", name: "MediRecords" },
   },
-  registrationMode: "manual",
+  registrationMode: overrides.registrationMode ?? "manual",
   clientId: null,
   declineReason: overrides.declineReason ?? null,
   requestedAt: "2026-08-18T00:00:00.000Z",
@@ -312,6 +315,64 @@ describe("mayTake", () => {
   // FR-011: a closed event takes nothing, whoever is asking.
   test("offers nothing once the event has closed", () => {
     expect(mayTake(pairing({ eventStatus: "closed" }), "fulfil")).toBe(false);
+  });
+});
+
+describe("mayFulfilByHand", () => {
+  // US2: at a manual server the identifier comes from the server's organisation,
+  // so the form is theirs to fill in.
+  test("offers the form at a manual server", () => {
+    expect(mayFulfilByHand(pairing())).toBe(true);
+  });
+
+  // US5: at a trusted-DCR server the run records what the endpoint issued. The
+  // state machine has no registration-mode dimension, so asking it alone would
+  // offer a form whose use would record a registration nothing performed - and
+  // settle the pairing so the run could never be made.
+  test("withholds the form at a trusted-DCR server", () => {
+    expect(mayFulfilByHand(pairing({ registrationMode: "trustedDcr" }))).toBe(
+      false,
+    );
+  });
+
+  // FR-016: a server that needs no registration issues no identifier.
+  test("withholds the form at a server that needs no registration", () => {
+    expect(mayFulfilByHand(pairing({ registrationMode: "open" }))).toBe(false);
+  });
+
+  // The state and the side still decide the rest, so the mode cannot widen what
+  // the state machine allows.
+  test("withholds the form from the client's side and from a settled pairing", () => {
+    expect(mayFulfilByHand(pairing({ sides: ["client"] }))).toBe(false);
+    expect(mayFulfilByHand(pairing({ state: "fulfilled" }))).toBe(false);
+  });
+});
+
+describe("pairingStateSentence", () => {
+  // A request at a manual server is waiting for a person; saying so is what tells
+  // the server's organisation that it is their turn.
+  test("says a manual request is waiting for the server's organisation", () => {
+    expect(pairingStateSentence(pairing())).toContain("server's organisation");
+  });
+
+  // A request at a trusted-DCR server is waiting for nobody on the server's side,
+  // and saying otherwise is what invites a member to record an identifier by hand.
+  test("says a trusted-DCR request is the app owner's to run", () => {
+    const sentence = pairingStateSentence(
+      pairing({ registrationMode: "trustedDcr" }),
+    );
+
+    expect(sentence).toContain("app's owner");
+    expect(sentence).not.toContain("server's organisation");
+  });
+
+  // Every other state reads the same whichever workflow the pairing was in.
+  test("reads a settled pairing the same in either workflow", () => {
+    expect(
+      pairingStateSentence(
+        pairing({ registrationMode: "trustedDcr", state: "fulfilled" }),
+      ),
+    ).toBe(pairingStateSentence(pairing({ state: "fulfilled" })));
   });
 });
 

@@ -106,7 +106,10 @@ const unprocessableReasons = new Set<RefusalReason>([
   "not_in_event",
   "registration_not_needed",
   "invalid_metadata",
+  // The two registration workflows, each refusing the other's action: what is
+  // wrong is the server entry the request named, not the member asking.
   "manual_registration",
+  "trusted_registration",
   // An endpoint Muster may not fetch: the request named an address, and what is
   // wrong is the address rather than the caller.
   "insecure_endpoint",

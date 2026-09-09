@@ -55,6 +55,7 @@ export type RefusalReason =
   | "registration_not_needed"
   | "duplicate_pairing"
   | "manual_registration"
+  | "trusted_registration"
   | "invalid_metadata"
   | "vouching_expired"
   | "no_ihi"

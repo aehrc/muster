@@ -612,6 +612,60 @@ describeDatabase("the pairing routes", () => {
     expect(response.status).toBe(403);
   });
 
+  // US5: a trusted-DCR pairing is fulfilled by the run, which records what the
+  // server's own endpoint issued. Typing an identifier in instead would have
+  // Muster report a registration nothing performed, and leave the pairing
+  // settled so the run could never be made - so it is refused, and the pairing
+  // is left where it was.
+  test("refuses a hand fulfilment at a trusted-DCR server", async () => {
+    const stage = await arrangeStage("trustedDcr");
+    const pairingId = await arrangePairing(stage);
+
+    const response = await request(
+      server,
+      "POST",
+      `/api/pairings/${pairingId}/fulfil`,
+      { body: { clientId: "invented" }, cookie: stage.serverOwner.cookie },
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      detail: expect.stringContaining("vouches"),
+    });
+
+    const { pairing } = await readJson(
+      await request(server, "GET", `/api/pairings/${pairingId}`, {
+        cookie: stage.serverOwner.cookie,
+      }),
+      pairingResponseSchema,
+    );
+    expect(pairing.state).toBe("requested");
+    expect(pairing.clientId).toBeNull();
+    expect(pairing.timeline).toHaveLength(1);
+  });
+
+  // The other action stays available: a server's organisation that has changed
+  // its mind about a particular client can still say so, and a decline records
+  // only what they said.
+  test("declines a trusted-DCR pairing for the server's organisation", async () => {
+    const stage = await arrangeStage("trustedDcr");
+    const pairingId = await arrangePairing(stage);
+
+    const response = await request(
+      server,
+      "POST",
+      `/api/pairings/${pairingId}/decline`,
+      {
+        body: { reason: "Not for this event." },
+        cookie: stage.serverOwner.cookie,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const { pairing } = await readJson(response, pairingResponseSchema);
+    expect(pairing.state).toBe("declined");
+  });
+
   // A settled pairing does not move again: the second fulfilment is refused
   // rather than overwriting the first, so nobody is left wondering which
   // identifier is current.
